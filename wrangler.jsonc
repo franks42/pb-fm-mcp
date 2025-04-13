@@ -2,7 +2,7 @@
     "name": "fastapi-worker",
     "main": "src/worker.py",
     "compatibility_flags": [
-        "python_workers"
+        "python_workers",
     ],
     "compatibility_date": "2025-04-10",
     "vars": {
@@ -16,5 +16,24 @@
             "type": "Data",
             "fallthrough": true
         }
-    ]
+    ],
+    "durable_objects": {
+        "bindings": [
+            {
+                "name": "ns",
+                "class_name": "FastMCPServer"
+            }
+        ]
+    },
+    "migrations": [
+        {
+            "tag": "v1",
+            "new_sqlite_classes": [
+                "FastMCPServer"
+            ]
+        }
+    ],
+    "observability": {
+        "enabled": true
+    }
 }
