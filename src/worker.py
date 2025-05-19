@@ -1,17 +1,15 @@
 import sys
 
-from workers import DurableObject
-
 sys.path.insert(0, "/session/metadata/vendor")
 sys.path.insert(0, "/session/metadata")
 
+from mcp.server.fastmcp import FastMCP
+
+from exceptions import HTTPException, http_exception
+
 
 def setup_server():
-    from mcp.server.fastmcp import FastMCP
-
-    from exceptions import HTTPException, http_exception
-
-    mcp = FastMCP("Demo")
+    mcp = FastMCP("Demo", stateless_http=True)
 
     @mcp.tool()
     def add(a: int, b: int) -> int:
@@ -33,24 +31,13 @@ def setup_server():
         """Create an echo prompt"""
         return f"Please process this message: {message}"
 
-    app = mcp.sse_app()
+    app = mcp.streamable_http_app()
     app.add_exception_handler(HTTPException, http_exception)
     return mcp, app
 
 
-class FastMCPServer(DurableObject):
-    def __init__(self, ctx, env):
-        self.ctx = ctx
-        self.env = env
-        self.mcp, self.app = setup_server()
+async def on_fetch(request, env, ctx):
+    mcp, app = setup_server()
+    import asgi
 
-    async def call(self, request):
-        import asgi
-
-        return await asgi.fetch(self.app, request, self.env, self.ctx)
-
-
-async def on_fetch(request, env):
-    id = env.ns.idFromName("A")
-    obj = env.ns.get(id)
-    return await obj.call(request)
+    return await asgi.fetch(app, request, env, ctx)

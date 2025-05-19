@@ -17,22 +17,6 @@
             "fallthrough": true
         }
     ],
-    "durable_objects": {
-        "bindings": [
-            {
-                "name": "ns",
-                "class_name": "FastMCPServer"
-            }
-        ]
-    },
-    "migrations": [
-        {
-            "tag": "v1",
-            "new_sqlite_classes": [
-                "FastMCPServer"
-            ]
-        }
-    ],
     "observability": {
         "enabled": true
     }
