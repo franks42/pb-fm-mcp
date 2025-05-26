@@ -7,7 +7,7 @@ import time
 import pytest
 import requests
 from mcp import ClientSession
-from mcp.client.sse import sse_client
+from mcp.client.streamable_http import streamablehttp_client
 from mcp.types import (
     CallToolResult,
     ListPromptsResult,
@@ -93,7 +93,7 @@ def test_nonexistent_page(web_server):
 @pytest.mark.asyncio
 async def test_sse_connection(web_server):
     """Test that we can establish a connection to the SSE endpoint."""
-    async with sse_client(f"{web_server.base_url}/sse") as (read, write):
+    async with streamablehttp_client(f"{web_server.base_url}/mcp") as (read, write, _):
         async with ClientSession(
             read,
             write,

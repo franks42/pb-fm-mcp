@@ -3,12 +3,11 @@ import sys
 sys.path.insert(0, "/session/metadata/vendor")
 sys.path.insert(0, "/session/metadata")
 
-from mcp.server.fastmcp import FastMCP
-
-from exceptions import HTTPException, http_exception
-
 
 def setup_server():
+    from mcp.server.fastmcp import FastMCP
+
+    from exceptions import HTTPException, http_exception
     mcp = FastMCP("Demo", stateless_http=True)
 
     @mcp.tool()
