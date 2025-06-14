@@ -6,6 +6,8 @@ sys.path.insert(0, "/session/metadata")
 
 def setup_server():
     from mcp.server.fastmcp import FastMCP
+    from starlette.middleware import Middleware
+    from starlette.middleware.cors import CORSMiddleware
 
     from exceptions import HTTPException, http_exception
     mcp = FastMCP("Demo", stateless_http=True)
@@ -32,6 +34,7 @@ def setup_server():
 
     app = mcp.streamable_http_app()
     app.add_exception_handler(HTTPException, http_exception)
+    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
     return mcp, app
 
 
