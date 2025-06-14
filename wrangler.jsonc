@@ -1,5 +1,5 @@
 {
-    "name": "fastapi-worker",
+    "name": "python-mcp-worker",
     "main": "src/worker.py",
     "compatibility_flags": [
         "python_workers",
