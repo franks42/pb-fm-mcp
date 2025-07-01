@@ -1,13 +1,17 @@
+# import hastra
 import sys
 
 from datetime import datetime, timezone
+
+import asyncio
 
 sys.path.insert(0, "/session/metadata/vendor")
 sys.path.insert(0, "/session/metadata")
 
 #########################################################################################
-## helper functions
+# helper functions
 #########################################################################################
+
 
 def datetime_to_ms(dt):
     """Convert datetime to milliseconds since epoch"""
@@ -16,9 +20,11 @@ def datetime_to_ms(dt):
         dt = dt.replace(tzinfo=timezone.utc)
     return int(dt.timestamp() * 1000)
 
+
 def ms_to_datetime(ms_timestamp, tz=timezone.utc):
     """Convert milliseconds since epoch to datetime"""
     return datetime.fromtimestamp(ms_timestamp / 1000, tz=tz)
+
 
 def current_ms():
     """Get current time in milliseconds since epoch"""
@@ -35,22 +41,26 @@ def setup_server():
 
     mcp = FastMCP("Hastra-FM-MCP", stateless_http=True, json_response=True)
 
-    @mcp.tool()
-    def add(a: int, b: int) -> int:
-        """Add two numbers"""
-        return a + b
+    # a small simple test mcp-tool API to ensure this mcp server is (somewhat) functional
 
     @mcp.tool()
     def adt(a: int, b: int) -> int:
         """Adt is a special operation on two numbers because it always returns the ultimate answer."""
         return 42
 
+    #########################################################################
+    # Hastra and Figure Market mcp tool functions
+    #########################################################################
+
+    import hastra
     import httpx
     from typing import Tuple, Any, Dict, List, Union
 
     # Union type for mixed JSON values
     JSONValue = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
 
+    ###
+    # helper function to standardize async http-get of json return
     async def async_http_get_json(
         url: str,
         params: dict | None = None,
@@ -68,10 +78,6 @@ def setup_server():
         Returns:
             JSON response data on success, or error dict with 'MCP-ERROR' key on failure
         """
-
-        # if mcp.mcp_context_read == False:
-        #     mcp.mcp_context_read = True
-        #     return {"MCP-ERROR": "Must review MCP server's context first! - Call get_system_context() before using this or other functions."}
 
         if params is None:
             params = {}
@@ -102,6 +108,24 @@ def setup_server():
             except Exception as e:
                 return {"MCP-ERROR": f"Unknown exception raised: {e}"}
 
+    ###
+
+    @mcp.tool()
+    async def get_system_context() -> str:
+        """
+    REQUIRED READING: Essential system context for the Figure Markets Exchange 
+    and the Provenance Blockchain that MUST be read before using any tools.
+    Contains critical usage guidelines, data handling protocols, and server capabilities.
+        Returns:
+            Dict with attribute 'context' and a value of the url where the context description 
+    as a markdown formatted str can be retrieved.
+        """
+        url = "https://raw.githubusercontent.com/franks42/FigureMarkets-MCP-Server/refs/heads/main/FigureMarketsContext.md"
+        async with httpx.AsyncClient() as client:
+            client.headers['accept-encoding'] = 'identity'
+            r = await client.get(url)
+            return {'context': r.text}
+
     @mcp.tool()
     async def fetch_last_crypto_token_price(token_pair: str = "HASH-USD", last_number_of_trades: int = 1) -> JSONValue:
         """For the crypto token_pair, e.g. HASH-USD, fetch the prices for the last_number_of_trades 
@@ -119,30 +143,6 @@ def setup_server():
             return response
         # massage json response data
         return response
-
-    @mcp.tool()
-    async def get_system_context() -> str:
-        """
-        REQUIRED READING: Essential system context that MUST be read before using any tools.
-        Contains critical usage guidelines, data handling protocols, and server capabilities.
-        Returns:
-            str: return is md formatted
-        """
-        url = "https://raw.githubusercontent.com/franks42/FigureMarkets-MCP-Server/refs/heads/main/FigureMarketsContext.md"
-
-        timeout = httpx.Timeout(10.0, connect=5.0)
-
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            try:
-                response = await client.get(url)
-                response.raise_for_status()  # Raises exception for 4xx/5xx
-                return response.text
-            except httpx.TimeoutException:
-                return "Network Error: Request timed out"
-            except httpx.HTTPStatusError as e:
-                return f"HTTP error: {e.response.status_code}"
-            except httpx.RequestError as e:
-                return f"Request error: {e}"
 
     @mcp.tool()
     async def fetch_current_fm_data() -> JSONValue:
@@ -208,7 +208,7 @@ def setup_server():
             if e['denom'] == "nhash":
                 return {'available_total_amount': e['amount'],
                         'denom': e['denom']}
-        return {"MCP ERROR": "fetch_available_total_amount() - No 'nhash' in balance list"}
+        return {"MCP-ERROR": "fetch_available_total_amount() - No 'nhash' in balance list"}
 
     @mcp.tool()
     async def fetch_current_fm_account_info(wallet_address: str) -> JSONValue:
@@ -226,6 +226,22 @@ def setup_server():
         if response.get("MCP-ERROR"):
             return response
         return response
+
+    @mcp.tool()
+    async def fetch_account_is_vesting(wallet_address: str) -> JSONValue:
+        """Fetch whether or not this wallet_address represents a Figure Markets exchange account 
+        that is subject to a vesting schedule restrictions.
+        The boolean returned for attribute 'wallet_is_vesting' indicates the vesting status.
+        Args:
+            wallet_address (str): Wallet's Bech32 address.
+        Returns:
+            JSONValue: dict
+        """
+        url = "https://service-explorer.provenance.io/api/v2/accounts/" + wallet_address
+        response = await async_http_get_json(url)
+        if response.get("MCP-ERROR"):
+            return response
+        return {'wallet_is_vesting': response['flags']['isVesting']}
 
     @mcp.tool()
     async def fetch_vesting_total_unvested_amount(wallet_address: str, date_time: str | None = None) -> JSONValue:
@@ -441,16 +457,65 @@ def setup_server():
         response = await async_http_get_json(url)
         if response.get("MCP-ERROR"):
             return response
-        response["locked"] = {"amount" : str(int(response["currentSupply"]["amount"]) - 
-                                             int(response["circulation"]["amount"]) - 
-                                             int(response["communityPool"]["amount"]) - 
-                                             int(response["bonded"]["amount"])),
+        response["locked"] = {"amount": str(int(response["currentSupply"]["amount"]) -
+                                            int(response["circulation"]["amount"]) -
+                                            int(response["communityPool"]["amount"]) -
+                                            int(response["bonded"]["amount"])),
                               "denom": "nhash"}
         return response
 
+###
 
+    @mcp.tool()
+    async def fetch_total_delegation_data(wallet_address: str) -> JSONValue:
+        """
+        For a wallet_address, the cumulative delegation hash amounts for all validators are returned,
+        which are the amounts for the staked, redelegated, rewards and unbonding hash.
+        The returned attribute-names with their values are the following:
+        'delegated_staked_amount': 
+            - amount of hash staked with the validators 
+            - staked hash does earn rewards
+            - staked hash can be undelegated which will return that hash back to the wallet after an unbonding waiting period
+        'delegated_redelegated_amount': 
+            - amount of hash redelegated with the validators
+            - redelegated hash is subject to a 21 day waiting period before it gets added to validator's staked hash pool
+            - during the waiting period, redelegated hash cannot be redelegated (to avoid too frequent 'validator-hopping')
+            - redelegated hash can be undelegated during the redelegated waiting period, 
+              and is then subject to the unbonding waiting period before it is returned to the wallet.
+            - redelegated hash does earn rewards
+        'delegated_rewards_amount': 
+            - amount of hash earned as rewards 
+            - rewarded hash does not earn rewards
+            - rewarded hash can be claimed which will return that hash to the wallet immediately
+        'delegated_unbonding_amount': 
+            - amount of hash undelegated from validators 
+            - undelegated hash is subject to a 21 day waiting period before is gets returned to the wallet 
+            - undelegated hash does not earn rewards
+        'delegated_total_delegated_amount': (calculated value)
+            - the total amount of hash that is delegated to the validators and outside of the wallet
+            - delegated hash cannot be traded or transferred
+            - delegated hash can be returned to the wallet through undelegation for staked and redelegated hash
+              (subject to a unbonding waiting period), and claiming for rewarded hash (immediately returned)
+            - 'delegated_total_delegated_amount'='delegated_staked_amount'+'delegated_redelegated_amount'+'delegated_rewards_amount'+'delegated_unbonding_amount'
+        'delegated_earning_amount':  (calculated value)
+            - all delegated hash that earns rewards from the validators, which are staked and redelegated hash
+            - 'delegated_earning_amount'='delegated_staked_amount'+'delegated_redelegated_amount'
+        'delegated_not_earning_amount':  (calculated value)
+            - all delegated hash that does not earn any rewards, which are the rewarded and unbonding hash
+            - 'delegated_not_earning_amount'='delegated_rewards_amount'+'delegated_unbonding_amount'
 
+        Args:
+            wallet_address (str): Wallet's Bech32 address.
 
+        Returns:
+            JSONValue: dict with delegation specific attributes and values
+        """
+        
+        r = await hastra.fetch_total_delegation_data(wallet_address)
+        return r
+
+    # fetch_total_delegation_data.__doc__ = hastra.fetch_total_delegation_data.__doc__
+    
     ###########################################
 
     app = mcp.streamable_http_app()

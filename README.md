@@ -13,12 +13,21 @@ To develop your Worker run:
 
 ```console
 uv run pywrangler dev
+
+Test:
+https://playground.ai.cloudflare.com/
+connect to "http://localhost:8787/mcp/"
 ```
 
 To deploy your Worker run:
 
 ```console
 uv run pywrangler deploy
+
+Test:
+https://playground.ai.cloudflare.com/
+connect to "https://hastra-fm-mcp.frank-siebenlist.workers.dev/mcp"
+
 ```
 
 ## Testing
