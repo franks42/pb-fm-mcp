@@ -1,9 +1,13 @@
+import utils
 # import hastra
 import sys
 
 from datetime import datetime, timezone
 
 import asyncio
+from hastra_types import JSONType
+from base64expand import base64expand
+
 
 sys.path.insert(0, "/session/metadata/vendor")
 sys.path.insert(0, "/session/metadata")
@@ -56,9 +60,6 @@ def setup_server():
     import httpx
     from typing import Tuple, Any, Dict, List, Union
 
-    # Union type for mixed JSON values
-    JSONValue = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
-
     ###
     # helper function to standardize async http-get of json return
     async def async_http_get_json(
@@ -66,7 +67,7 @@ def setup_server():
         params: dict | None = None,
         timeout: float = 10.0,
         connect_timeout: float = 5.0
-    ) -> JSONValue:
+    ) -> JSONType:
         """Make an async HTTP GET request and return JSON response.
 
         Args:
@@ -127,14 +128,14 @@ def setup_server():
             return {'context': r.text}
 
     @mcp.tool()
-    async def fetch_last_crypto_token_price(token_pair: str = "HASH-USD", last_number_of_trades: int = 1) -> JSONValue:
+    async def fetch_last_crypto_token_price(token_pair: str = "HASH-USD", last_number_of_trades: int = 1) -> JSONType:
         """For the crypto token_pair, e.g. HASH-USD, fetch the prices for the last_number_of_trades 
         from the Figure Markets exchange.
         Args:
             token_pair (str, optional): Two token/crypto symbols separated by '-', like BTC-USDC. Defaults to HASH-USD.
             last_number_of_trades (int, optional): Ask for specified number of trades to return. Defaults to 1.
         Returns:
-            JSONValue: json dict where attribute 'matches' has a list of individual trade details
+            JSONType: json dict where attribute 'matches' has a list of individual trade details
         """
         url = 'https://www.figuremarkets.com/service-hft-exchange/api/v1/trades/' + token_pair
         params = {'size': last_number_of_trades}
@@ -145,13 +146,13 @@ def setup_server():
         return response
 
     @mcp.tool()
-    async def fetch_current_fm_data() -> JSONValue:
+    async def fetch_current_fm_data() -> JSONType:
         """Fetch the current market data from the Figure Markets exchange.
         The data is a list of trading pair details.
         The 'id' attribute is the identifier for the trading pair.
         Each trading pair's 'denom' attribute is the token name and the 'quoteDenum' denotes the currency.
         Returns:
-            JSONValue: json list of trading pair details
+            JSONType: json list of trading pair details
         """
         url = 'https://www.figuremarkets.com/service-hft-exchange/api/v1/markets'
         response = await async_http_get_json(url)
@@ -161,7 +162,7 @@ def setup_server():
         return data
 
     @mcp.tool()
-    async def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONValue:
+    async def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONType:
         """Fetch the current account balance data from the Figure Markets exchange for the given wallet address' portfolio.
         The data is a list of dictionaries with balance details for all assets in the wallet.
         The relevant attributes are:
@@ -172,7 +173,7 @@ def setup_server():
         Args:
             wallet_address (str): Wallet's Bech32 address.
         Returns:
-            JSONValue: json list of balance item details
+            JSONType: json list of balance item details
         """
         url = "https://service-explorer.provenance.io/api/v2/accounts/" + \
             wallet_address + "/balances"
@@ -184,7 +185,7 @@ def setup_server():
         return balance_list
 
     @mcp.tool()
-    async def fetch_available_total_amount(wallet_address: str) -> JSONValue:
+    async def fetch_available_total_amount(wallet_address: str) -> JSONType:
         """Fetch the current available_total_amount of HASH in the wallet.
 
         available_total_amount = available_spendable_amount + available_committed_amount + available_unvested_amount
@@ -195,7 +196,7 @@ def setup_server():
         Args:
             wallet_address (str): Wallet's Bech32 address.
         Returns:
-            JSONValue: json dict
+            JSONType: json dict
         """
         url = "https://service-explorer.provenance.io/api/v2/accounts/" + \
             wallet_address + "/balances"
@@ -206,12 +207,12 @@ def setup_server():
         balance_list = response['results']
         for e in balance_list:
             if e['denom'] == "nhash":
-                return {'available_total_amount': e['amount'],
+                return {'available_total_amount': utils.parse_amount(e['amount']),
                         'denom': e['denom']}
         return {"MCP-ERROR": "fetch_available_total_amount() - No 'nhash' in balance list"}
 
     @mcp.tool()
-    async def fetch_current_fm_account_info(wallet_address: str) -> JSONValue:
+    async def fetch_current_fm_account_info(wallet_address: str) -> JSONType:
         """Fetch the current account/wallet info from the Figure Markets exchange for the given wallet address.
         Important attributes in the json response:
         'isVesting' : If True, then the account/wallet is subject to vesting restrictions. 
@@ -219,23 +220,24 @@ def setup_server():
         Args:
             wallet_address (str): Wallet's Bech32 address.
         Returns:
-            JSONValue: json dict of account details
+            JSONType: json dict of account details
         """
         url = "https://service-explorer.provenance.io/api/v2/accounts/" + wallet_address
         response = await async_http_get_json(url)
         if response.get("MCP-ERROR"):
             return response
-        return response
+        return base64expand(response)
+        # return response
 
     @mcp.tool()
-    async def fetch_account_is_vesting(wallet_address: str) -> JSONValue:
+    async def fetch_account_is_vesting(wallet_address: str) -> JSONType:
         """Fetch whether or not this wallet_address represents a Figure Markets exchange account 
         that is subject to a vesting schedule restrictions.
         The boolean returned for attribute 'wallet_is_vesting' indicates the vesting status.
         Args:
             wallet_address (str): Wallet's Bech32 address.
         Returns:
-            JSONValue: dict
+            JSONType: dict
         """
         url = "https://service-explorer.provenance.io/api/v2/accounts/" + wallet_address
         response = await async_http_get_json(url)
@@ -244,7 +246,7 @@ def setup_server():
         return {'wallet_is_vesting': response['flags']['isVesting']}
 
     @mcp.tool()
-    async def fetch_vesting_total_unvested_amount(wallet_address: str, date_time: str | None = None) -> JSONValue:
+    async def fetch_vesting_total_unvested_amount(wallet_address: str, date_time: str | None = None) -> JSONType:
         """Fetch the vesting_total_unvested_amount from the Figure Markets exchange for the given wallet address and the given `date_time`.
         `date_time` is current datetime.now() by default.
         The vesting schedule is estimated by a linear function for the unvested_amount that starts on start_time at vesting_original_amount, 
@@ -261,7 +263,7 @@ def setup_server():
             wallet_address (str): Wallet's Bech32 address.
             date_time (str): date_time in ISO 8601 format for which the vesting date is requested.
         Returns:
-            JSONValue: json dict of vesting details
+            JSONType: json dict of vesting details
         """
 
         url = "https://service-explorer.provenance.io/api/v3/accounts/" + \
@@ -279,15 +281,15 @@ def setup_server():
             datetime.fromisoformat(response["endTime"]))
         start_time_ms = datetime_to_ms(
             datetime.fromisoformat(response["startTime"]))
-        vesting_original_amount = int(
+        vesting_original_amount = utils.parse_amount(
             response['originalVestingList'][0]['amount'])
         denom = response['originalVestingList'][0]['denom']
         if dtms < start_time_ms:
-            total_vested_amount = 0
+            total_vested_amount = utils.parse_amount(0)
         elif dtms > end_time_ms:
             total_vested_amount = vesting_original_amount
         else:
-            total_vested_amount = int(
+            total_vested_amount = utils.parse_amount(
                 vesting_original_amount * (dtms - start_time_ms)/(end_time_ms - start_time_ms))
         total_unvested_amount = vesting_original_amount - total_vested_amount
 
@@ -302,7 +304,7 @@ def setup_server():
         return vesting_data
 
     @mcp.tool()
-    async def fetch_available_committed_amount(wallet_address: str) -> JSONValue:
+    async def fetch_available_committed_amount(wallet_address: str) -> JSONType:
         """Fetch the current committed HASH amount to the the Figure Markets exchange for the given wallet address.
         API returns amounts in nhash (1 HASH = 1,000,000,000 nhash). Convert to HASH for display purposes.
         The returned dictionary has the following attributes:
@@ -311,7 +313,7 @@ def setup_server():
         Args:
             wallet_address (str): Wallet's Bech32 address.
         Returns:
-            JSONValue: json dict of committed hash amount
+            JSONType: json dict of committed hash amount
         """
         url = "https://api.provenance.io/provenance/exchange/v1/commitments/account/" + wallet_address
         response = await async_http_get_json(url)
@@ -326,7 +328,7 @@ def setup_server():
         return hash_amount_dict
 
     @mcp.tool()
-    async def fetch_figure_markets_assets_info() -> JSONValue:
+    async def fetch_figure_markets_assets_info() -> JSONType:
         """Fetch the list of assets, like (crypto) tokens, stable coins, and funds,
         that are traded on the Figure Markets exchange.
         The returned list of dictionaries of asset's info has the following attributes:
@@ -339,7 +341,7 @@ def setup_server():
         'asset_denom' : asset denomination
         Args:
         Returns:
-            JSONValue: json list of asset details
+            JSONType: json list of asset details
         """
         url = "https://figuremarkets.com/service-hft-exchange/api/v1/assets"
         response = await async_http_get_json(url)
@@ -356,7 +358,7 @@ def setup_server():
 
 
     @mcp.tool()
-    async def fetch_current_hash_statistics() -> JSONValue:
+    async def fetch_current_hash_statistics() -> JSONType:
         """Fetch the current overall statistics for the Provenance Blockchain's utility token HASH.
         Pie chart of stats also available at 'https://explorer.provenance.io/network/token-stats'.
         Attributes in the json response:
@@ -371,7 +373,7 @@ def setup_server():
                    locked = currentSupply - circulation - communityPool - bonded
         Args:
         Returns:
-            JSONValue: json dict of HASH statistics details
+            JSONType: json dict of HASH statistics details
         """
         url = "https://service-explorer.provenance.io/api/v3/utility_token/stats"
         response = await async_http_get_json(url)
@@ -387,7 +389,7 @@ def setup_server():
 ###
 
     @mcp.tool()
-    async def fetch_total_delegation_data(wallet_address: str) -> JSONValue:
+    async def fetch_total_delegation_data(wallet_address: str) -> JSONType:
         """
         For a wallet_address, the cumulative delegation hash amounts for all validators are returned,
         which are the amounts for the staked, redelegated, rewards and unbonding hash.
@@ -428,7 +430,7 @@ def setup_server():
             wallet_address (str): Wallet's Bech32 address.
 
         Returns:
-            JSONValue: dict with delegation specific attributes and values
+            JSONType: dict with delegation specific attributes and values
         """
         
         r = await hastra.fetch_total_delegation_data(wallet_address)

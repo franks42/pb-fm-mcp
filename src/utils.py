@@ -3,12 +3,36 @@ import copy
 import json
 import httpx
 import sys
+from decimal import Decimal
+from hastra_types import JSONType
+
+
+class JsonDecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return str(obj)
+        return super().default(obj)
+
+
+def parse_amount(val: object) -> int | Decimal:
+    """Parse a value as int if integer-like, else as Decimal for high-precision decimals."""
+    if isinstance(val, int):
+        return val
+    if isinstance(val, str):
+        if val.isdigit() or (val.startswith('-') and val[1:].isdigit()):
+            return int(val)
+        try:
+            dec = Decimal(val)
+            if dec == dec.to_integral_value():
+                return int(dec)
+            return dec
+        except Exception:
+            pass
+    # fallback: try Decimal
+    return Decimal(str(val))
 
 from datetime import datetime, timezone
 from typing import Tuple, Any, Dict, List, Union
-
-# Union type for mixed JSON values
-JSONValue = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
 
 
 #########################################################################################
@@ -30,11 +54,20 @@ def current_ms():
     """Get current time in milliseconds since epoch"""
     return int(datetime.now(timezone.utc).timestamp() * 1000)
 
-### AmountDenomT = {'amount:' : int, 'denom': str}
+
+
+from typing import TypedDict
+
+class AmountDenomT(TypedDict):
+    amount: int | Decimal
+    denom: str
+
 
 def is_amount_denom_type(a_d: dict) -> bool:
-    return (isinstance(a_d.get('amount', None), int) and
-            isinstance(a_d.get('denom', None), str))
+    return (
+        (isinstance(a_d.get('amount', None), (int, Decimal))) and
+        isinstance(a_d.get('denom', None), str)
+    )
 
 
 def is_same_denom(amt, *amts) -> bool:
@@ -45,11 +78,13 @@ def is_same_denom(amt, *amts) -> bool:
             return False
     return True
 
-def amount_denom_add(amt, *amts) -> {str: int, str: str}:
+
+def amount_denom_add(amt: AmountDenomT, *amts: AmountDenomT) -> AmountDenomT:
     r_amt = copy.deepcopy(amt)
+    r_amt['amount'] = parse_amount(r_amt['amount'])
     for an_amt in amts:
         if is_same_denom(r_amt, an_amt):
-            r_amt['amount'] = r_amt['amount'] + an_amt['amount']
+            r_amt['amount'] = parse_amount(r_amt['amount']) + parse_amount(an_amt['amount'])
         else:
             raise Exception("ERROR - Cannot add amounts of different denom's.")
     return r_amt
@@ -61,7 +96,7 @@ async def async_http_get_json(
     params: dict | None = None,
     timeout: float = 10.0,
     connect_timeout: float = 5.0
-) -> JSONValue:
+) -> JSONType:
     """Make an async HTTP GET request and return JSON response.
 
     Args:

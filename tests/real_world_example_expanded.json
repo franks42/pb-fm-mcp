@@ -1,0 +1,99 @@
+{
+  "accountType": "Continuous Vesting Account",
+  "address": "pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8",
+  "accountNumber": 1290,
+  "sequence": 124,
+  "publicKey": {
+    "type": "secp256k1",
+    "base64": "Ag1HhurR3q2tL6ci3qKS2CM8HCahtvXZTrQpp56g7+iJ",
+    "sigList": [
+      {
+        "idx": 0,
+        "address": "pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8"
+      }
+    ]
+  },
+  "accountName": null,
+  "attributes": [
+    {
+      "attribute": "kyc-aml.passport.pb",
+      "data": {
+        "label": "KYC_AML",
+        "level": 0,
+        "issuedDate": "2022-03-12T00:00:00Z",
+        "expirationDate": "2023-03-12T00:00:00Z",
+        "pending": false,
+        "passportUuid": {
+          "value": "e7353982-f98f-49d4-a24c-0e4854bf5f93"
+        },
+        "accreditationRequestUuid": {
+          "value": "eed9b049-200c-4dad-b986-578924dbbbf5"
+        }
+      }
+    },
+    {
+      "attribute": "approved.ylds.pb",
+      "data": {
+        "passportUuid": {
+          "value": "882ccd60-c253-4de8-83f1-80181f5b1173"
+        }
+      }
+    },
+    {
+      "attribute": "figure.kyc.passport.pb",
+      "data": {
+        "passportUuid": {
+          "value": "882ccd60-c253-4de8-83f1-80181f5b1173"
+        },
+        "passportHash": "vpweMqmOXW0mmUhigl0KtW3a/b/SGPWEWYsPcS/u8Io=",
+        "status": {
+          "kycStatus": "VALID",
+          "attestationStatus": "VALID",
+          "attestationVerificationStatus": "VALID"
+        }
+      }
+    },
+    {
+      "attribute": "figureomni.wireref.omnibus.pb",
+      "data": "CgpjcnlwdG9ncmFtEtYBCkEEQzosBlIolJfORZfNouI2AnD6GU0hykskYyoVXm9tJZjXmHDwbDh5zG+0l8T8WHmjQZVINRxo2wMv+Gz5fStFPRJAAAAADAAAAAAAAAAAAAAAAAvS2KZHe+LY8z8o1Xumr/TIYsHy7yMLjyeG/63lzVDcpVfjzcjG2Sm49l9yYvgerRpPAAAADCPZEcf37uaUOSyQe30sc6qk6eC30mKjGHoephx+FOd2vfPvVfNbIxkYGY3IFYphuePVNCKxWNMCxEtzT6Wrg0IXsArp9YqN1FdxVA=="
+    },
+    {
+      "attribute": "memberapproval.sc.pb",
+      "data": 1214
+    },
+    {
+      "attribute": "memberapproval.sc.pb",
+      "data": "NjQz"
+    },
+    {
+      "attribute": "memberapproval.sc.pb",
+      "data": 1206
+    },
+    {
+      "attribute": "memberapproval.sc.pb",
+      "data": "NjI3"
+    },
+    {
+      "attribute": "figuremarkets.fiat.pb",
+      "data": {
+        "accountId": "ae8a8233-b68a-417d-becb-0b4725e09773"
+      }
+    }
+  ],
+  "tokens": {
+    "fungibleCount": 0,
+    "nonFungibleCount": 3
+  },
+  "isContract": false,
+  "accountAum": {
+    "amount": "19657.70364228479",
+    "denom": "USD"
+  },
+  "isVesting": true,
+  "flags": {
+    "isContract": false,
+    "isVesting": true,
+    "isIca": false
+  },
+  "accountOwner": null
+}

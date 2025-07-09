@@ -8,19 +8,44 @@ from datetime import datetime, timezone
 from typing import Tuple, Any, Dict, List, Union
 
 import utils
-from utils import JSONValue, current_ms, ms_to_datetime, datetime_to_ms, async_http_get_json
+from utils import current_ms, ms_to_datetime, datetime_to_ms, async_http_get_json
+from hastra_types import JSONType
 
 
 ###
 
-async def fetch_account_is_vesting(wallet_address: str) -> JSONValue:
+async def fetch_account_info(wallet_address: str) -> JSONType:
     """Fetch whether or not this wallet_address represents a Figure Markets exchange account 
     that is subject to a vesting schedule restrictions.
     The boolean returned for attribute 'wallet_is_vesting' indicates the vesting status.
     Args:
         wallet_address (str): Wallet's Bech32 address.
     Returns:
-        JSONValue: dict
+        JSONType: dict
+    """
+    url = "https://service-explorer.provenance.io/api/v2/accounts/" + wallet_address
+    response = await async_http_get_json(url)
+    if response.get("MCP-ERROR"):
+        return response
+    
+    result = {}
+    result['account_is_vesting'] = response['flags']['isVesting']
+    result['account_type'] = response['accountType']
+    # "accountAum": {
+    #     "amount": "19657.70364228479",
+    #     "denom": "USD"}
+    result['account_aum'] = response['accountAum']
+    
+    return result
+
+async def fetch_account_is_vesting(wallet_address: str) -> JSONType:
+    """Fetch whether or not this wallet_address represents a Figure Markets exchange account 
+    that is subject to a vesting schedule restrictions.
+    The boolean returned for attribute 'wallet_is_vesting' indicates the vesting status.
+    Args:
+        wallet_address (str): Wallet's Bech32 address.
+    Returns:
+        JSONType: dict
     """
     url = "https://service-explorer.provenance.io/api/v2/accounts/" + wallet_address
     response = await async_http_get_json(url)
@@ -28,7 +53,8 @@ async def fetch_account_is_vesting(wallet_address: str) -> JSONValue:
         return response
     return {'wallet_is_vesting': response['flags']['isVesting']}
 
-async def fetch_delegated_rewards_amount(wallet_address: str) -> JSONValue:
+
+async def fetch_delegated_rewards_amount(wallet_address: str) -> JSONType:
     """For the given wallet address, fetch the current, total amount of earned rewards
     from the staked/delegated hash with the validators.
     The returned dict has the following attributes:
@@ -36,7 +62,7 @@ async def fetch_delegated_rewards_amount(wallet_address: str) -> JSONValue:
     'denom' : hash denomination
     Args: wallet_address (str): Wallet's Bech32 address.
     Returns:
-        JSONValue: json dict with attrubutes 'delegated_rewards_amount' and 'denom'
+        JSONType: json dict with attrubutes 'delegated_rewards_amount' and 'denom'
     """
     url = "https://service-explorer.provenance.io/api/v2/accounts/" + \
         wallet_address + "/rewards"
@@ -45,13 +71,13 @@ async def fetch_delegated_rewards_amount(wallet_address: str) -> JSONValue:
         return response
     if response['total']:
         return {'delegated_rewards_amount':
-                {"amount": int(response['total'][0]['amount']),
+                {"amount": utils.parse_amount(response['total'][0]['amount']),
                  'denom': response['total'][0]['denom']}}
     else:
         return {'delegated_rewards_amount':
-                {'amount': 0, 'denom': 'nhash'}}
+                {'amount': utils.parse_amount(0), 'denom': 'nhash'}}
 
-async def fetch_delegated_staked_amount(wallet_address: str) -> JSONValue:
+async def fetch_delegated_staked_amount(wallet_address: str) -> JSONType:
     """For the given wallet address, fetch the current, total amount of staked hash
     with the validators.
     The returned dict has the following attributes:
@@ -60,7 +86,7 @@ async def fetch_delegated_staked_amount(wallet_address: str) -> JSONValue:
     'denom' : hash denomination
     Args: wallet_address (str): Wallet's Bech32 address.
     Returns:
-        JSONValue: json dict with attributes 'staking_validators', 'delegated_staked_amount' and 'denom'
+        JSONType: json dict with attributes 'staking_validators', 'delegated_staked_amount' and 'denom'
     """
     url = "https://service-explorer.provenance.io/api/v2/accounts/" + \
         wallet_address + "/delegations"
@@ -69,10 +95,10 @@ async def fetch_delegated_staked_amount(wallet_address: str) -> JSONValue:
         return response
     return {'staking_validators': int(response['total']),
             'delegated_staked_amount':
-                {'amount': int(response['rollupTotals']['bondedTotal']['amount']),
+                {'amount': utils.parse_amount(response['rollupTotals']['bondedTotal']['amount']),
                  'denom': response['rollupTotals']['bondedTotal']['denom']}}
 
-async def fetch_delegated_unbonding_amount(wallet_address: str) -> JSONValue:
+async def fetch_delegated_unbonding_amount(wallet_address: str) -> JSONType:
     """For the given wallet address, fetch the current, total amount of hash
     that is unbonding with the validators.
     The returned dict has the following attributes:
@@ -80,7 +106,7 @@ async def fetch_delegated_unbonding_amount(wallet_address: str) -> JSONValue:
     'denom' : hash denomination
     Args: wallet_address (str): Wallet's Bech32 address.
     Returns:
-        JSONValue: json dict with attributes 'delegated_unbonding_amount' and 'denom'
+        JSONType: json dict with attributes 'delegated_unbonding_amount' and 'denom'
     """
     url = "https://service-explorer.provenance.io/api/v2/accounts/" + \
         wallet_address + "/unbonding"
@@ -88,11 +114,11 @@ async def fetch_delegated_unbonding_amount(wallet_address: str) -> JSONValue:
     if response.get("MCP-ERROR"):
         return response
     return {'delegated_unbonding_amount':
-            {'amount': int(response['rollupTotals']['unbondingTotal']['amount']),
+            {'amount': utils.parse_amount(response['rollupTotals']['unbondingTotal']['amount']),
              'denom': response['rollupTotals']['unbondingTotal']['denom']}}
 
 
-async def fetch_delegated_redelegation_amount(wallet_address: str) -> JSONValue:
+async def fetch_delegated_redelegation_amount(wallet_address: str) -> JSONType:
     """For the given wallet address, fetch the current, total amount of hash
     that is redelegated with the validators.
     The returned dict has the following attributes:
@@ -100,7 +126,7 @@ async def fetch_delegated_redelegation_amount(wallet_address: str) -> JSONValue:
     'denom' : hash denomination
     Args: wallet_address (str): Wallet's Bech32 address.
     Returns:
-        JSONValue: json dict with attributes 'delegated_redelegated_amount' and 'denom'
+        JSONType: json dict with attributes 'delegated_redelegated_amount' and 'denom'
     """
     url = "https://service-explorer.provenance.io/api/v2/accounts/" + \
         wallet_address + "/redelegations"
@@ -108,13 +134,13 @@ async def fetch_delegated_redelegation_amount(wallet_address: str) -> JSONValue:
     if response.get("MCP-ERROR"):
         return response
     return {'delegated_redelegated_amount':
-            {'amount': int(response['rollupTotals']['redelegationTotal']['amount']),
+            {'amount': utils.parse_amount(response['rollupTotals']['redelegationTotal']['amount']),
              'denom': response['rollupTotals']['redelegationTotal']['denom']}}
 
 
 ###
 
-async def fetch_total_delegation_data(wallet_address: str) -> JSONValue:
+async def fetch_total_delegation_data(wallet_address: str) -> JSONType:
     """
     For a wallet_address, the cumulative delegation hash amounts for all validators are returned,
     which are the amounts for the staked, redelegated, rewards and unbonding hash.
@@ -155,7 +181,7 @@ async def fetch_total_delegation_data(wallet_address: str) -> JSONValue:
         wallet_address (str): Wallet's Bech32 address.
 
     Returns:
-        JSONValue: dict with delegation specific attributes and values
+        JSONType: dict with delegation specific attributes and values
     """
     
     tasks = [fetch_delegated_staked_amount(wallet_address),
