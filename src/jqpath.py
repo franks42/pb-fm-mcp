@@ -1,17 +1,18 @@
 """
-Nested Data Structure Utilities for Cloudflare Python Workers
-==============================================================
+jqpath: jq-style Path Manipulation Utilities for Python (Cloudflare Workers Compatible)
+=====================================================================================
 
-A comprehensive, zero-dependency library for manipulating nested dictionaries 
-and lists that works in production on Cloudflare Python Workers.
+A comprehensive, zero-dependency Python library for manipulating deeply nested dictionaries and lists using jq-style path operations.
+
+This module mimics the path-based manipulation and querying capabilities of the jq command-line tool, providing Pythonic equivalents of jq's getpath, setpath, delpath, delpaths, haspath, findpaths, findvalues, batch_setpath, flatten, unflatten, and merge functions.
 
 Features:
-- Get, set, delete, append operations on nested data
-- Advanced search functionality with regex support
-- Batch operations for multiple paths
-- JSON serialization compatibility
-- Performance optimized for edge computing
-- Uses only Python standard library modules available in Workers
+- jq-style getpath, setpath, delpath, delpaths, haspath, findpaths, findvalues, batch_setpath, flatten, unflatten, and merge for dicts/lists
+- Path navigation with dot notation or list-of-keys/indices (e.g., 'user.profile.name' or ['user', 0, 'profile', 'name'])
+- Robust handling of missing paths (jq semantics: no error on delete if path missing)
+- Advanced search with regex and value matching
+- Batch and utility operations for complex data transformations
+- 100% compatible with Cloudflare Python Workers (uses only Python standard library)
 
 Author: Claude (Anthropic)
 Version: 1.0.0
@@ -38,7 +39,7 @@ def delpath(data: Dict[str, Any], path: Union[str, List[Union[str, int]]]) -> Di
         Modified data structure with the path deleted (if it existed)
     """
     try:
-        setpath(data, path, operation='delete', create_missing=True)
+        setpath(data, path, operation='delete', create_missing=False)
     except (KeyError, IndexError):
         pass
     return data
@@ -55,7 +56,7 @@ def delpaths(data: Dict[str, Any], paths: List[Union[str, List[Union[str, int]]]
     """
     for path in paths:
         try:
-            setpath(data, path, operation='delete', create_missing=True)
+            setpath(data, path, operation='delete', create_missing=False)
         except (KeyError, IndexError):
             pass
     return data
@@ -66,7 +67,7 @@ def setpath(data: Dict[str, Any],
            operation: str = 'set', 
            create_missing: bool = True) -> Dict[str, Any]:
     """
-    Selectively add, update, or delete attributes/elements in nested data structures.
+    jq-style setpath: Add, update, append, extend, or delete values in nested data structures (dicts/lists).
 
     Args:
         data: The nested data structure (dict/list) to modify
@@ -88,11 +89,11 @@ def setpath(data: Dict[str, Any],
         ValueError: When operation is invalid
 
     Examples:
-        modify_nested(data, "user.profile.name", "John Doe")
-        modify_nested(data, "user.tags", "python", "append")
-        modify_nested(data, "old.field", operation="delete")
-        modify_nested(data, ["items", "0", "name"], "Item 1")  # string index for list
-        modify_nested(data, ["items", 0, "name"], "Item 1")     # int index for list
+        setpath(data, "user.profile.name", "John Doe")
+        setpath(data, "user.tags", "python", "append")
+        setpath(data, "old.field", operation="delete")
+        setpath(data, ["items", "0", "name"], "Item 1")  # string index for list
+        setpath(data, ["items", 0, "name"], "Item 1")     # int index for list
     """
     
     # Convert string path to list
@@ -200,7 +201,7 @@ def getpath(data: Dict[str, Any],
            default: Any = None, 
            separator: str = '.') -> Any:
     """
-    Get a value from a nested data structure with enhanced features.
+    jq-style getpath: Get a value from a nested data structure (dict/list) by path.
 
     Args:
         data: The nested data structure (dict/list)
@@ -216,13 +217,13 @@ def getpath(data: Dict[str, Any],
         Value at the specified path or default
 
     Examples:
-        get_nested(data, 'user.profile.name')
-        get_nested(data, ['user', 0, 'profile'])
-        get_nested(data, ['items', '0', 'name'])  # string index for list
-        get_nested(data, ['items', 0, 'name'])    # int index for list
-        get_nested(data, 'user/profile/name', separator='/')
-        get_nested(data, 'missing.key', default='Not found')
-        get_nested(data, 'items.-1.name')  # Negative indexing
+        getpath(data, 'user.profile.name')
+        getpath(data, ['user', 0, 'profile'])
+        getpath(data, ['items', '0', 'name'])  # string index for list
+        getpath(data, ['items', 0, 'name'])    # int index for list
+        getpath(data, 'user/profile/name', separator='/')
+        getpath(data, 'missing.key', default='Not found')
+        getpath(data, 'items.-1.name')  # Negative indexing
     """
     if isinstance(path, str):
         path = path.split(separator)
@@ -253,7 +254,7 @@ def getpath(data: Dict[str, Any],
 
 def haspath(data: Dict[str, Any], path: Union[str, List[Union[str, int]]]) -> bool:
     """
-    Check if a path exists in a nested data structure.
+    jq-style haspath: Check if a path exists in a nested data structure (dict/list).
 
     Args:
         data: The nested data structure
@@ -264,10 +265,10 @@ def haspath(data: Dict[str, Any], path: Union[str, List[Union[str, int]]]) -> bo
         True if path exists, False otherwise
 
     Examples:
-        has_nested(data, "user.profile.name")  # True if exists
-        has_nested(data, ["user", "settings", "theme"])
-        has_nested(data, ["items", "0", "name"])  # string index for list
-        has_nested(data, ["items", 0, "name"])     # int index for list
+        haspath(data, "user.profile.name")  # True if exists
+        haspath(data, ["user", "settings", "theme"])
+        haspath(data, ["items", "0", "name"])  # string index for list
+        haspath(data, ["items", 0, "name"])     # int index for list
     """
     if isinstance(path, str):
         path = path.split('.')
@@ -287,7 +288,7 @@ def getpaths(data: Dict[str, Any],
             paths: Union[List[str], Dict[str, str]], 
             default: Any = None) -> Union[List[Any], Dict[str, Any]]:
     """
-    Get multiple values from nested paths at once.
+    jq-style getpaths: Get multiple values from nested paths at once.
 
     Args:
         data: The nested data structure
@@ -299,12 +300,12 @@ def getpaths(data: Dict[str, Any],
         List of values (if paths is list) or dict of name->value (if paths is dict)
 
     Examples:
-        get_multiple_nested(data, ['user.name', 'user.age', 'settings.theme'])
-        get_multiple_nested(data, [
+        getpaths(data, ['user.name', 'user.age', 'settings.theme'])
+        getpaths(data, [
             ['items', '0', 'name'],  # string index for list
             ['items', 0, 'name']     # int index for list
         ])
-        get_multiple_nested(data, {
+        getpaths(data, {
             'name': 'user.profile.name',
             'email': 'user.profile.email',
             'theme': 'settings.theme'
@@ -325,8 +326,8 @@ def findpaths(data: Dict[str, Any],
              include_values: bool = False, 
              max_depth: Optional[int] = None) -> List[Dict[str, Any]]:
     """
-    Search for attributes/keys in a nested data structure and return their paths.
-    
+    Search for attributes/keys in a nested data structure and return their paths (jq-style findpaths).
+
     Args:
         data: The nested data structure to search
         pattern: The pattern to search for (string or regex pattern)
@@ -334,15 +335,15 @@ def findpaths(data: Dict[str, Any],
         case_sensitive: Whether matching should be case sensitive
         include_values: If True, also search in values (for string values)
         max_depth: Maximum depth to search (None for unlimited)
-    
+
     Returns:
         List of dictionaries with keys: 'path', 'key', 'value', 'parent_type', 'match_type'
-        
+
     Examples:
-        find_attributes(data, 'name')  # Find exact matches for 'name'
-        find_attributes(data, 'user', 'contains')  # Find keys containing 'user'
-        find_attributes(data, r'.*_id$', 'regex')  # Find keys ending with '_id'
-        find_attributes(data, 'john', include_values=True)  # Search in values too
+        findpaths(data, 'name')  # Find exact matches for 'name'
+        findpaths(data, 'user', 'contains')  # Find keys containing 'user'
+        findpaths(data, r'.*_id$', 'regex')  # Find keys ending with '_id'
+        findpaths(data, 'john', include_values=True)  # Search in values too
     """
     matches = []
     
@@ -439,8 +440,8 @@ def findvalues(data: Dict[str, Any],
               value_types: Optional[List[type]] = None, 
               max_depth: Optional[int] = None) -> List[Dict[str, Any]]:
     """
-    Search for specific values in a nested data structure and return their paths.
-    
+    Search for specific values in a nested data structure and return their paths (jq-style findvalues).
+
     Args:
         data: The nested data structure to search
         pattern: The pattern to search for
@@ -448,14 +449,14 @@ def findvalues(data: Dict[str, Any],
         case_sensitive: Whether matching should be case sensitive (for string values)
         value_types: List of types to search in (e.g., [str, int]). None means all types.
         max_depth: Maximum depth to search (None for unlimited)
-    
+
     Returns:
         List of dictionaries with keys: 'path', 'key', 'value', 'parent_type'
-        
+
     Examples:
-        find_values(data, True)  # Find all boolean True values
-        find_values(data, 'john', 'contains', case_sensitive=False)
-        find_values(data, 42, value_types=[int])
+        findvalues(data, True)  # Find all boolean True values
+        findvalues(data, 'john', 'contains', case_sensitive=False)
+        findvalues(data, 42, value_types=[int])
     """
     matches = []
     
@@ -547,17 +548,17 @@ def findvalues(data: Dict[str, Any],
 
 def batch_setpath(data: Dict[str, Any], modifications: List[Tuple[str, Any, ...]]) -> Dict[str, Any]:
     """
-    Apply multiple modifications to a nested data structure.
-    
+    jq-style batch_setpath: Apply multiple setpath/append/delete operations to a nested data structure.
+
     Args:
         data: The data structure to modify
         modifications: List of tuples (path, value, operation)
-    
+
     Returns:
         Modified data structure
-        
+
     Examples:
-        batch_modify(data, [
+        batch_setpath(data, [
             ('user.name', 'John Doe'),
             ('user.age', 30),
             ('user.tags', 'python', 'append'),
@@ -580,19 +581,19 @@ def batch_setpath(data: Dict[str, Any], modifications: List[Tuple[str, Any, ...]
 
 def flatten(data: Dict[str, Any], separator: str = '.', prefix: str = '') -> Dict[str, Any]:
     """
-    Flatten a nested dictionary into a single-level dictionary with dotted keys.
-    
+    jq-style flatten: Flatten a nested dictionary into a single-level dictionary with dotted keys.
+
     Args:
         data: The nested dictionary to flatten
         separator: Separator to use between keys (default: '.')
         prefix: Prefix for all keys (default: '')
-    
+
     Returns:
         Flattened dictionary
-        
+
     Examples:
-        flatten_dict({'a': {'b': {'c': 1}}})  # {'a.b.c': 1}
-        flatten_dict({'users': [{'name': 'John'}]})  # {'users[0].name': 'John'}
+        flatten({'a': {'b': {'c': 1}}})  # {'a.b.c': 1}
+        flatten({'users': [{'name': 'John'}]})  # {'users[0].name': 'John'}
     """
     items = []
     
@@ -616,17 +617,17 @@ def flatten(data: Dict[str, Any], separator: str = '.', prefix: str = '') -> Dic
 
 def unflatten(data: Dict[str, Any], separator: str = '.') -> Dict[str, Any]:
     """
-    Unflatten a dictionary with dotted keys into a nested structure.
-    
+    jq-style unflatten: Unflatten a dictionary with dotted keys into a nested structure.
+
     Args:
         data: The flattened dictionary to unflatten
         separator: Separator used between keys (default: '.')
-    
+
     Returns:
         Nested dictionary
-        
+
     Examples:
-        unflatten_dict({'a.b.c': 1})  # {'a': {'b': {'c': 1}}}
+        unflatten({'a.b.c': 1})  # {'a': {'b': {'c': 1}}}
     """
     result = {}
     for key, value in data.items():
@@ -653,17 +654,17 @@ def unflatten(data: Dict[str, Any], separator: str = '.') -> Dict[str, Any]:
 
 def merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Deep merge two dictionaries, with dict2 values taking precedence.
-    
+    jq-style merge: Deep merge two dictionaries, with dict2 values taking precedence.
+
     Args:
         dict1: Base dictionary
         dict2: Dictionary to merge into dict1
-        
+
     Returns:
         New merged dictionary
-        
+
     Examples:
-        deep_merge({'a': {'b': 1}}, {'a': {'c': 2}})  # {'a': {'b': 1, 'c': 2}}
+        merge({'a': {'b': 1}}, {'a': {'c': 2}})  # {'a': {'b': 1, 'c': 2}}
     """
     result = dict1.copy()
     

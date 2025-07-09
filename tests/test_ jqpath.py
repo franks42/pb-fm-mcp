@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """
-Test Suite for Nested Data Structure Functions
-For Cloudflare Python Workers
+Test Suite for jqpath: jq-style Path Manipulation Utilities for Python
+=====================================================================
 
-Run this file to validate the functions work correctly:
-python test_nested_functions.py
+This test suite validates the correctness and jq-style semantics of the path manipulation functions in jqpath.py.
+It covers getpath, setpath, delpath, delpaths, haspath, findpaths, findvalues, batch_setpath, flatten, unflatten, and merge,
+ensuring compatibility with Cloudflare Python Workers and robust handling of nested dict/list structures.
+
+Run this file to validate the jqpath module:
+python test_\jqpath.py
 """
 import os
 import sys
@@ -347,12 +351,9 @@ def run_tests():
         data = json.loads(json.dumps(test_data))
         delpath(data, "user.profile.email")
         runner.assert_equal(getpath(data, "user.profile.email", "MISSING"), "MISSING")
-        # Try deleting a non-existent path (should raise)
-        try:
-            delpath(data, "user.profile.nonexistent", create_missing=False)
-            runner.assert_true(False, "Should have raised KeyError")
-        except KeyError:
-            runner.assert_true(True)
+        # Try deleting a non-existent path (should do nothing, no error)
+        delpath(data, "user.profile.nonexistent")
+        runner.assert_true(True)
     runner.test("delpath deletes a single path", test_delpath)
 
     # 5c. delpaths (multi-path deletion)
@@ -361,12 +362,9 @@ def run_tests():
         delpaths(data, ["user.profile.email", ["user", "profile", "age"]])
         runner.assert_equal(getpath(data, "user.profile.email", "MISSING"), "MISSING")
         runner.assert_equal(getpath(data, "user.profile.age", "MISSING"), "MISSING")
-        # Try deleting a mix of existing and non-existent paths
-        try:
-            delpaths(data, ["user.profile.nonexistent", "user.settings.theme"], create_missing=False)
-            runner.assert_true(False, "Should have raised KeyError")
-        except KeyError:
-            runner.assert_true(True)
+        # Try deleting a mix of existing and non-existent paths (should do nothing, no error)
+        delpaths(data, ["user.profile.nonexistent", "user.settings.theme"])
+        runner.assert_true(True)
     runner.test("delpaths deletes multiple paths", test_delpaths)
 
     # 6. find_values
