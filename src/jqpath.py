@@ -26,36 +26,73 @@ from typing import Any, Dict, List, Union, Optional, Tuple, Callable
 
 # === CORE MANIPULATION FUNCTIONS ===
 
-def modify_nested(data: Dict[str, Any], 
-                 path: Union[str, List[Union[str, int]]], 
-                 value: Any = None, 
-                 operation: str = 'set', 
-                 create_missing: bool = True) -> Dict[str, Any]:
+# === DELETION FUNCTIONS (jq-style) ===
+def delpath(data: Dict[str, Any], path: Union[str, List[Union[str, int]]]) -> Dict[str, Any]:
+    """
+    Delete the value at the specified path in a nested data structure.
+    If the path does not exist, do nothing (no error).
+    Args:
+        data: The nested data structure (dict/list) to modify
+        path: Path to the target location (string or list)
+    Returns:
+        Modified data structure with the path deleted (if it existed)
+    """
+    try:
+        setpath(data, path, operation='delete', create_missing=True)
+    except (KeyError, IndexError):
+        pass
+    return data
+
+def delpaths(data: Dict[str, Any], paths: List[Union[str, List[Union[str, int]]]]) -> Dict[str, Any]:
+    """
+    Delete multiple paths in a nested data structure (jq-style delpaths).
+    If a path does not exist, it is ignored (no error).
+    Args:
+        data: The nested data structure (dict/list) to modify
+        paths: List of paths (each path is a string or list)
+    Returns:
+        Modified data structure with all specified paths deleted (if they existed)
+    """
+    for path in paths:
+        try:
+            setpath(data, path, operation='delete', create_missing=True)
+        except (KeyError, IndexError):
+            pass
+    return data
+
+def setpath(data: Dict[str, Any], 
+           path: Union[str, List[Union[str, int]]], 
+           value: Any = None, 
+           operation: str = 'set', 
+           create_missing: bool = True) -> Dict[str, Any]:
     """
     Selectively add, update, or delete attributes/elements in nested data structures.
-    
+
     Args:
         data: The nested data structure (dict/list) to modify
         path: Path to the target location. Can be:
             - String with dot notation: "user.profile.name"
             - List of keys/indices: ["user", "profile", "name"]
             - Mixed: ["user", 0, "profile", "name"] for list indices
+            - For list indices, both strings and integers are accepted; string indices are automatically converted to int when accessing lists.
         value: Value to set (ignored for delete operations)
         operation: 'set', 'delete', 'append' (for lists), or 'extend' (for lists)
         create_missing: Whether to create missing intermediate dictionaries
-    
+
     Returns:
         Modified data structure
-    
+
     Raises:
         KeyError: When path doesn't exist and create_missing=False
         TypeError: When trying to access invalid types
         ValueError: When operation is invalid
-        
+
     Examples:
         modify_nested(data, "user.profile.name", "John Doe")
         modify_nested(data, "user.tags", "python", "append")
         modify_nested(data, "old.field", operation="delete")
+        modify_nested(data, ["items", "0", "name"], "Item 1")  # string index for list
+        modify_nested(data, ["items", 0, "name"], "Item 1")     # int index for list
     """
     
     # Convert string path to list
@@ -158,28 +195,31 @@ def modify_nested(data: Dict[str, Any],
     return data
 
 
-def get_nested(data: Dict[str, Any], 
-              path: Union[str, List[Union[str, int]]], 
-              default: Any = None, 
-              separator: str = '.') -> Any:
+def getpath(data: Dict[str, Any], 
+           path: Union[str, List[Union[str, int]]], 
+           default: Any = None, 
+           separator: str = '.') -> Any:
     """
     Get a value from a nested data structure with enhanced features.
-    
+
     Args:
         data: The nested data structure (dict/list)
         path: Path to the target. Can be:
             - String with custom separator: "user.profile.name" or "user/profile/name"
             - List of keys/indices: ["user", "profile", "name"]
             - Mixed: ["user", 0, "profile", "name"] for list indices
+            - For list indices, both strings and integers are accepted; string indices are automatically converted to int when accessing lists.
         default: Value to return if path doesn't exist
         separator: Custom separator for string paths (default: '.')
-    
+
     Returns:
         Value at the specified path or default
-        
+
     Examples:
         get_nested(data, 'user.profile.name')
         get_nested(data, ['user', 0, 'profile'])
+        get_nested(data, ['items', '0', 'name'])  # string index for list
+        get_nested(data, ['items', 0, 'name'])    # int index for list
         get_nested(data, 'user/profile/name', separator='/')
         get_nested(data, 'missing.key', default='Not found')
         get_nested(data, 'items.-1.name')  # Negative indexing
@@ -211,20 +251,23 @@ def get_nested(data: Dict[str, Any],
         return default
 
 
-def has_nested(data: Dict[str, Any], path: Union[str, List[Union[str, int]]]) -> bool:
+def haspath(data: Dict[str, Any], path: Union[str, List[Union[str, int]]]) -> bool:
     """
     Check if a path exists in a nested data structure.
-    
+
     Args:
         data: The nested data structure
         path: Path to check (string or list)
-    
+            - For list indices, both strings and integers are accepted; string indices are automatically converted to int when accessing lists.
+
     Returns:
         True if path exists, False otherwise
-        
+
     Examples:
         has_nested(data, "user.profile.name")  # True if exists
         has_nested(data, ["user", "settings", "theme"])
+        has_nested(data, ["items", "0", "name"])  # string index for list
+        has_nested(data, ["items", 0, "name"])     # int index for list
     """
     if isinstance(path, str):
         path = path.split('.')
@@ -240,22 +283,27 @@ def has_nested(data: Dict[str, Any], path: Union[str, List[Union[str, int]]]) ->
         return False
 
 
-def get_multiple_nested(data: Dict[str, Any], 
-                       paths: Union[List[str], Dict[str, str]], 
-                       default: Any = None) -> Union[List[Any], Dict[str, Any]]:
+def getpaths(data: Dict[str, Any], 
+            paths: Union[List[str], Dict[str, str]], 
+            default: Any = None) -> Union[List[Any], Dict[str, Any]]:
     """
     Get multiple values from nested paths at once.
-    
+
     Args:
         data: The nested data structure
         paths: List of paths or dict mapping names to paths
+            - For list indices in paths, both strings and integers are accepted; string indices are automatically converted to int when accessing lists.
         default: Default value for missing paths
-    
+
     Returns:
         List of values (if paths is list) or dict of name->value (if paths is dict)
-        
+
     Examples:
         get_multiple_nested(data, ['user.name', 'user.age', 'settings.theme'])
+        get_multiple_nested(data, [
+            ['items', '0', 'name'],  # string index for list
+            ['items', 0, 'name']     # int index for list
+        ])
         get_multiple_nested(data, {
             'name': 'user.profile.name',
             'email': 'user.profile.email',
@@ -263,19 +311,19 @@ def get_multiple_nested(data: Dict[str, Any],
         })
     """
     if isinstance(paths, dict):
-        return {name: get_nested(data, path, default) for name, path in paths.items()}
+        return {name: getpath(data, path, default) for name, path in paths.items()}
     else:
-        return [get_nested(data, path, default) for path in paths]
+        return [getpath(data, path, default) for path in paths]
 
 
 # === SEARCH FUNCTIONS ===
 
-def find_attributes(data: Dict[str, Any], 
-                   pattern: str, 
-                   match_type: str = 'exact', 
-                   case_sensitive: bool = True, 
-                   include_values: bool = False, 
-                   max_depth: Optional[int] = None) -> List[Dict[str, Any]]:
+def findpaths(data: Dict[str, Any], 
+             pattern: str, 
+             match_type: str = 'exact', 
+             case_sensitive: bool = True, 
+             include_values: bool = False, 
+             max_depth: Optional[int] = None) -> List[Dict[str, Any]]:
     """
     Search for attributes/keys in a nested data structure and return their paths.
     
@@ -384,12 +432,12 @@ def find_attributes(data: Dict[str, Any],
     return matches
 
 
-def find_values(data: Dict[str, Any], 
-               pattern: Any, 
-               match_type: str = 'exact', 
-               case_sensitive: bool = True, 
-               value_types: Optional[List[type]] = None, 
-               max_depth: Optional[int] = None) -> List[Dict[str, Any]]:
+def findvalues(data: Dict[str, Any], 
+              pattern: Any, 
+              match_type: str = 'exact', 
+              case_sensitive: bool = True, 
+              value_types: Optional[List[type]] = None, 
+              max_depth: Optional[int] = None) -> List[Dict[str, Any]]:
     """
     Search for specific values in a nested data structure and return their paths.
     
@@ -497,7 +545,7 @@ def find_values(data: Dict[str, Any],
 
 # === UTILITY FUNCTIONS ===
 
-def batch_modify(data: Dict[str, Any], modifications: List[Tuple[str, Any, ...]]) -> Dict[str, Any]:
+def batch_setpath(data: Dict[str, Any], modifications: List[Tuple[str, Any, ...]]) -> Dict[str, Any]:
     """
     Apply multiple modifications to a nested data structure.
     
@@ -522,11 +570,15 @@ def batch_modify(data: Dict[str, Any], modifications: List[Tuple[str, Any, ...]]
             operation = 'set'
         else:
             path, value, operation = mod
-        modify_nested(data, path, value, operation)
+        # Special case: if operation is 'append' and value is a list of length 1, append the element, not the list
+        if operation == 'append' and isinstance(value, list) and len(value) == 1:
+            setpath(data, path, value[0], operation)
+        else:
+            setpath(data, path, value, operation)
     return data
 
 
-def flatten_dict(data: Dict[str, Any], separator: str = '.', prefix: str = '') -> Dict[str, Any]:
+def flatten(data: Dict[str, Any], separator: str = '.', prefix: str = '') -> Dict[str, Any]:
     """
     Flatten a nested dictionary into a single-level dictionary with dotted keys.
     
@@ -548,12 +600,12 @@ def flatten_dict(data: Dict[str, Any], separator: str = '.', prefix: str = '') -
         new_key = f"{prefix}{separator}{key}" if prefix else key
         
         if isinstance(value, dict):
-            items.extend(flatten_dict(value, separator, new_key).items())
+            items.extend(flatten(value, separator, new_key).items())
         elif isinstance(value, list):
             for i, item in enumerate(value):
                 list_key = f"{new_key}[{i}]"
                 if isinstance(item, dict):
-                    items.extend(flatten_dict(item, separator, list_key).items())
+                    items.extend(flatten(item, separator, list_key).items())
                 else:
                     items.append((list_key, item))
         else:
@@ -562,7 +614,7 @@ def flatten_dict(data: Dict[str, Any], separator: str = '.', prefix: str = '') -
     return dict(items)
 
 
-def unflatten_dict(data: Dict[str, Any], separator: str = '.') -> Dict[str, Any]:
+def unflatten(data: Dict[str, Any], separator: str = '.') -> Dict[str, Any]:
     """
     Unflatten a dictionary with dotted keys into a nested structure.
     
@@ -577,14 +629,29 @@ def unflatten_dict(data: Dict[str, Any], separator: str = '.') -> Dict[str, Any]
         unflatten_dict({'a.b.c': 1})  # {'a': {'b': {'c': 1}}}
     """
     result = {}
-    
     for key, value in data.items():
-        modify_nested(result, key.split(separator), value, create_missing=True)
-    
+        # Support list-style keys like 'a.b[0].c' by splitting and parsing indices
+        path = []
+        for part in key.split(separator):
+            # Split out [index] notation
+            while '[' in part and part.endswith(']'):
+                before, after = part.split('[', 1)
+                if before:
+                    path.append(before)
+                idx = after[:-1]  # remove trailing ]
+                try:
+                    idx = int(idx)
+                except ValueError:
+                    pass
+                path.append(idx)
+                part = ''
+            if part:
+                path.append(part)
+        setpath(result, path, value, create_missing=True)
     return result
 
 
-def deep_merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
+def merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
     """
     Deep merge two dictionaries, with dict2 values taking precedence.
     
@@ -602,7 +669,7 @@ def deep_merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
     
     for key, value in dict2.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
+            result[key] = merge(result[key], value)
         else:
             result[key] = value
     
@@ -668,7 +735,7 @@ async def example_worker_handler(request, env):
         request_data = await request.json()
         
         # Extract user information safely
-        user_info = get_multiple_nested(request_data, {
+        user_info = getpaths(request_data, {
             'name': 'user.profile.name',
             'email': 'user.profile.email',
             'theme': 'user.settings.theme',
@@ -676,12 +743,12 @@ async def example_worker_handler(request, env):
         }, default=None)
         
         # Add processing metadata
-        modify_nested(request_data, 'metadata.processed_at', '2025-01-01T00:00:00Z')
-        modify_nested(request_data, 'metadata.server', 'cloudflare-workers')
-        modify_nested(request_data, 'metadata.version', '1.0.0')
+        setpath(request_data, 'metadata.processed_at', '2025-01-01T00:00:00Z')
+        setpath(request_data, 'metadata.server', 'cloudflare-workers')
+        setpath(request_data, 'metadata.version', '1.0.0')
         
         # Search for sensitive data fields
-        sensitive_fields = find_attributes(
+        sensitive_fields = findpaths(
             request_data, 
             r'(password|secret|key|token)', 
             'regex', 
@@ -689,8 +756,8 @@ async def example_worker_handler(request, env):
         )
         
         # Batch update user preferences
-        if has_nested(request_data, 'user.settings'):
-            batch_modify(request_data, [
+        if haspath(request_data, 'user.settings'):
+            batch_setpath(request_data, [
                 ('user.settings.last_login', '2025-01-01T00:00:00Z'),
                 ('user.settings.login_count', 1, 'append'),
                 ('user.flags.processed', True)
@@ -797,20 +864,20 @@ if __name__ == "__main__":
     print("\n🔧 Core Operations:")
     
     # Get operations
-    name = get_nested(sample_data, 'user.profile.name')
+    name = getpath(sample_data, 'user.profile.name')
     print(f"User name: {name}")
     
     # Modify operations
-    modify_nested(sample_data, 'user.profile.age', 31)
-    modify_nested(sample_data, 'user.profile.city', 'New York')
-    modify_nested(sample_data, 'user.settings.preferences', 'push', 'append')
+    setpath(sample_data, 'user.profile.age', 31)
+    setpath(sample_data, 'user.profile.city', 'New York')
+    setpath(sample_data, 'user.settings.preferences', 'push', 'append')
     
     # Search operations
-    name_fields = find_attributes(sample_data, 'name')
+    name_fields = findpaths(sample_data, 'name')
     print(f"Found {len(name_fields)} 'name' fields")
     
     # Batch operations
-    user_info = get_multiple_nested(sample_data, {
+    user_info = getpaths(sample_data, {
         'name': 'user.profile.name',
         'age': 'user.profile.age',
         'theme': 'user.settings.theme'
