@@ -1,28 +1,3 @@
-# === CONVENIENCE API ===
-def getpath_setpath(
-    src: Dict[str, Any],
-    src_path: Union[str, List[Union[str, int]]],
-    tgt: Dict[str, Any],
-    tgt_path: Union[str, List[Union[str, int]]]
-) -> Dict[str, Any]:
-    """
-    Copy a value from a source path in one JSON structure to a target path in another, creating the target path as needed (shallow copy).
-    Args:
-        src: Source nested data structure (dict/list)
-        src_path: Path to value in source (string or list)
-        tgt: Target nested data structure (dict/list)
-        tgt_path: Path to set value in target (string or list)
-    Returns:
-        Modified target data structure with value set at tgt_path (shallow copy)
-    Examples:
-        getpath_setpath(src, 'user.profile.name', tgt, 'profile.name_copy')
-        getpath_setpath(src, ['a', 0, 'b'], tgt, ['x', 'y'])
-    """
-    import copy
-    value = getpath(src, src_path)
-    setpath(tgt, tgt_path, copy.copy(value), create_missing=True)
-    return tgt
-
 """
 jqpath: jq-style Path Manipulation Utilities for Python (Cloudflare Workers Compatible)
 =====================================================================================
@@ -569,7 +544,32 @@ def findvalues(data: Dict[str, Any],
     return matches
 
 
-# === UTILITY FUNCTIONS ===
+# === CONVENIENCE & UTILITY FUNCTIONS ===
+
+def getpath_setpath(
+    src: Dict[str, Any],
+    src_path: Union[str, List[Union[str, int]]],
+    tgt: Dict[str, Any],
+    tgt_path: Union[str, List[Union[str, int]]]
+) -> Dict[str, Any]:
+    """
+    Copy a value from a source path in one JSON structure to a target path in another, creating the target path as needed (shallow copy).
+    Args:
+        src: Source nested data structure (dict/list)
+        src_path: Path to value in source (string or list)
+        tgt: Target nested data structure (dict/list)
+        tgt_path: Path to set value in target (string or list)
+    Returns:
+        Modified target data structure with value set at tgt_path (shallow copy)
+    Examples:
+        getpath_setpath(src, 'user.profile.name', tgt, 'profile.name_copy')
+        getpath_setpath(src, ['a', 0, 'b'], tgt, ['x', 'y'])
+    """
+    import copy
+    value = getpath(src, src_path)
+    setpath(tgt, tgt_path, copy.copy(value), create_missing=True)
+    return tgt
+
 
 def batch_setpath(data: Dict[str, Any], modifications: List[Tuple[str, Any, ...]]) -> Dict[str, Any]:
     """
@@ -755,12 +755,15 @@ async def example_worker_handler(request, env):
     This demonstrates usage patterns for Cloudflare Workers.
     """
     try:
-        # Import at function level for Cloudflare Workers
-        from js import Response
-        
+        # Try to import Response for Cloudflare Workers, else set to None
+        try:
+            from js import Response
+        except ImportError:
+            Response = None  # Not in Workers environment
+
         # Parse request body
         request_data = await request.json()
-        
+
         # Extract user information safely
         user_info = getpaths(request_data, {
             'name': 'user.profile.name',
@@ -768,20 +771,20 @@ async def example_worker_handler(request, env):
             'theme': 'user.settings.theme',
             'notifications': 'user.settings.notifications'
         }, default=None)
-        
+
         # Add processing metadata
         setpath(request_data, 'metadata.processed_at', '2025-01-01T00:00:00Z')
         setpath(request_data, 'metadata.server', 'cloudflare-workers')
         setpath(request_data, 'metadata.version', '1.0.0')
-        
+
         # Search for sensitive data fields
         sensitive_fields = findpaths(
-            request_data, 
-            r'(password|secret|key|token)', 
-            'regex', 
+            request_data,
+            r'(password|secret|key|token)',
+            'regex',
             case_sensitive=False
         )
-        
+
         # Batch update user preferences
         if haspath(request_data, 'user.settings'):
             batch_setpath(request_data, [
@@ -789,7 +792,7 @@ async def example_worker_handler(request, env):
                 ('user.settings.login_count', 1, 'append'),
                 ('user.flags.processed', True)
             ])
-        
+
         # Create response
         response_data = {
             'success': True,
@@ -798,14 +801,17 @@ async def example_worker_handler(request, env):
             'processed': True,
             'timestamp': '2025-01-01T00:00:00Z'
         }
-        
-        # Return JSON response
+
+        # Return JSON response (only if in Workers context)
         json_response = create_worker_response(response_data)
-        return Response.new(json_response, {
-            'headers': {'Content-Type': 'application/json'},
-            'status': 200
-        })
-        
+        if Response:
+            return Response.new(json_response, {
+                'headers': {'Content-Type': 'application/json'},
+                'status': 200
+            })
+        else:
+            return json_response  # For local/dev environments
+
     except Exception as e:
         # Error handling
         error_response = create_worker_response({
@@ -813,10 +819,13 @@ async def example_worker_handler(request, env):
             'error': str(e),
             'timestamp': '2025-01-01T00:00:00Z'
         })
-        return Response.new(error_response, {
-            'status': 500,
-            'headers': {'Content-Type': 'application/json'}
-        })
+        if Response:
+            return Response.new(error_response, {
+                'status': 500,
+                'headers': {'Content-Type': 'application/json'}
+            })
+        else:
+            return error_response
 
 
 # === VERSION AND COMPATIBILITY INFO ===
