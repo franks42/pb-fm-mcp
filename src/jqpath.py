@@ -30,13 +30,29 @@ from typing import Any, Dict, List, Union, Optional, Tuple, Callable
 # === DELETION FUNCTIONS (jq-style) ===
 def delpath(data: Dict[str, Any], path: Union[str, List[Union[str, int]]]) -> Dict[str, Any]:
     """
-    Delete the value at the specified path in a nested data structure.
+    jq-style delpath: Delete the value at the specified path in a nested data structure.
     If the path does not exist, do nothing (no error).
+
     Args:
         data: The nested data structure (dict/list) to modify
-        path: Path to the target location (string or list)
+        path: Path to the target location (string or list). Supports:
+            - String with dot notation: "user.profile.name"
+            - List of keys/indices: ["user", "profile", "name"]
+            - Mixed: ["user", 0, "profile", "name"] for list indices
+            - For list indices, both strings and integers are accepted; string indices are automatically converted to int when accessing lists.
+            - jq-style selectors for lists:
+                * Dict selector: {"field": value} selects the first dict in a list where dict["field"] == value
+                * String selector: "field=value" selects the first dict in a list where str(dict["field"]) == value
     Returns:
         Modified data structure with the path deleted (if it existed)
+
+    Examples:
+        delpath(data, 'user.profile.name')
+        delpath(data, ['user', 0, 'profile'])
+        delpath(data, ['items', '0', 'name'])  # string index for list
+        delpath(data, ['items', 0, 'name'])    # int index for list
+        delpath(data, ['wallets', {'id': 123}, 'balance'])  # dict selector in list
+        delpath(data, ['wallets', 'id=123', 'balance'])     # string selector in list
     """
     try:
         setpath(data, path, operation='delete', create_missing=False)
@@ -76,6 +92,9 @@ def setpath(data: Dict[str, Any],
             - List of keys/indices: ["user", "profile", "name"]
             - Mixed: ["user", 0, "profile", "name"] for list indices
             - For list indices, both strings and integers are accepted; string indices are automatically converted to int when accessing lists.
+            - jq-style selectors for lists:
+                * Dict selector: {"field": value} selects the first dict in a list where dict["field"] == value (creates if not found and create_missing=True)
+                * String selector: "field=value" selects the first dict in a list where str(dict["field"]) == value (creates if not found and create_missing=True)
         value: Value to set (ignored for delete operations)
         operation: 'set', 'delete', 'append' (for lists), or 'extend' (for lists)
         create_missing: Whether to create missing intermediate dictionaries
@@ -94,6 +113,8 @@ def setpath(data: Dict[str, Any],
         setpath(data, "old.field", operation="delete")
         setpath(data, ["items", "0", "name"], "Item 1")  # string index for list
         setpath(data, ["items", 0, "name"], "Item 1")     # int index for list
+        setpath(data, ["wallets", {"id": 123}, "balance"], 1000)  # dict selector in list
+        setpath(data, ["wallets", "id=123", "balance"], 1000)     # string selector in list
     """
     
     # Convert string path to list
@@ -112,20 +133,50 @@ def setpath(data: Dict[str, Any],
         else:
             raise ValueError("Cannot delete or append to root")
     
-    # Navigate to parent of target
+    # Enhanced: support selectors in lists (e.g., {"wallet": "121"} or "wallet=121")
     current = data
     for key in path[:-1]:
-        # Handle list indices
+        # Selector in a list
         if isinstance(current, list):
-            key = int(key)
-            if key >= len(current):
-                if create_missing:
-                    # Extend list to accommodate index
-                    current.extend([{}] * (key - len(current) + 1))
-                else:
-                    raise IndexError(f"List index {key} out of range")
-        
-        # Handle dictionary keys
+            selector = None
+            idx = None
+            # Dict selector: {"field": value}
+            if isinstance(key, dict) and len(key) == 1:
+                sel_field, sel_value = next(iter(key.items()))
+                for i, item in enumerate(current):
+                    if isinstance(item, dict) and item.get(sel_field) == sel_value:
+                        idx = i
+                        break
+                if idx is None:
+                    if create_missing:
+                        # Create new dict with selector field
+                        idx = len(current)
+                        current.append({sel_field: sel_value})
+                    else:
+                        raise KeyError(f"No list element with {sel_field}={sel_value}")
+                key = idx
+            # String selector: "field=value"
+            elif isinstance(key, str) and '=' in key:
+                sel_field, sel_value = key.split('=', 1)
+                for i, item in enumerate(current):
+                    if isinstance(item, dict) and str(item.get(sel_field)) == sel_value:
+                        idx = i
+                        break
+                if idx is None:
+                    if create_missing:
+                        idx = len(current)
+                        current.append({sel_field: sel_value})
+                    else:
+                        raise KeyError(f"No list element with {sel_field}={sel_value}")
+                key = idx
+            else:
+                # Fallback: treat as index
+                key = int(key)
+                if key >= len(current):
+                    if create_missing:
+                        current.extend([{}] * (key - len(current) + 1))
+                    else:
+                        raise IndexError(f"List index {key} out of range")
         elif isinstance(current, dict):
             if key not in current:
                 if create_missing:
@@ -134,7 +185,6 @@ def setpath(data: Dict[str, Any],
                     raise KeyError(f"Key '{key}' not found")
         else:
             raise TypeError(f"Cannot navigate through {type(current).__name__}")
-        
         current = current[key]
     
     # Perform operation on target
@@ -210,6 +260,9 @@ def getpath(data: Dict[str, Any],
             - List of keys/indices: ["user", "profile", "name"]
             - Mixed: ["user", 0, "profile", "name"] for list indices
             - For list indices, both strings and integers are accepted; string indices are automatically converted to int when accessing lists.
+            - jq-style selectors for lists:
+                * Dict selector: {"field": value} selects the first dict in a list where dict["field"] == value
+                * String selector: "field=value" selects the first dict in a list where str(dict["field"]) == value
         default: Value to return if path doesn't exist
         separator: Custom separator for string paths (default: '.')
 
@@ -224,6 +277,8 @@ def getpath(data: Dict[str, Any],
         getpath(data, 'user/profile/name', separator='/')
         getpath(data, 'missing.key', default='Not found')
         getpath(data, 'items.-1.name')  # Negative indexing
+        getpath(data, ['wallets', {'id': 123}, 'balance'])  # dict selector in list
+        getpath(data, ['wallets', 'id=123', 'balance'])     # string selector in list
     """
     if isinstance(path, str):
         path = path.split(separator)
@@ -235,18 +290,37 @@ def getpath(data: Dict[str, Any],
     try:
         for key in path:
             if isinstance(current, list):
-                # Handle negative indices
-                key = int(key)
-                if key < 0:
-                    key = len(current) + key
+                idx = None
+                # Dict selector
+                if isinstance(key, dict) and len(key) == 1:
+                    sel_field, sel_value = next(iter(key.items()))
+                    for i, item in enumerate(current):
+                        if isinstance(item, dict) and item.get(sel_field) == sel_value:
+                            idx = i
+                            break
+                    if idx is None:
+                        return default
+                    key = idx
+                # String selector
+                elif isinstance(key, str) and '=' in key:
+                    sel_field, sel_value = key.split('=', 1)
+                    for i, item in enumerate(current):
+                        if isinstance(item, dict) and str(item.get(sel_field)) == sel_value:
+                            idx = i
+                            break
+                    if idx is None:
+                        return default
+                    key = idx
+                else:
+                    # Handle negative indices
+                    key = int(key)
+                    if key < 0:
+                        key = len(current) + key
+                current = current[key]
             elif isinstance(current, dict):
-                # Keep key as string for dict access
-                pass
+                current = current[key]
             else:
-                # Can't navigate through this type
                 return default
-            
-            current = current[key]
         return current
     except (KeyError, IndexError, TypeError, ValueError):
         return default
@@ -260,6 +334,7 @@ def haspath(data: Dict[str, Any], path: Union[str, List[Union[str, int]]]) -> bo
         data: The nested data structure
         path: Path to check (string or list)
             - For list indices, both strings and integers are accepted; string indices are automatically converted to int when accessing lists.
+            - jq-style selectors for lists are supported (see getpath docstring for details).
 
     Returns:
         True if path exists, False otherwise
@@ -269,19 +344,11 @@ def haspath(data: Dict[str, Any], path: Union[str, List[Union[str, int]]]) -> bo
         haspath(data, ["user", "settings", "theme"])
         haspath(data, ["items", "0", "name"])  # string index for list
         haspath(data, ["items", 0, "name"])     # int index for list
+        haspath(data, ["wallets", {"id": 123}, "balance"])  # dict selector in list
+        haspath(data, ["wallets", "id=123", "balance"])     # string selector in list
     """
-    if isinstance(path, str):
-        path = path.split('.')
-    
-    current = data
-    try:
-        for key in path:
-            if isinstance(current, list):
-                key = int(key)
-            current = current[key]
-        return True
-    except (KeyError, IndexError, TypeError, ValueError):
-        return False
+    _sentinel = object()
+    return getpath(data, path, default=_sentinel) is not _sentinel
 
 
 def getpaths(data: Dict[str, Any], 
