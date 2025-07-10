@@ -447,6 +447,7 @@ def run_tests():
         runner.assert_true(True)
     runner.test("delpaths deletes multiple paths", test_delpaths)
 
+
     # 6. find_values
     from jqpath import findvalues
     def test_findvalues():
@@ -458,6 +459,70 @@ def run_tests():
         runner.assert_true(any(r["value"] == 1 for r in results_int))
         runner.assert_true(any(r["value"] == "foo" for r in results_str))
     runner.test("find_values for int, str, bool", test_findvalues)
+
+    # === Selector support tests ===
+    def test_haspath_selector_dict():
+        data = {
+            "wallets": [
+                {"id": 123, "balance": 1000},
+                {"id": 456, "balance": 2000}
+            ]
+        }
+        runner.assert_true(haspath(data, ["wallets", {"id": 123}, "balance"]))
+        runner.assert_true(not haspath(data, ["wallets", {"id": 999}, "balance"]))
+    runner.test("haspath supports dict selector in list", test_haspath_selector_dict)
+
+    def test_haspath_selector_string():
+        data = {
+            "wallets": [
+                {"id": 123, "balance": 1000},
+                {"id": 456, "balance": 2000}
+            ]
+        }
+        runner.assert_true(haspath(data, ["wallets", "id=456", "balance"]))
+        runner.assert_true(not haspath(data, ["wallets", "id=999", "balance"]))
+    runner.test("haspath supports string selector in list", test_haspath_selector_string)
+
+    def test_setpath_selector_dict():
+        data = {"wallets": [{"id": 1, "balance": 10}]}
+        setpath(data, ["wallets", {"id": 1}, "balance"], 99)
+        runner.assert_equal(getpath(data, ["wallets", {"id": 1}, "balance"]), 99)
+    runner.test("setpath supports dict selector in list", test_setpath_selector_dict)
+
+    def test_setpath_selector_string():
+        data = {"wallets": [{"id": 1, "balance": 10}]}
+        setpath(data, ["wallets", "id=1", "balance"], 77)
+        runner.assert_equal(getpath(data, ["wallets", "id=1", "balance"]), 77)
+    runner.test("setpath supports string selector in list", test_setpath_selector_string)
+
+    def test_delpath_selector_dict():
+        data = {"wallets": [{"id": 1, "balance": 10}, {"id": 2, "balance": 20}]}
+        delpath(data, ["wallets", {"id": 2}, "balance"])
+        runner.assert_true(not haspath(data, ["wallets", {"id": 2}, "balance"]))
+    runner.test("delpath supports dict selector in list", test_delpath_selector_dict)
+
+    def test_delpath_selector_string():
+        data = {"wallets": [{"id": 1, "balance": 10}, {"id": 2, "balance": 20}]}
+        delpath(data, ["wallets", "id=1", "balance"])
+        runner.assert_true(not haspath(data, ["wallets", "id=1", "balance"]))
+    runner.test("delpath supports string selector in list", test_delpath_selector_string)
+
+    def test_getpaths_setpaths_selector():
+        src = {"wallets": [{"id": 1, "balance": 10}, {"id": 2, "balance": 20}]}
+        tgt = {}
+        getpaths_setpaths(src, tgt, ([ "wallets", {"id": 2}, "balance" ], [ "result", "bal" ]))
+        runner.assert_equal(getpath(tgt, ["result", "bal"]), 20)
+    runner.test("getpaths_setpaths supports selector in path", test_getpaths_setpaths_selector)
+
+    def test_batch_setpath_selector():
+        data = {"wallets": [{"id": 1, "balance": 10}, {"id": 2, "balance": 20}]}
+        batch_setpath(data, [
+            (["wallets", {"id": 1}, "balance"], 111),
+            (["wallets", "id=2", "balance"], 222)
+        ])
+        runner.assert_equal(getpath(data, ["wallets", {"id": 1}, "balance"]), 111)
+        runner.assert_equal(getpath(data, ["wallets", {"id": 2}, "balance"]), 222)
+    runner.test("batch_setpath supports selectors in list", test_batch_setpath_selector)
 
     # 7. Edge cases: empty path, path with only list indices, create_missing=False
     def test_empty_path():
