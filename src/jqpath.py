@@ -546,32 +546,43 @@ def findvalues(data: Dict[str, Any],
 
 # === CONVENIENCE & UTILITY FUNCTIONS ===
 
-def getpath_setpath(
-    src: Dict[str, Any],
-    src_path: Union[str, List[Union[str, int]]],
-    tgt: Dict[str, Any],
-    tgt_path: Union[str, List[Union[str, int]]]
-) -> Dict[str, Any]:
+def getpaths_setpaths(
+    src: Union[dict, list],
+    tgt: Union[dict, list],
+    path_pairs: Union[
+        Tuple[Union[str, List[Union[str, int]]], Union[str, List[Union[str, int]]]],
+        List[Tuple[Union[str, List[Union[str, int]]], Union[str, List[Union[str, int]]]]]
+    ]
+) -> Union[dict, list]:
     """
-    Copy a value from a source path in one JSON structure to a target path in another, creating the target path as needed (shallow copy).
+    Copy one or more values from source paths in one JSON structure to target paths in another, creating the target paths as needed (shallow copy).
     Args:
         src: Source nested data structure (dict/list)
-        src_path: Path to value in source (string or list)
         tgt: Target nested data structure (dict/list)
-        tgt_path: Path to set value in target (string or list)
+        path_pairs: Either a single (src_path, tgt_path) tuple, or a list of such tuples.
     Returns:
-        Modified target data structure with value set at tgt_path (shallow copy)
+        Modified target data structure with value(s) set at tgt_path(s) (shallow copy)
     Examples:
-        getpath_setpath(src, 'user.profile.name', tgt, 'profile.name_copy')
-        getpath_setpath(src, ['a', 0, 'b'], tgt, ['x', 'y'])
+        getpaths_setpaths(src, tgt, ('user.profile.name', 'profile.copied_name'))
+        getpaths_setpaths(src, tgt, [
+            ('user.profile.name', 'profile.copied_name'),
+            ('user.profile.email', 'profile.copied_email')
+        ])
     """
     import copy
-    value = getpath(src, src_path)
-    setpath(tgt, tgt_path, copy.copy(value), create_missing=True)
+    # Accept a single tuple or a list of tuples
+    if isinstance(path_pairs, tuple) and len(path_pairs) == 2 and not isinstance(path_pairs[0], (tuple, list)):
+        path_pairs = [path_pairs]
+    for src_path, tgt_path in path_pairs:
+        value = getpath(src, src_path)
+        setpath(tgt, tgt_path, copy.copy(value), create_missing=True)
     return tgt
 
 
-def batch_setpath(data: Dict[str, Any], modifications: List[Tuple[str, Any, ...]]) -> Dict[str, Any]:
+def batch_setpath(
+    data: Dict[str, Any],
+    modifications: List[Union[Tuple[str, Any], Tuple[str, Any, str]]]
+) -> Dict[str, Any]:
     """
     jq-style batch_setpath: Apply multiple setpath/append/delete operations to a nested data structure.
 
