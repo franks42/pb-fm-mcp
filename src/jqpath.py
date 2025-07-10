@@ -1,5 +1,5 @@
 # === CONVENIENCE API ===
-def getset(
+def getpath_setpath(
     src: Dict[str, Any],
     src_path: Union[str, List[Union[str, int]]],
     tgt: Dict[str, Any],
@@ -15,8 +15,8 @@ def getset(
     Returns:
         Modified target data structure with value set at tgt_path (shallow copy)
     Examples:
-        getset(src, 'user.profile.name', tgt, 'profile.name_copy')
-        getset(src, ['a', 0, 'b'], tgt, ['x', 'y'])
+        getpath_setpath(src, 'user.profile.name', tgt, 'profile.name_copy')
+        getpath_setpath(src, ['a', 0, 'b'], tgt, ['x', 'y'])
     """
     import copy
     value = getpath(src, src_path)
