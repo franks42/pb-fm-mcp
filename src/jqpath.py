@@ -571,9 +571,16 @@ def getpaths_setpaths(
     """
     import copy
     # Accept a single tuple or a list of tuples
-    if isinstance(path_pairs, tuple) and len(path_pairs) == 2 and not isinstance(path_pairs[0], (tuple, list)):
-        path_pairs = [path_pairs]
-    for src_path, tgt_path in path_pairs:
+    # Only accept (src_path, tgt_path) or [(src_path, tgt_path), ...]
+    if isinstance(path_pairs, (tuple, list)) and len(path_pairs) == 2 and not (
+        isinstance(path_pairs[0], (tuple, list)) and len(path_pairs[0]) == 2 and isinstance(path_pairs[1], (tuple, list)) and len(path_pairs[1]) == 2
+    ):
+        # Treat as a single pair
+        path_pairs = [tuple(path_pairs)]
+    for pair in path_pairs:
+        if not (isinstance(pair, (list, tuple)) and len(pair) == 2):
+            raise ValueError(f"Each path_pair must be a (src_path, tgt_path) tuple or list, got: {pair}")
+        src_path, tgt_path = pair
         value = getpath(src, src_path)
         setpath(tgt, tgt_path, copy.copy(value), create_missing=True)
     return tgt

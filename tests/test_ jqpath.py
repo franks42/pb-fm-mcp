@@ -102,11 +102,91 @@ test_data = {
 # === RUN TESTS ===
 
 def run_tests():
+    print("\n🔄 Testing getpaths_setpaths (copy value by path):")
+    from jqpath import getpaths_setpaths
+    runner = TestRunner()
+
+    def test_getpaths_setpaths_single_pair():
+        src = {
+            "user": {
+                "profile": {"name": "Alice", "email": "alice@example.com"},
+                "settings": {"theme": "dark"}
+            }
+        }
+        tgt = {}
+        getpaths_setpaths(src, tgt, ("user.profile.name", "profile.copied_name"))
+        runner.assert_equal(getpath(tgt, "profile.copied_name"), "Alice")
+        # Ensure only the copied value exists
+        runner.assert_equal(list(tgt["profile"].keys()), ["copied_name"])
+    runner.test("getpaths_setpaths: single (src, tgt) pair", test_getpaths_setpaths_single_pair)
+
+    def test_getpaths_setpaths_multiple_pairs():
+        src = {
+            "user": {
+                "profile": {"name": "Alice", "email": "alice@example.com"},
+                "settings": {"theme": "dark"}
+            }
+        }
+        tgt = {}
+        getpaths_setpaths(src, tgt, [
+            ("user.profile.name", "profile.copied_name"),
+            ("user.profile.email", "profile.copied_email")
+        ])
+        runner.assert_equal(getpath(tgt, "profile.copied_name"), "Alice")
+        runner.assert_equal(getpath(tgt, "profile.copied_email"), "alice@example.com")
+    runner.test("getpaths_setpaths: multiple (src, tgt) pairs", test_getpaths_setpaths_multiple_pairs)
+
+    def test_getpaths_setpaths_list_and_int_paths():
+        src = {
+            "a": [
+                {"b": 1},
+                {"b": 2}
+            ]
+        }
+        tgt = {}
+        getpaths_setpaths(src, tgt, (["a", 1, "b"], ["x", "y"]))
+        runner.assert_equal(getpath(tgt, ["x", "y"]), 2)
+    runner.test("getpaths_setpaths: list and int paths", test_getpaths_setpaths_list_and_int_paths)
+
+    def test_getpaths_setpaths_mixed_types():
+        src = {"foo": {"bar": [10, 20, 30]}}
+        tgt = {}
+        getpaths_setpaths(src, tgt, [
+            ("foo.bar.0", "baz.first"),
+            (["foo", "bar", 2], ["baz", "third"])
+        ])
+        runner.assert_equal(getpath(tgt, "baz.first"), 10)
+        runner.assert_equal(getpath(tgt, ["baz", "third"]), 30)
+    runner.test("getpaths_setpaths: mixed string/list paths", test_getpaths_setpaths_mixed_types)
+
+    def test_getpaths_setpaths_shallow_copy():
+        src = {"obj": {"x": [1, 2, 3]}}
+        tgt = {}
+        getpaths_setpaths(src, tgt, ("obj.x", "copy.x"))
+        # Mutate the copied list in tgt, should not affect src
+        getpath(tgt, "copy.x").append(99)
+        runner.assert_equal(getpath(src, "obj.x"), [1, 2, 3])
+        runner.assert_equal(getpath(tgt, "copy.x"), [1, 2, 3, 99])
+    runner.test("getpaths_setpaths: shallow copy semantics", test_getpaths_setpaths_shallow_copy)
+
+    def test_getpaths_setpaths_missing_path():
+        src = {"foo": {"bar": 123}}
+        tgt = {}
+        getpaths_setpaths(src, tgt, ("foo.missing", "baz"))
+        # Should set None if path is missing
+        runner.assert_equal(getpath(tgt, "baz"), None)
+    runner.test("getpaths_setpaths: missing source path sets None", test_getpaths_setpaths_missing_path)
+
+    def test_getpaths_setpaths_empty_pairs():
+        src = {"a": 1}
+        tgt = {"b": 2}
+        # Should do nothing if empty list
+        getpaths_setpaths(src, tgt, [])
+        runner.assert_equal(tgt, {"b": 2})
+    runner.test("getpaths_setpaths: empty pairs does nothing", test_getpaths_setpaths_empty_pairs)
     print("🧪 Python Test Suite for Nested Data Structure Functions")
     print("=" * 60)
     print("Testing functions for Cloudflare Python Workers compatibility")
-    
-    runner = TestRunner()
     
     print("\n📖 Testing GET operations:")
     
