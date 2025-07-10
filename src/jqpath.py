@@ -1,3 +1,28 @@
+# === CONVENIENCE API ===
+def getset(
+    src: Dict[str, Any],
+    src_path: Union[str, List[Union[str, int]]],
+    tgt: Dict[str, Any],
+    tgt_path: Union[str, List[Union[str, int]]]
+) -> Dict[str, Any]:
+    """
+    Copy a value from a source path in one JSON structure to a target path in another, creating the target path as needed (shallow copy).
+    Args:
+        src: Source nested data structure (dict/list)
+        src_path: Path to value in source (string or list)
+        tgt: Target nested data structure (dict/list)
+        tgt_path: Path to set value in target (string or list)
+    Returns:
+        Modified target data structure with value set at tgt_path (shallow copy)
+    Examples:
+        getset(src, 'user.profile.name', tgt, 'profile.name_copy')
+        getset(src, ['a', 0, 'b'], tgt, ['x', 'y'])
+    """
+    import copy
+    value = getpath(src, src_path)
+    setpath(tgt, tgt_path, copy.copy(value), create_missing=True)
+    return tgt
+
 """
 jqpath: jq-style Path Manipulation Utilities for Python (Cloudflare Workers Compatible)
 =====================================================================================
@@ -675,6 +700,7 @@ def merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
             result[key] = value
     
     return result
+
 
 
 # === CLOUDFLARE WORKERS INTEGRATION ===
