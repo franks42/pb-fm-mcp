@@ -8,16 +8,16 @@ It covers getpath, setpath, delpath, delpaths, haspath, findpaths, findvalues, b
 ensuring compatibility with Cloudflare Python Workers and robust handling of nested dict/list structures.
 
 Run this file to validate the jqpath module:
-python test_\jqpath.py
+python -m pytest tests/test_jqpath.py
 """
-import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+
+
 import json
 import re
 from functools import reduce
 import time
-import sys
+from collections.abc import Iterator
+import pytest
 
 # Import the tested functions from jqpath
 from jqpath import (
@@ -25,556 +25,349 @@ from jqpath import (
     getpath,
     haspath,
     findpaths,
+    findvalues,
     getpaths,
+    getpaths_setpaths,
+    selectorspaths,
+    delpath,
+    delpaths,
+    batch_setpath,
+    flatten,
+    unflatten,
+    merge,
+    select_key_exists,
+    select_key_missing,
+    select_type,
+    select_regex,
+    select_gt,
+    select_lt,
+    select_eq,
+    select_contains,
+    select_all,
 )
-
-
-# === TEST UTILITIES ===
-
-class TestRunner:
-    def __init__(self):
-        self.tests_run = 0
-        self.tests_passed = 0
-        self.failures = []
-    
-    def test(self, description, test_function):
-        self.tests_run += 1
-        try:
-            test_function()
-            self.tests_passed += 1
-            print(f"✅ {description}")
-        except Exception as e:
-            self.failures.append(f"{description}: {str(e)}")
-            print(f"❌ {description} - {str(e)}")
-    
-    def assert_equal(self, actual, expected, message=""):
-        if actual != expected:
-            raise AssertionError(f"Expected {expected}, got {actual}. {message}")
-    
-    def assert_true(self, condition, message=""):
-        if not condition:
-            raise AssertionError(f"Expected True, got False. {message}")
-    
-    def print_summary(self):
-        print(f"\n📊 Test Results: {self.tests_passed}/{self.tests_run} tests passed")
-        
-        if self.tests_passed == self.tests_run:
-            print("🎉 ALL TESTS PASSED!")
-            print("✅ Functions are ready for Cloudflare Python Workers!")
-        else:
-            print(f"❌ {len(self.failures)} tests failed:")
-            for failure in self.failures:
-                print(f"   • {failure}")
-
 
 # === TEST DATA ===
 
-test_data = {
-    'user': {
-        'profile': {
-            'name': 'John Doe',
-            'age': 30,
-            'email': 'john@example.com',
-            'user_id': 12345
+@pytest.fixture
+def test_data():
+    return {
+        'user': {
+            'profile': {
+                'name': 'John Doe',
+                'age': 30,
+                'email': 'john@example.com',
+                'user_id': 12345
+            },
+            'settings': {
+                'theme': 'dark',
+                'notifications': True,
+                'language': 'en'
+            }
         },
-        'settings': {
-            'theme': 'dark',
-            'notifications': True,
-            'preferences': ['email', 'sms', 'push']
-        }
-    },
-    'metadata': {
-        'version': '1.0',
-        'created': '2024-01-01'
-    },
-    'items': [
-        {'id': 1, 'name': 'Item 1', 'active': True},
-        {'id': 2, 'name': 'Item 2', 'active': False},
-        {'id': 3, 'name': 'Item 3', 'active': True}
-    ],
-    'admin': {
-        'admin_name': 'Administrator',
-        'secret_key': 'topsecret'
+        'items': [
+            {'id': 1, 'name': 'Item 1', 'tags': ['A', 'B'], 'active': True},
+            {'id': 2, 'name': 'Item 2', 'tags': ['C', 'D'], 'active': False},
+            {'id': 3, 'name': 'Item 3', 'tags': ['A', 'E'], 'active': True},
+            {'id': 4, 'name': 'Another Item', 'tags': ['A', 'E'], 'active': False}
+        ],
+        'metadata': {
+            'source': 'test-suite',
+            'version': '1.0.0',
+            'timestamp': '2023-10-27T10:00:00Z'
+        },
+        'status': 'ok',
+        'is_validated': True,
+        'empty_list': [],
+        'null_value': None
     }
-}
 
+# === GETPATH TESTS ===
 
-# === RUN TESTS ===
+def test_get_simple_path(test_data):
+    assert getpath(test_data, 'user.profile.name') == 'John Doe'
 
-def run_tests():
-    print("\n🔄 Testing getpaths_setpaths (copy value by path):")
-    from jqpath import getpaths_setpaths
-    runner = TestRunner()
+def test_get_with_list_index(test_data):
+    assert getpath(test_data, 'items.1.name') == 'Item 2'
 
-    def test_getpaths_setpaths_single_pair():
-        src = {
-            "user": {
-                "profile": {"name": "Alice", "email": "alice@example.com"},
-                "settings": {"theme": "dark"}
-            }
-        }
-        tgt = {}
-        getpaths_setpaths(src, tgt, ("user.profile.name", "profile.copied_name"))
-        runner.assert_equal(getpath(tgt, "profile.copied_name"), "Alice")
-        # Ensure only the copied value exists
-        runner.assert_equal(list(tgt["profile"].keys()), ["copied_name"])
-    runner.test("getpaths_setpaths: single (src, tgt) pair", test_getpaths_setpaths_single_pair)
+def test_get_with_list_path(test_data):
+    assert getpath(test_data, ['items', 1, 'name']) == 'Item 2'
 
-    def test_getpaths_setpaths_multiple_pairs():
-        src = {
-            "user": {
-                "profile": {"name": "Alice", "email": "alice@example.com"},
-                "settings": {"theme": "dark"}
-            }
-        }
-        tgt = {}
-        getpaths_setpaths(src, tgt, [
-            ("user.profile.name", "profile.copied_name"),
-            ("user.profile.email", "profile.copied_email")
-        ])
-        runner.assert_equal(getpath(tgt, "profile.copied_name"), "Alice")
-        runner.assert_equal(getpath(tgt, "profile.copied_email"), "alice@example.com")
-    runner.test("getpaths_setpaths: multiple (src, tgt) pairs", test_getpaths_setpaths_multiple_pairs)
+def test_get_nonexistent_path(test_data):
+    assert getpath(test_data, 'user.profile.address') is None
 
-    def test_getpaths_setpaths_list_and_int_paths():
-        src = {
-            "a": [
-                {"b": 1},
-                {"b": 2}
-            ]
-        }
-        tgt = {}
-        getpaths_setpaths(src, tgt, (["a", 1, "b"], ["x", "y"]))
-        runner.assert_equal(getpath(tgt, ["x", "y"]), 2)
-    runner.test("getpaths_setpaths: list and int paths", test_getpaths_setpaths_list_and_int_paths)
+def test_get_with_default_value(test_data):
+    assert getpath(test_data, 'user.profile.address', default='N/A') == 'N/A'
 
-    def test_getpaths_setpaths_mixed_types():
-        src = {"foo": {"bar": [10, 20, 30]}}
-        tgt = {}
-        getpaths_setpaths(src, tgt, [
-            ("foo.bar.0", "baz.first"),
-            (["foo", "bar", 2], ["baz", "third"])
-        ])
-        runner.assert_equal(getpath(tgt, "baz.first"), 10)
-        runner.assert_equal(getpath(tgt, ["baz", "third"]), 30)
-    runner.test("getpaths_setpaths: mixed string/list paths", test_getpaths_setpaths_mixed_types)
+# === GETPATH WITH SELECTOR TESTS ===
 
-    def test_getpaths_setpaths_shallow_copy():
-        src = {"obj": {"x": [1, 2, 3]}}
-        tgt = {}
-        getpaths_setpaths(src, tgt, ("obj.x", "copy.x"))
-        # Mutate the copied list in tgt, should not affect src
-        getpath(tgt, "copy.x").append(99)
-        runner.assert_equal(getpath(src, "obj.x"), [1, 2, 3])
-        runner.assert_equal(getpath(tgt, "copy.x"), [1, 2, 3, 99])
-    runner.test("getpaths_setpaths: shallow copy semantics", test_getpaths_setpaths_shallow_copy)
+def test_getpath_with_selector_single_match(test_data):
+    """Test getpath with a selector that finds a single unique item."""
+    path = ['items', select_eq('id', 3)]
+    result = getpath(test_data, path)
+    assert result is not None
+    assert result['name'] == 'Item 3'
 
-    def test_getpaths_setpaths_missing_path():
-        src = {"foo": {"bar": 123}}
-        tgt = {}
-        getpaths_setpaths(src, tgt, ("foo.missing", "baz"))
-        # Should set None if path is missing
-        runner.assert_equal(getpath(tgt, "baz"), None)
-    runner.test("getpaths_setpaths: missing source path sets None", test_getpaths_setpaths_missing_path)
+def test_getpath_with_selector_first_of_many(test_data):
+    """Test getpath with a selector that matches multiple items, returning only the first."""
+    path = ['items', select_key_exists('active')] # Matches all four items
+    result = getpath(test_data, path) # only_first_path_match is True by default
+    assert result is not None
+    assert result['id'] == 1 # Should return the first item
 
-    def test_getpaths_setpaths_empty_pairs():
-        src = {"a": 1}
-        tgt = {"b": 2}
-        # Should do nothing if empty list
-        getpaths_setpaths(src, tgt, [])
-        runner.assert_equal(tgt, {"b": 2})
-    runner.test("getpaths_setpaths: empty pairs does nothing", test_getpaths_setpaths_empty_pairs)
-    print("🧪 Python Test Suite for Nested Data Structure Functions")
-    print("=" * 60)
-    print("Testing functions for Cloudflare Python Workers compatibility")
+def test_getpath_with_selector_all_matches(test_data):
+    """Test getpath with a selector, returning all matching items."""
+    path = ['items', select_type(dict)] # Matches all dicts in the 'items' list
+    result = getpath(test_data, path, only_first_path_match=False)
+    assert isinstance(result, list)
+    assert len(result) == 4
+    assert result[0]['id'] == 1
+    assert result[3]['id'] == 4
+
+def test_getpath_with_selector_no_match(test_data):
+    """Test getpath with a selector that finds no matches."""
+    path = ['items', select_eq('id', 999)]
+    result = getpath(test_data, path, default='Not Found')
+    assert result == 'Not Found'
+
+def test_getpath_with_callable_selector(test_data):
+    """Test getpath with a raw callable selector."""
+    path = ['items', lambda k, v: isinstance(v, dict) and v.get('id') == 4]
+    result = getpath(test_data, path)
+    assert result is not None
+    assert result['name'] == 'Another Item'
+
+# === SETPATH TESTS ===
+
+def test_set_simple_path():
+    data = {}
+    setpath(data, 'a.b.c', 100)
+    assert data == {'a': {'b': {'c': 100}}}
+
+def test_set_with_list_creation():
+    data = {}
+    setpath(data, 'a.0.b', 'test')
+    assert data == {'a': [{'b': 'test'}]}
+
+def test_set_existing_path():
+    data = {'a': {'b': 1}}
+    setpath(data, 'a.b', 2)
+    assert data['a']['b'] == 2
+
+def test_set_with_append():
+    data = {'a': [1]}
+    setpath(data, 'a', 2, operation='append')
+    assert data['a'] == [1, 2]
+
+def test_set_with_extend():
+    data = {'a': [1, 2]}
+    setpath(data, 'a', [3, 4], operation='extend')
+    assert data == {'a': [1, 2, 3, 4]}
+
+def test_setpath_append_operation():
+    data = {"items": [{"id": 1, "tags": ["a"]}]}
+    setpath(data, "items.0.tags", "b", operation="append")
+    assert data["items"][0]["tags"] == ["a", "b"]
+
+# === DELPATH/DELPATHS TESTS ===
+
+def test_delpath_simple():
+    data = {'a': {'b': 1, 'c': 2}}
+    delpath(data, 'a.b')
+    assert data == {'a': {'c': 2}}
+
+def test_delpath_list_item():
+    data = {'a': [1, 2, 3]}
+    delpath(data, 'a.1')
+    assert data == {'a': [1, 3]}
+
+def test_delpaths_multiple():
+    data = {'a': 1, 'b': 2, 'c': 3}
+    delpaths(data, ['a', 'c'])
+    assert data == {'b': 2}
+
+def test_delpath_nonexistent():
+    data = {'a': {'b': 1}}
+    original_data = data.copy()
+    # Should not raise an error
+    delpath(data, 'a.c')
+    assert data == original_data
+
+# === HASPATH TESTS ===
+
+def test_haspath_existing(test_data):
+    assert haspath(test_data, 'user.profile.name') is True
+
+def test_haspath_nonexistent(test_data):
+    assert haspath(test_data, 'user.profile.address') is False
+
+# === FINDPATHS/FINDVALUES TESTS ===
+
+def test_findpaths_key_contains(test_data):
+    paths = list(findpaths(test_data, 'name', 'contains'))
+    assert len(paths) == 5
+
+def test_findvalues(test_data):
+    # Explicitly search for values only, not keys, to get the correct count.
+    values = list(findvalues(test_data, True, 'exact'))
+    assert len(values) == 4
+
+# === BATCH_SETPATH TESTS ===
+
+def test_batch_setpath_mixed_ops():
+    data = {'user': {'name': 'Old Name'}, 'items': [1]}
+    modifications = [
+        ('user.name', 'New Name', 'set'),
+        ('items', 2, 'append'),
+        ('user.status', 'active', 'set')
+    ]
+    batch_setpath(data, modifications)
+    assert data['user']['name'] == 'New Name'
+    assert data['items'] == [1, 2]
+    assert data['user']['status'] == 'active'
+
+# === FLATTEN/UNFLATTEN TESTS ===
+
+def test_flatten_unflatten_cycle():
+    original = {'a': {'b': 1}, 'c': [2, 3]}
+    flattened = flatten(original)
+    unflattened = unflatten(flattened)
+    assert original == unflattened
+
+def test_flatten_unflatten_empty_dict():
+    original = {}
+    flattened = flatten(original)
+    assert flattened == {}
+    unflattened = unflatten(flattened)
+    assert unflattened == {}
+
+def test_flatten_unflatten_nested_lists():
+    original = {'a': [1, [2, 3]], 'b': [{'c': 4}, {'d': 5}]}
+    flattened = flatten(original)
+    expected_flattened = {'a.0': 1, 'a.1.0': 2, 'a.1.1': 3, 'b.0.c': 4, 'b.1.d': 5}
+    assert flattened == expected_flattened
+    unflattened = unflatten(flattened)
+    assert unflattened == original
+
+# === MERGE TESTS ===
+
+def test_merge_simple():
+    d1 = {'a': 1, 'b': {'c': 2}}
+    d2 = {'b': {'d': 3}, 'e': 4}
+    merged = merge(d1, d2)
+    assert merged == {'a': 1, 'b': {'c': 2, 'd': 3}, 'e': 4}
+
+# === ADVANCED SELECTOR TESTS ===
+
+def test_callable_selector(test_data):
+    # Select items where the name contains 'Item'
+    path = ['items', lambda k, v: isinstance(v, dict) and 'Item' in v.get('name', '')]
+    paths = list(selectorspaths(test_data, path))
+    assert len(paths) == 4
+
+def test_callable_selector_with_currying(test_data):
+    """Tests using a factory to create a selector with a captured variable."""
+    def create_id_gt_selector(min_id):
+        # This factory returns the actual selector function
+        def selector(key, value):
+            return isinstance(value, dict) and value.get('id', 0) > min_id
+        return selector
+
+    # Create a selector for items with id > 2
+    id_gt_2_selector = create_id_gt_selector(2)
+
+    path = ['items', id_gt_2_selector]
+    paths = list(selectorspaths(test_data, path))
     
-    print("\n📖 Testing GET operations:")
-    
-    runner.test("Get simple nested value", lambda: 
-        runner.assert_equal(getpath(test_data, "user.profile.name"), "John Doe"))
-    
-    runner.test("Get with list path", lambda: 
-        runner.assert_equal(getpath(test_data, ["user", "profile", "age"]), 30))
-    
-    runner.test("Get non-existent returns default", lambda: 
-        runner.assert_equal(getpath(test_data, "missing.key", "DEFAULT"), "DEFAULT"))
-    
-    runner.test("Get array element by index", lambda: 
-        runner.assert_equal(getpath(test_data, "items.0.name"), "Item 1"))
-    
-    runner.test("Get with negative array index", lambda: 
-        runner.assert_equal(getpath(test_data, "items.-1.name"), "Item 3"))
-    
-    runner.test("Get with custom separator", lambda: 
-        runner.assert_equal(getpath(test_data, "user/profile/name", None, "/"), "John Doe"))
-    
-    print("\n✏️ Testing MODIFY operations:")
-    
-    def test_set_nested():
-        data = json.loads(json.dumps(test_data))  # Deep copy
-        setpath(data, "user.profile.city", "New York")
-        runner.assert_equal(getpath(data, "user.profile.city"), "New York")
-    runner.test("Set nested value", test_set_nested)
-    
-    def test_create_missing():
-        data = {}
-        setpath(data, "a.b.c.d", "deep")
-        runner.assert_equal(getpath(data, "a.b.c.d"), "deep")
-    runner.test("Create missing structure", test_create_missing)
-    
-    def test_delete_nested():
-        data = json.loads(json.dumps(test_data))
-        setpath(data, "user.profile.email", operation="delete")
-        runner.assert_equal(getpath(data, "user.profile.email", "MISSING"), "MISSING")
-    runner.test("Delete nested value", test_delete_nested)
-    
-    def test_append_array():
-        data = json.loads(json.dumps(test_data))
-        setpath(data, "user.settings.preferences", "webhook", "append")
-        runner.assert_equal(len(getpath(data, "user.settings.preferences")), 4)
-    runner.test("Append to array", test_append_array)
-    
-    def test_extend_array():
-        data = json.loads(json.dumps(test_data))
-        setpath(data, "user.settings.preferences", ["a", "b"], "extend")
-        runner.assert_equal(len(getpath(data, "user.settings.preferences")), 5)
-    runner.test("Extend array", test_extend_array)
-    
-    print("\n🔍 Testing HAS operations:")
-    
-    runner.test("Has existing path", lambda: 
-        runner.assert_true(haspath(test_data, "user.profile.name")))
-    
-    runner.test("Has non-existing path", lambda: 
-        runner.assert_true(not haspath(test_data, "user.profile.missing")))
-    
-    print("\n🔍 Testing SEARCH operations:")
-    
-    def test_find_exact():
-        results = findpaths(test_data, "name")
-        runner.assert_true(len(results) >= 2)
-        runner.assert_true(any("profile.name" in r['path'] for r in results))
-    runner.test("Find exact key matches", test_find_exact)
-    
-    def test_find_contains():
-        results = findpaths(test_data, "user", "contains", False)
-        runner.assert_true(len(results) > 0)
-        runner.assert_true(any("user" in str(r['key']).lower() for r in results))
-    runner.test("Find keys containing pattern", test_find_contains)
-    
-    def test_find_regex():
-        results = findpaths(test_data, r".*_id$", "regex")
-        runner.assert_true(len(results) >= 1)
-        runner.assert_true(any(r['key'] == "user_id" for r in results))
-    runner.test("Find with regex", test_find_regex)
-    
-    def test_find_values():
-        results = findpaths(test_data, "dark", "contains", True, True)
-        runner.assert_true(any(r['match_type'] == "value" for r in results))
-    runner.test("Find values", test_find_values)
-    
-    print("\n📊 Testing BATCH operations:")
-    
-    def test_multiple_list():
-        results = getpaths(test_data, [
-            "user.profile.name",
-            "user.profile.age", 
-            "metadata.version"
-        ])
-        runner.assert_equal(results, ["John Doe", 30, "1.0"])
-    runner.test("Get multiple with list", test_multiple_list)
-    
-    def test_multiple_dict():
-        results = getpaths(test_data, {
-            'name': 'user.profile.name',
-            'theme': 'user.settings.theme',
-            'version': 'metadata.version'
-        })
-        expected = {'name': 'John Doe', 'theme': 'dark', 'version': '1.0'}
-        runner.assert_equal(results, expected)
-    runner.test("Get multiple with dict mapping", test_multiple_dict)
-    
-    print("\n⚡ Performance testing:")
-    
-    def test_performance():
-        # Create large dataset
-        large_data = {}
-        for i in range(1000):
-            large_data[f'item{i}'] = {
-                'id': i,
-                'name': f'Item {i}',
-                'data': {'value': i * 2}
-            }
-        
-        # Time the search
-        start_time = time.time()
-        results = findpaths(large_data, "id", "exact")
-        end_time = time.time()
-        
-        # Verify results
-        runner.assert_equal(len(results), 1000)
-        runner.assert_true((end_time - start_time) < 2.0)  # Should complete in under 2 seconds
-        print(f"   Search completed in {(end_time - start_time)*1000:.1f}ms")
-    runner.test("Performance: Search 1000 items", test_performance)
-    
-    print("\n☁️ Cloudflare Workers compatibility:")
-    
-    def test_json_compat():
-        data = {'user': {'name': 'test'}}
-        setpath(data, "user.processed", True)
-        json_str = json.dumps(data)
-        parsed = json.loads(json_str)
-        runner.assert_equal(getpath(parsed, "user.processed"), True)
-    runner.test("JSON serialization works", test_json_compat)
-    
-    def test_request_like():
-        request_data = {
-            'headers': {'content-type': 'application/json'},
-            'body': {
-                'user': {'profile': {'name': 'API User'}},
-                'metadata': {'timestamp': time.time()}
-            }
-        }
-        
-        user_name = getpath(request_data, "body.user.profile.name")
-        runner.assert_equal(user_name, "API User")
-        
-        setpath(request_data, "body.processed", True)
-        runner.assert_true(haspath(request_data, "body.processed"))
-    runner.test("Works with request-like data", test_request_like)
-    
-    print("\n🔬 Testing standard library compatibility:")
-    
-    def test_stdlib_modules():
-        """Test that we only use modules available in Cloudflare Workers"""
-        # These should all work without import errors
-        import json
-        import re
-        from functools import reduce
-        
-        # Test regex functionality
-        pattern = re.compile(r"test_\d+")
-        runner.assert_true(pattern.match("test_123"))
-        
-        # Test json functionality  
-        data = {"test": [1, 2, 3]}
-        json_str = json.dumps(data)
-        parsed = json.loads(json_str)
-        runner.assert_equal(parsed, data)
-        
-        # Test functools
-        numbers = [1, 2, 3, 4, 5]
-        result = reduce(lambda x, y: x + y, numbers)
-        runner.assert_equal(result, 15)
-        
-    runner.test("Standard library modules work", test_stdlib_modules)
-    
+    assert len(paths) == 2
+    assert paths[0] == ['items', 2] # Corresponds to Item 3 (id=3)
+    assert paths[1] == ['items', 3] # Corresponds to Another Item (id=4)
 
-    print("\n🧩 Additional edge and utility tests:")
+def test_dict_selector(test_data):
+    path = ['items', {'id': 3, 'active': True}]
+    assert getpath(test_data, path)['name'] == 'Item 3'
 
-    # 1. String index vs integer index equivalence for lists
-    def test_string_vs_int_index():
-        runner.assert_equal(
-            getpath(test_data, ["items", "0", "name"]),
-            getpath(test_data, ["items", 0, "name"])
-        )
-    runner.test("String index vs int index for lists", test_string_vs_int_index)
-
-    # 2. Deeply nested structure creation
-    def test_deep_create():
-        data = {}
-        deep_path = "a.b.c.d.e.f.g.h.i.j"
-        setpath(data, deep_path, "deep_value")
-        runner.assert_equal(getpath(data, deep_path), "deep_value")
-    runner.test("Deeply nested structure creation", test_deep_create)
-
-
-    # 3. Flattening and unflattening
-    from jqpath import flatten, unflatten, delpath, delpaths
-    def test_flatten_unflatten():
-        nested = {"a": {"b": {"c": 1}}, "x": [ {"y": 2} ]}
-        flat = flatten(nested)
-        unflat = unflatten(flat)
-        print('flat:', flat)
-        print('unflat:', unflat)
-        runner.assert_equal(getpath(unflat, "a.b.c"), 1)
-        runner.assert_equal(getpath(unflat, ["x", 0, "y"]), 2)
-    runner.test("Flatten and unflatten dict", test_flatten_unflatten)
-
-    # 4. Deep merge
-    from jqpath import merge
-    def test_merge():
-        d1 = {"a": {"b": 1}, "x": 1}
-        d2 = {"a": {"c": 2}, "x": 2, "y": 3}
-        merged = merge(d1, d2)
-        runner.assert_equal(merged["a"]["b"], 1)
-        runner.assert_equal(merged["a"]["c"], 2)
-        runner.assert_equal(merged["x"], 2)
-        runner.assert_equal(merged["y"], 3)
-    runner.test("Deep merge dicts", test_merge)
-
-    # 5. Batch modify
-    from jqpath import batch_setpath
-    def test_batch_setpath():
-        data = {}
-        batch_setpath(data, [
-            ("a.b", 1),
-            ("a.c", 2),
-            ("a.d", [3], "append"),
-            ("a.b", None, "delete")
-        ])
-        runner.assert_equal(getpath(data, "a.c"), 2)
-        runner.assert_equal(getpath(data, "a.d")[0], 3)
-        runner.assert_true("b" not in data["a"])
-    runner.test("Batch modify", test_batch_setpath)
-
-    # 5b. delpath (single-path deletion)
-    def test_delpath():
-        data = json.loads(json.dumps(test_data))
-        delpath(data, "user.profile.email")
-        runner.assert_equal(getpath(data, "user.profile.email", "MISSING"), "MISSING")
-        # Try deleting a non-existent path (should do nothing, no error)
-        delpath(data, "user.profile.nonexistent")
-        runner.assert_true(True)
-    runner.test("delpath deletes a single path", test_delpath)
-
-    # 5c. delpaths (multi-path deletion)
-    def test_delpaths():
-        data = json.loads(json.dumps(test_data))
-        delpaths(data, ["user.profile.email", ["user", "profile", "age"]])
-        runner.assert_equal(getpath(data, "user.profile.email", "MISSING"), "MISSING")
-        runner.assert_equal(getpath(data, "user.profile.age", "MISSING"), "MISSING")
-        # Try deleting a mix of existing and non-existent paths (should do nothing, no error)
-        delpaths(data, ["user.profile.nonexistent", "user.settings.theme"])
-        runner.assert_true(True)
-    runner.test("delpaths deletes multiple paths", test_delpaths)
-
-
-    # 6. find_values
-    from jqpath import findvalues
-    def test_findvalues():
-        data = {"a": 1, "b": "foo", "c": True, "d": [1, "foo", False]}
-        results_int = findvalues(data, 1, value_types=[int])
-        results_str = findvalues(data, "foo", value_types=[str])
-        results_bool = findvalues(data, True, value_types=[bool])
-        runner.assert_true(any(r["value"] is True for r in results_bool))
-        runner.assert_true(any(r["value"] == 1 for r in results_int))
-        runner.assert_true(any(r["value"] == "foo" for r in results_str))
-    runner.test("find_values for int, str, bool", test_findvalues)
-
-    # === Selector support tests ===
-    def test_haspath_selector_dict():
-        data = {
-            "wallets": [
-                {"id": 123, "balance": 1000},
-                {"id": 456, "balance": 2000}
-            ]
-        }
-        runner.assert_true(haspath(data, ["wallets", {"id": 123}, "balance"]))
-        runner.assert_true(not haspath(data, ["wallets", {"id": 999}, "balance"]))
-    runner.test("haspath supports dict selector in list", test_haspath_selector_dict)
-
-    def test_haspath_selector_string():
-        data = {
-            "wallets": [
-                {"id": 123, "balance": 1000},
-                {"id": 456, "balance": 2000}
-            ]
-        }
-        runner.assert_true(haspath(data, ["wallets", "id=456", "balance"]))
-        runner.assert_true(not haspath(data, ["wallets", "id=999", "balance"]))
-    runner.test("haspath supports string selector in list", test_haspath_selector_string)
-
-    def test_setpath_selector_dict():
-        data = {"wallets": [{"id": 1, "balance": 10}]}
-        setpath(data, ["wallets", {"id": 1}, "balance"], 99)
-        runner.assert_equal(getpath(data, ["wallets", {"id": 1}, "balance"]), 99)
-    runner.test("setpath supports dict selector in list", test_setpath_selector_dict)
-
-    def test_setpath_selector_string():
-        data = {"wallets": [{"id": 1, "balance": 10}]}
-        setpath(data, ["wallets", "id=1", "balance"], 77)
-        runner.assert_equal(getpath(data, ["wallets", "id=1", "balance"]), 77)
-    runner.test("setpath supports string selector in list", test_setpath_selector_string)
-
-    def test_delpath_selector_dict():
-        data = {"wallets": [{"id": 1, "balance": 10}, {"id": 2, "balance": 20}]}
-        delpath(data, ["wallets", {"id": 2}, "balance"])
-        runner.assert_true(not haspath(data, ["wallets", {"id": 2}, "balance"]))
-    runner.test("delpath supports dict selector in list", test_delpath_selector_dict)
-
-    def test_delpath_selector_string():
-        data = {"wallets": [{"id": 1, "balance": 10}, {"id": 2, "balance": 20}]}
-        delpath(data, ["wallets", "id=1", "balance"])
-        runner.assert_true(not haspath(data, ["wallets", "id=1", "balance"]))
-    runner.test("delpath supports string selector in list", test_delpath_selector_string)
-
-    def test_getpaths_setpaths_selector():
-        src = {"wallets": [{"id": 1, "balance": 10}, {"id": 2, "balance": 20}]}
-        tgt = {}
-        getpaths_setpaths(src, tgt, ([ "wallets", {"id": 2}, "balance" ], [ "result", "bal" ]))
-        runner.assert_equal(getpath(tgt, ["result", "bal"]), 20)
-    runner.test("getpaths_setpaths supports selector in path", test_getpaths_setpaths_selector)
-
-    def test_batch_setpath_selector():
-        data = {"wallets": [{"id": 1, "balance": 10}, {"id": 2, "balance": 20}]}
-        batch_setpath(data, [
-            (["wallets", {"id": 1}, "balance"], 111),
-            (["wallets", "id=2", "balance"], 222)
-        ])
-        runner.assert_equal(getpath(data, ["wallets", {"id": 1}, "balance"]), 111)
-        runner.assert_equal(getpath(data, ["wallets", {"id": 2}, "balance"]), 222)
-    runner.test("batch_setpath supports selectors in list", test_batch_setpath_selector)
-
-    # 7. Edge cases: empty path, path with only list indices, create_missing=False
-    def test_empty_path():
-        runner.assert_equal(getpath(test_data, []), test_data)
-    runner.test("Empty path returns whole object", test_empty_path)
-
-    def test_list_indices_only():
-        data = [[["a"]]]
-        runner.assert_equal(getpath(data, [0, 0, 0]), "a")
-    runner.test("Path with only list indices", test_list_indices_only)
-
-    def test_create_missing_false():
-        data = {}
-        try:
-            setpath(data, "x.y.z", 1, create_missing=False)
-            runner.assert_true(False, "Should have raised KeyError")
-        except KeyError:
-            runner.assert_true(True)
-    runner.test("create_missing=False raises KeyError", test_create_missing_false)
-
-    # 8. Unflatten with list keys (if supported)
-    # Note: The current unflatten does not support '[0]' list notation out of the box.
-    # This is a placeholder for future support.
-
-    # 9. Error handling: invalid operation
-    def test_invalid_operation():
-        data = {}
-        try:
-            setpath(data, "a.b", 1, operation="invalid")
-            runner.assert_true(False, "Should have raised ValueError")
-        except ValueError:
-            runner.assert_true(True)
-    runner.test("Invalid operation raises ValueError", test_invalid_operation)
-
-    # 10. Type preservation after round-trip
-    def test_type_preservation():
-        data = {"a": 1, "b": True, "c": "str"}
-        flat = flatten(data)
-        unflat = unflatten(flat)
-        runner.assert_equal(type(unflat["a"]), int)
-        runner.assert_equal(type(unflat["b"]), bool)
-        runner.assert_equal(type(unflat["c"]), str)
-    runner.test("Type preservation after flatten/unflatten", test_type_preservation)
-
-    # Print final summary
-    runner.print_summary()
+def test_get_with_slice_selector(test_data):
+    # Select the first two items from the list using a slice selector
+    path_with_selector = ['items', slice(0, 2)]
     
-    return runner.tests_passed == runner.tests_run
+    # selectorspaths should resolve the slice into concrete paths
+    concrete_paths = list(selectorspaths(test_data, path_with_selector))
+    assert concrete_paths == [['items', 0], ['items', 1]]
 
+    # Now, get the values for these paths
+    values = [getpath(test_data, p) for p in concrete_paths]
+    assert len(values) == 2
+    assert values[0]['name'] == 'Item 1'
+    assert values[1]['name'] == 'Item 2'
 
-if __name__ == "__main__":
-    success = run_tests()
-    sys.exit(0 if success else 1)
+def test_selectorspaths_multiple_matches(test_data):
+    paths = list(selectorspaths(test_data, ['items', {'active': True}]))
+    assert len(paths) == 2
+    assert paths[0] == ['items', 0]
+    assert paths[1] == ['items', 2]
+
+def test_setpath_with_selector(test_data):
+    data = json.loads(json.dumps(test_data))
+    setpath(data, ['items', {'id': 2}], {'id': 2, 'name': 'Item 2 Updated', 'tags': ['C', 'D'], 'active': False})
+    assert getpath(data, 'items.1.name') == 'Item 2 Updated'
+
+def test_delpath_with_selector(test_data):
+    data = json.loads(json.dumps(test_data))
+    delpath(data, ['items', {'id': 2}])
+    assert len(data['items']) == 3
+    assert getpath(data, 'items.1.name') == 'Item 3'
+
+# === PORTED SELECTOR TESTS ===
+
+def test_select_regex(test_data):
+    # Find the user profile where the email ends with @example.com
+    path = ['user', select_regex('email', r'.+@example\.com')]
+    result = getpath(test_data, path)
+    assert result is not None
+    assert result['name'] == 'John Doe'
+
+    # Test for a non-matching pattern
+    path_no_match = ['user', select_regex('email', r'.+@another-domain\.com')]
+    result_no_match = getpath(test_data, path_no_match)
+    assert result_no_match is None
+
+def test_ported_selectors(test_data):
+    path = ['items', select_eq('id', 2)]
+    assert getpath(test_data, path)['name'] == 'Item 2'
+    path = ['items', select_gt('id', 2)]
+    assert getpath(test_data, path)['name'] == 'Item 3'
+    path = ['items', select_lt('id', 2)]
+    assert getpath(test_data, path)['name'] == 'Item 1'
+    path = ['items', select_key_exists('active')]
+    assert getpath(test_data, path)['id'] == 1
+    all_items = list(selectorspaths(test_data, ['items', select_all]))
+    assert len(all_items) == 4
+    assert all_items[0] == ['items', 0]
+
+# === ITERATOR TESTS ===
+
+def test_iterator_behavior(test_data):
+    paths_gen = findpaths(test_data, 'name', 'contains')
+    assert isinstance(paths_gen, Iterator)
+    paths_list = list(paths_gen)
+    assert len(paths_list) == 5
+
+# === UTILITY FUNCTION TESTS ===
+
+def test_getpaths_setpaths():
+    src = {
+        'user': {'name': 'John', 'details': {'age': 30}},
+        'product': {'id': 123, 'price': 99.99}
+    }
+    tgt = {}
+    paths_map = [
+        ('user.name', 'customer.name'),
+        ('user.details.age', 'customer.age'),
+        ('product.id', 'item.product_id')
+    ]
+    getpaths_setpaths(src, tgt, paths_map)
+    expected = {
+        'customer': {'name': 'John', 'age': 30},
+        'item': {'product_id': 123}
+    }
+    assert tgt == expected

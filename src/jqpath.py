@@ -1,831 +1,464 @@
 import json
 import re
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Iterator
+from typing import Any, Union
 
-# === ADVANCED JQ-STYLE PATH/SELECTOR LOGIC (MIGRATED FROM setpath.py) ===
-
-Selector = str | int | slice | Callable[[Any, Any, list[Any]], bool]
+# === TYPE DEFINITIONS ===
+Selector = Union[str, int, slice, Callable[..., bool]]
 PathType = list[Selector]
 
-def _normalize_path(path: str | PathType, separator: str = '.') -> PathType:
+# === SELECTOR HELPERS ===
+
+def select_key_exists(key):
+    return lambda k, v: isinstance(v, dict) and key in v
+
+def select_key_missing(key):
+    return lambda k, v: isinstance(v, dict) and key not in v
+
+def select_type(type_):
+    return lambda k, v: isinstance(v, type_)
+
+def select_regex(field, pattern):
+    regex = re.compile(pattern)
+    return lambda k, v: isinstance(v, dict) and field in v and isinstance(v[field], str) and regex.search(v[field])
+
+def select_gt(field, value):
+    return lambda k, v: isinstance(v, dict) and v.get(field) is not None and v.get(field) > value
+
+def select_lt(field, value):
+    return lambda k, v: isinstance(v, dict) and v.get(field) is not None and v.get(field) < value
+
+def select_eq(field, value):
+    return lambda k, v: isinstance(v, dict) and v.get(field) == value
+
+def select_contains(field, substring):
+    return lambda k, v: isinstance(v, dict) and substring in str(v.get(field, ""))
+
+def select_all(k, v):
+    return True
+
+# === CORE PATH LOGIC ===
+
+def _normalize_path(path: Union[str, PathType], separator: str = '.') -> PathType:
     if isinstance(path, str):
-        parts = path.split(separator)
-        norm: list[Selector] = []
-        for p in parts:
-            if p.isdigit() or (p.startswith('-') and p[1:].isdigit()):
-                norm.append(int(p))
-            else:
-                norm.append(p)
-        return norm
-    return list(path)
+        return [int(p) if p.isdigit() or (p.startswith('-') and p[1:].isdigit()) else p for p in path.split(separator)]
+    return path
 
-def _is_selector(obj):
-    # Treat as selector if it's a callable, a slice, a dict (for dict selector),
-    # or a string with '=' (for string selector)
-    return (
-        callable(obj)
-        or isinstance(obj, slice)
-        or isinstance(obj, dict)
-        or (isinstance(obj, str) and '=' in obj)
-    )
-
-def _match_selector(key, value, selector, path_so_far):
-    if callable(selector):
-        return selector(key, value, path_so_far)
-    if isinstance(selector, slice):
-        if isinstance(key, int):
-            return key in range(*selector.indices(1 << 30))
-        return False
-    return key == selector
-
-def _find_selector_paths(obj, selectors: PathType, path_so_far=None, only_first=False):
-    if path_so_far is None:
-        path_so_far: list[Any] = []
-    if not selectors:
-        yield list(path_so_far)
-        return
-    sel, *rest = selectors
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            if _match_selector(k, v, sel, path_so_far):
-                yield from _find_selector_paths(
-                    v, rest, [*path_so_far, k], only_first
-                )
-                if only_first:
-                    return
-    elif isinstance(obj, list):
-        # Always match int selectors as direct indices, others as selector functions
-        if isinstance(sel, int):
-            idx = sel if sel >= 0 else len(obj) + sel
-            if 0 <= idx < len(obj):
-                v = obj[idx]
-                yield from _find_selector_paths(
-                    v, rest, [*path_so_far, idx], only_first
-                )
-                if only_first:
-                    return
-        else:
-            for i, v in enumerate(obj):
-                if _match_selector(i, v, sel, path_so_far):
-                    yield from _find_selector_paths(
-                        v, rest, [*path_so_far, i], only_first
-                    )
-                    if only_first:
-                        return
-
-def _convert_selector(sel):
-    # Convert dict selector to a function
+def _convert_selector(sel: Selector) -> Selector:
     if isinstance(sel, dict):
-        def dict_selector(key, value, path_so_far, sel=sel):
-            if not isinstance(value, dict):
-                return False
-            for k, v in sel.items():
-                if value.get(k) != v:
-                    return False
-            return True
-        return dict_selector
-    # Convert string selector of the form 'key=value' to a function
-    if isinstance(sel, str) and '=' in sel:
-        key, eq, value = sel.partition('=')
-        key = key.strip()
-        value = value.strip()
-        def str_selector(k, v, path_so_far, key=key, value=value):
-            if isinstance(v, dict):
-                # Try to match as string or int
-                vval = v.get(key)
-                if vval is not None and (str(vval) == value or vval == value):
-                    return True
-            return False
-        return str_selector
+        return lambda item: isinstance(item, dict) and all(item.get(k) == v for k, v in sel.items())
     return sel
 
-def _convert_selectors_path(selectors):
-    # Recursively convert selectors in a path
-    out = []
-    for s in selectors:
-        # If s is a dict, always convert to a selector function
-        if isinstance(s, dict):
-            out.append(_convert_selector(s))
-        else:
-            out.append(_convert_selector(s))
-    return out
+def _convert_selectors_path(selectors: PathType) -> list:
+    if isinstance(selectors, str):
+        return selectors.split('.')
+    if isinstance(selectors, list):
+        # Correctly handle integers without converting them to strings
+        return [s if callable(s) or isinstance(s, (dict, slice, int)) else str(s) for s in selectors]
+    # Handle single non-list, non-string selector
+    if callable(selectors) or isinstance(selectors, (dict, slice, int)):
+        return [selectors]
+    return [str(selectors)]
 
-def selectorspaths(obj, selectors: PathType, only_first=False):
-    # Always convert selectors, including ints, to ensure selector logic is used for all path types
+def _match_selector(key_or_index: Any, value: Any, selector: Any) -> bool:
+    if callable(selector):
+        try:
+            return selector(key_or_index, value)
+        except Exception:
+            return False
+    elif isinstance(selector, dict):
+        if not isinstance(value, dict):
+            return False
+        return all(item in value.items() for item in selector.items())
+    # For int selectors in lists, we match the index.
+    elif isinstance(selector, int):
+        return key_or_index == selector
+    # For other selectors, we match the key.
+    return str(key_or_index) == str(selector)
+
+def _find_selector_paths(obj: Any, selectors: PathType, path_so_far: list, only_first: bool) -> Iterator[PathType]:
+    if not selectors:
+        yield path_so_far
+        return
+
+    sel, *rest = selectors
+    if isinstance(obj, list):
+        # Correctly handle different selector types for lists
+        if isinstance(sel, slice):
+            indices = range(*sel.indices(len(obj)))
+            for i in indices:
+                yield from _find_selector_paths(obj[i], rest, path_so_far + [i], only_first)
+                if only_first and rest: return
+        elif isinstance(sel, int):
+            # Handle negative indices correctly
+            idx = sel if sel >= 0 else len(obj) + sel
+            if 0 <= idx < len(obj):
+                yield from _find_selector_paths(obj[idx], rest, path_so_far + [idx], only_first)
+        else: # Handles callable and dict selectors
+            for i, item in enumerate(obj):
+                if _match_selector(i, item, sel):
+                    yield from _find_selector_paths(item, rest, path_so_far + [i], only_first)
+                    if only_first: return
+
+    elif isinstance(obj, dict):
+        for k, v in obj.items():
+            if _match_selector(k, v, sel):
+                yield from _find_selector_paths(v, rest, path_so_far + [k], only_first)
+                if only_first: return
+
+def selectorspaths(obj: Any, selectors: PathType, only_first: bool = False) -> Iterator[PathType]:
     selectors = _convert_selectors_path(selectors)
-    return list(_find_selector_paths(obj, selectors, only_first=only_first))
+    return _find_selector_paths(obj, selectors, [], only_first)
 
-def getpath(obj, path, default=None, separator='.', only_first_path_match=False):
-    selectors = _normalize_path(path, separator)
-    selectors = _convert_selectors_path(selectors)
-    paths = selectorspaths(obj, selectors, only_first=only_first_path_match)
-    if paths:
-        for p in paths:
-            try:
-                result = _getpath(obj, p)
-                return result
-            except Exception:
-                continue
-        return default
-    # If no match, try alternate path form (string <-> list)
-    if isinstance(path, list):
-        str_path = '.'.join(str(p) for p in path)
-        selectors2 = _normalize_path(str_path, separator)
-        selectors2 = _convert_selectors_path(selectors2)
-        paths2 = selectorspaths(obj, selectors2, only_first=only_first_path_match)
-        if paths2:
-            for p in paths2:
-                try:
-                    result = _getpath(obj, p)
-                    return result
-                except Exception:
-                    continue
-    elif isinstance(path, str):
-        list_path = [
-            int(p) if p.isdigit() or (p.startswith('-') and p[1:].isdigit()) else p
-            for p in path.split(separator)
-        ]
-        selectors2 = _normalize_path(list_path, separator)
-        selectors2 = _convert_selectors_path(selectors2)
-        paths2 = selectorspaths(obj, selectors2, only_first=only_first_path_match)
-        if paths2:
-            for p in paths2:
-                try:
-                    result = _getpath(obj, p)
-                    return result
-                except Exception:
-                    continue
-    return default
-
-
-def _find_in_list(
-    current,
-    sel,
-    selectors,
-    create_missing=False,
-    next_sel=None,
-    value=None,
-    operation=None,
-    path_so_far=None,
-):
-    """Helper for traversing a list with a selector (function or index)."""
-    if path_so_far is None:
-        path_so_far = []
-    if callable(sel):
-        for idx, item in enumerate(current):
-            if sel(idx, item, path_so_far):
-                return idx, item
-        if create_missing:
-            # If create_missing, append a new dict or list
-            if isinstance(next_sel, int):
-                new_item = []
+def _getpath(obj: Any, path: PathType):
+    for sel in path:
+        if isinstance(obj, list):
+            if isinstance(sel, int):
+                obj = obj[sel]
             else:
-                new_item = {} if operation != 'set' or value is None else value
-            current.append(new_item)
-            return len(current) - 1, new_item
-        raise KeyError(f"No list element matches selector: {sel}")
-    else:
-        idx = sel if isinstance(sel, int) else int(sel)
-        # Always extend the list if create_missing is True and idx is out of range
-        if create_missing:
-            while idx >= len(current):
-                # If next_sel is an int, create a list, else a dict
-                if next_sel is not None and isinstance(next_sel, int):
-                    current.append([])
-                else:
-                    current.append({})
-        if idx >= len(current):
-            raise IndexError(idx)
-        return idx, current[idx]
-
-def _getpath(obj, selectors):
-    current = obj
-    path_so_far = []
-    for sel in selectors:
-        if isinstance(current, dict):
-            current = current[sel]
-            path_so_far.append(sel)
-        elif isinstance(current, list):
-            idx, current = _find_in_list(current, sel, selectors, path_so_far=path_so_far)
-            path_so_far.append(idx)
+                return None
+        elif isinstance(obj, dict):
+            obj = obj.get(sel)
         else:
-            raise KeyError(sel)
-    return current
-
-def setpath(
-    obj,
-    path,
-    value=None,
-    operation='set',
-    create_missing=True,
-    only_first_path_match=False,
-):
-    selectors = _normalize_path(path)
-    selectors = _convert_selectors_path(selectors)
-    if any(_is_selector(s) for s in selectors):
-        paths = selectorspaths(obj, selectors, only_first=only_first_path_match)
-        if not paths:
-            if not create_missing:
-                raise KeyError(f"No matching path for selectors: {selectors}")
-            _setpath(obj, selectors, value, operation, create_missing)
-            return obj
-        for p in paths:
-            _setpath(obj, p, value, operation, create_missing)
-        return obj
-    else:
-        return _setpath(obj, selectors, value, operation, create_missing)
-
-
-def _setpath(obj, selectors, value, operation, create_missing):
-    current = obj
-    i = 0
-    while i < len(selectors) - 1:
-        sel = selectors[i]
-        next_sel = selectors[i+1]
-        if isinstance(current, dict):
-            # If key missing or wrong type, create correct type
-            if (
-                sel not in current
-                or (
-                    isinstance(next_sel, int)
-                    and not isinstance(current.get(sel), list)
-                )
-                or (
-                    not isinstance(next_sel, int)
-                    and not isinstance(current.get(sel), dict)
-                )
-            ):
-                if create_missing:
-                    if isinstance(next_sel, int):
-                        current[sel] = []
-                    else:
-                        current[sel] = {}
-                else:
-                    raise KeyError(sel)
-            current = current[sel]
-        elif isinstance(current, list):
-            # Always extend the list if create_missing is True and idx is out of range
-            idx = sel if isinstance(sel, int) else int(sel)
-            if create_missing:
-                while idx >= len(current):
-                    if isinstance(next_sel, int):
-                        current.append([])
-                    else:
-                        current.append({})
-            if idx >= len(current):
-                raise IndexError(idx)
-            current = current[idx]
-        else:
-            raise TypeError(f"Cannot traverse {type(current)} at {sel}")
-        i += 1
-    last = selectors[-1]
-    if isinstance(current, dict):
-        if operation == 'set':
-            current[last] = value
-        elif operation == 'delete':
-            if last in current:
-                del current[last]
-        elif operation == 'append':
-            if last not in current or not isinstance(current[last], list):
-                current[last] = []
-            current[last].append(value)
-        elif operation == 'extend':
-            if last not in current or not isinstance(current[last], list):
-                current[last] = []
-            current[last].extend(value)
-        else:
-            raise ValueError(f"Unknown operation: {operation}")
-    elif isinstance(current, list):
-        if callable(last):
-            try:
-                idx, _ = _find_in_list(
-                    current,
-                    last,
-                    selectors,
-                    create_missing=False,
-                    value=value,
-                    operation=operation,
-                )
-            except KeyError:
-                if create_missing:
-                    # Try to synthesize a new element matching the selector
-                    new_item = {}
-                    key = value_ = None
-                    # Dict selector
-                    if hasattr(last, '__closure__') and last.__closure__:
-                        for cell in last.__closure__:
-                            if isinstance(cell.cell_contents, dict):
-                                new_item = dict(cell.cell_contents)
-                                break
-                    # String selector
-                    if hasattr(last, '__name__') and last.__name__ == 'str_selector':
-                        if hasattr(last, '__closure__') and last.__closure__:
-                            closure = last.__closure__
-                            if len(closure) >= 2:
-                                key = closure[0].cell_contents
-                                value_ = closure[1].cell_contents
-                                new_item = {key: value_}
-                    # If there are more selectors after this, set recursively
-                    if len(selectors) > 1:
-                        _setpath(new_item, selectors[1:], value, operation, create_missing)
-                    else:
-                        # Last selector: for set, set the new item directly to value
-                        if operation == 'set':
-                            new_item = value
-                        elif operation == 'append' or operation == 'extend':
-                            new_item = value
-                    current.append(new_item)
-                    idx = len(current) - 1
-                else:
-                    raise
-            if operation == 'set':
-                current[idx] = value
-            elif operation == 'delete':
-                del current[idx]
-            elif operation == 'append':
-                if not isinstance(current[idx], list):
-                    current[idx] = []
-                current[idx].append(value)
-            elif operation == 'extend':
-                if not isinstance(current[idx], list):
-                    current[idx] = []
-                current[idx].extend(value)
-            else:
-                raise ValueError(f"Unknown operation: {operation}")
-        else:
-            idx = last if isinstance(last, int) else int(last)
-            if operation == 'set':
-                while idx >= len(current):
-                    if create_missing:
-                        current.append(None)
-                    else:
-                        raise IndexError(idx)
-                current[idx] = value
-            elif operation == 'delete':
-                if 0 <= idx < len(current):
-                    del current[idx]
-            elif operation == 'append':
-                current.append(value)
-            elif operation == 'extend':
-                current.extend(value)
-            else:
-                raise ValueError(f"Unknown operation: {operation}")
-    else:
-        raise TypeError(f"Cannot set path on {type(current)}")
+            return None
     return obj
 
-def getpaths(obj, paths, default=None, only_first_path_match=False):
-    if isinstance(paths, dict):
-        return {
-            k: getpath(obj, v, default, only_first_path_match=only_first_path_match)
-            for k, v in paths.items()
-        }
+def getpath(obj: Any, path: Union[str, PathType], default: Any = None, separator: str = '.', only_first_path_match: bool = True):
+    """Gets a value from a nested object using a path, with support for selectors.
+
+    Args:
+        obj: The object to get the value from.
+        path: The path to the value. Can be a string or a list containing keys, indices, or selectors.
+        default: The default value to return if the path doesn't exist.
+        separator: The separator to use for string paths.
+        only_first_path_match: If False, and selectors match multiple items, returns a list of all values.
+
+    Returns:
+        The value at the given path, a list of values, or the default value.
+    """
+    if isinstance(path, str):
+        path = [int(p) if p.isdigit() else p for p in path.split(separator)]
+
+    # Check if the path contains any non-standard selectors that require selectorspaths
+    is_complex_path = any(not isinstance(p, (str, int)) for p in path)
+
+    if not is_complex_path:
+        # Fast path for simple key/index lookups
+        current = obj
+        for sel in path:
+            if isinstance(current, dict):
+                if sel in current:
+                    current = current[sel]
+                else:
+                    return default
+            elif isinstance(current, list) and isinstance(sel, int):
+                if 0 <= sel < len(current):
+                    current = current[sel]
+                else:
+                    return default
+            else:
+                return default
+        return current
+
+    # Slow path for complex selectors. Always get all paths and decide later whether to return one or all.
+    resolved_paths = list(selectorspaths(obj, path, only_first=False))
+
+    if not resolved_paths:
+        return default
+
+    values = []
+    for p in resolved_paths:
+        # We reuse the internal _getpath which is fast and simple
+        values.append(_getpath(obj, p))
+
+    if only_first_path_match:
+        return values[0] if values else default
     else:
-        return [
-            getpath(obj, p, default, only_first_path_match=only_first_path_match)
-            for p in paths
-        ]
+        return values
 
-def haspath(obj, path, separator='.'):
-    selectors = _normalize_path(path, separator)
-    selectors = _convert_selectors_path(selectors)
-    try:
-        _getpath(obj, selectors)
-        return True
-    except Exception:
-        return False
+def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bool = True, separator: str = '.', operation: str = 'set', only_first_path_match: bool = False):
+    # Hybrid approach: First, use selectorspaths to find existing paths for modification.
+    # This correctly handles complex selectors (dict, callable, etc.).
+    paths_to_modify = list(selectorspaths(obj, path, only_first=only_first_path_match))
 
-# === END ADVANCED JQ-STYLE PATH/SELECTOR LOGIC ===
+    # If no paths are found AND we are allowed to create them, we prepare a simple path for creation.
+    # This creation path does not support complex selectors.
+    if not paths_to_modify and create_missing:
+        if isinstance(path, str):
+            # Convert dot-separated string to a list of keys/indices.
+            paths_to_modify = [[int(p) if p.isdigit() else p for p in path.split(separator)]]
+        elif isinstance(path, list) and all(isinstance(p, (str, int)) for p in path):
+            paths_to_modify = [path]  # It's already a simple path.
 
-# === DELETION FUNCTIONS (jq-style) ===
+    if not paths_to_modify:
+        return # Nothing to do.
 
+    for p in paths_to_modify:
+        current_level = obj
+        # Traverse to the second-to-last element to get the parent container.
+        for i, sel in enumerate(p[:-1]):
+            # --- Traversal and Creation Logic ---
+            next_sel = p[i + 1]
+            if isinstance(current_level, dict):
+                if sel not in current_level and create_missing:
+                    current_level[sel] = [] if isinstance(next_sel, int) else {}
+                current_level = current_level.get(sel)
+            elif isinstance(current_level, list) and isinstance(sel, int):
+                if sel >= len(current_level) and create_missing:
+                    current_level.extend([None] * (sel - len(current_level) + 1))
+                if sel < len(current_level):
+                    if current_level[sel] is None and create_missing:
+                        current_level[sel] = [] if isinstance(next_sel, int) else {}
+                    current_level = current_level[sel]
+                else:
+                    current_level = None # Path broken
+            else:
+                current_level = None # Path broken
+            
+            if current_level is None:
+                break # Stop if path is broken
+        
+        if current_level is None:
+            continue # Move to next path if this one was broken
 
-def delpath(
-    data: dict[str, Any], path: str | list[str | int]
-) -> dict[str, Any]:
-    # Delete the value at the specified path in a nested data structure.
-    # If the path does not exist, do nothing.
-    try:
-        setpath(data, path, operation='delete', create_missing=True)
-    except (KeyError, IndexError):
-        pass
-    return data
+        # --- Perform the final operation on the parent container ---
+        last_sel = p[-1]
+        if operation == 'set':
+            if isinstance(current_level, dict):
+                current_level[last_sel] = value
+            elif isinstance(current_level, list) and isinstance(last_sel, int):
+                if last_sel < len(current_level):
+                    current_level[last_sel] = value
+                elif last_sel == len(current_level) and create_missing:
+                    current_level.append(value)
+        elif isinstance(current_level, list) and operation == 'append':
+            current_level.append(value)
+        elif isinstance(current_level, list) and operation == 'extend' and isinstance(value, list):
+            current_level.extend(value)
+        elif isinstance(current_level, dict) and last_sel in current_level and isinstance(current_level[last_sel], list):
+            target_list = current_level[last_sel]
+            if operation == 'append':
+                target_list.append(value)
+            elif operation == 'extend' and isinstance(value, list):
+                target_list.extend(value)
 
-def delpaths(
-    data: dict[str, Any], paths: list[str | list[str | int]]
-) -> dict[str, Any]:
-    # Delete multiple paths in a nested data structure (jq-style delpaths).
-    # If a path does not exist, it is ignored.
+def delpath(obj: Any, path: Union[str, PathType], separator: str = '.'):
+    """Deletes an item from the data object at the specified path."""
+    paths_to_del = selectorspaths(obj, path)
+    # Sort paths in reverse order of indices and length to avoid shifting issues
+    # when deleting from lists.
+    sorted_paths = sorted(list(paths_to_del), key=lambda p: (str(p), len(p)), reverse=True)
+
+    for p in sorted_paths:
+        parent = getpath(obj, p[:-1])
+        last_sel = p[-1]
+        if parent is not None:
+            try:
+                if isinstance(parent, (dict, list)):
+                    del parent[last_sel]
+            except (KeyError, IndexError):
+                pass # Item might have been removed by a previous broader selector
+
+def delpaths(obj: Any, paths: list, separator: str = '.'):
     for path in paths:
-        try:
-            setpath(data, path, operation='delete', create_missing=True)
-        except (KeyError, IndexError):
-            pass
-    return data
-
+        delpath(obj, path, separator)
 
 # === SEARCH FUNCTIONS ===
 
-def findpaths(data: dict[str, Any], 
-             pattern: str,
-             match_type: str = 'exact',
-             case_sensitive: bool = True,
-             include_values: bool = False,
-             max_depth: int | None = None) -> list[dict[str, Any]]:
-    """Search for attributes/keys in a nested data structure and return their paths.
-    Example: find_attributes(data, 'name') or find_attributes(data, r'.*_id$', 'regex')
-    """
-    matches = []
-    
-    def _search_recursive(obj: Any, current_path: list[str | int] | None = None, depth: int = 0):
-        if current_path is None:
-            current_path = []
+def findpaths(obj: Any, pattern: Any, search_type: str = 'exact', case_sensitive: bool = True, search_keys: bool = True, search_values: bool = True) -> Iterator[PathType]:
+    if search_type not in ['exact', 'contains', 'regex']:
+        raise ValueError("search_type must be 'exact', 'contains', or 'regex'")
 
-        if max_depth is not None and depth > max_depth:
-            return
-
-        if isinstance(obj, dict):
-            for key, value in obj.items():
-                key_str = str(key)
-                new_path = [*current_path, key]
-
-                # Check if key matches
-                if _matches_pattern(key_str, pattern, match_type, case_sensitive):
-                    matches.append({
-                        'path': '.'.join(map(str, new_path)),
-                        'path_list': new_path,
-                        'key': key,
-                        'value': value,
-                        'parent_type': 'dict',
-                        'match_type': 'key',
-                    })
-
-                # Check if value matches (if include_values is True and value is string)
-                if include_values and isinstance(value, str):
-                    if _matches_pattern(value, pattern, match_type, case_sensitive):
-                        matches.append({
-                            'path': '.'.join(map(str, new_path)),
-                            'path_list': new_path,
-                            'key': key,
-                            'value': value,
-                            'parent_type': 'dict',
-                            'match_type': 'value',
-                        })
-
-                # Recurse into nested structures
-                if isinstance(value, dict | list):
-                    _search_recursive(value, new_path, depth + 1)
-
-        elif isinstance(obj, list):
-            for i, item in enumerate(obj):
-                new_path = [*current_path, i]
-
-                # Check if item value matches (if include_values is True and item is string)
-                if include_values and isinstance(item, str):
-                    if _matches_pattern(item, pattern, match_type, case_sensitive):
-                        matches.append({
-                            'path': '.'.join(map(str, new_path)),
-                            'path_list': new_path,
-                            'key': i,
-                            'value': item,
-                            'parent_type': 'list',
-                            'match_type': 'value',
-                        })
-
-                # Recurse into nested structures
-                if isinstance(item, dict | list):
-                    _search_recursive(item, new_path, depth + 1)
-    
-    def _matches_pattern(text: str, pattern: str, match_type: str, case_sensitive: bool) -> bool:
-        """Check if text matches the pattern based on match_type."""
+    if search_type == 'regex':
+        try:
+            compiled_regex = re.compile(pattern)
+        except re.error as e:
+            raise ValueError(f"Invalid regex pattern: {e}")
+    else:
         if not case_sensitive:
-            text = text.lower()
-            pattern = pattern.lower()
-        
-        if match_type == 'exact':
-            return text == pattern
-        elif match_type == 'contains':
-            return pattern in text
-        elif match_type == 'startswith':
-            return text.startswith(pattern)
-        elif match_type == 'endswith':
-            return text.endswith(pattern)
-        elif match_type == 'regex':
-            try:
-                flags = 0 if case_sensitive else re.IGNORECASE
-                return bool(re.search(pattern, text, flags))
-            except re.error:
-                return False
-        else:
-            raise ValueError(f"Invalid match_type: {match_type}")
-    
-    _search_recursive(data)
-    return matches
+            pattern = pattern.lower() if isinstance(pattern, str) else pattern
 
-
-def findvalues(data: dict[str, Any], 
-              pattern: Any,
-              match_type: str = 'exact',
-              case_sensitive: bool = True,
-              value_types: list[type] | None = None,
-              max_depth: int | None = None) -> list[dict[str, Any]]:
-    """Search for specific values in a nested data structure and return their paths.
-    Example: find_values(data, True) or find_values(data, 'john', 'contains', case_sensitive=False)
-    """
-    matches = []
-    
-    def _search_recursive(obj: Any, current_path: list[str | int] | None = None, depth: int = 0):
-        if current_path is None:
-            current_path = []
-
-        if max_depth is not None and depth > max_depth:
-            return
-
-        if isinstance(obj, dict):
-            for key, value in obj.items():
-                new_path = [*current_path, key]
-
-                # Check if value matches
-                if _value_matches(value, pattern, match_type, case_sensitive, value_types):
-                    matches.append({
-                        'path': '.'.join(map(str, new_path)),
-                        'path_list': new_path,
-                        'key': key,
-                        'value': value,
-                        'parent_type': 'dict',
-                    })
-
-                # Recurse into nested structures
-                if isinstance(value, dict | list):
-                    _search_recursive(value, new_path, depth + 1)
-
-        elif isinstance(obj, list):
-            for i, item in enumerate(obj):
-                new_path = [*current_path, i]
-
-                # Check if item matches
-                if _value_matches(item, pattern, match_type, case_sensitive, value_types):
-                    matches.append({
-                        'path': '.'.join(map(str, new_path)),
-                        'path_list': new_path,
-                        'key': i,
-                        'value': item,
-                        'parent_type': 'list',
-                    })
-
-                # Recurse into nested structures
-                if isinstance(item, dict | list):
-                    _search_recursive(item, new_path, depth + 1)
-    
-    def _value_matches(
-        value: Any,
-        pattern: Any,
-        match_type: str,
-        case_sensitive: bool,
-        value_types: list[type] | None,
-    ) -> bool:
-        """Check if value matches the pattern."""
-        # Type filtering
-        if value_types is not None and type(value) not in value_types:
+    def _match(target):
+        if target is None:
             return False
         
-        # For exact matches with non-string types
-        if match_type == 'exact' and not isinstance(value, str):
-            return value == pattern
-        
-        # Convert to string for pattern matching
-        if not isinstance(value, str):
-            value = str(value)
-        
-        pattern_str = str(pattern)
-        
-        if not case_sensitive:
-            value = value.lower()
-            pattern_str = pattern_str.lower()
-        
-        if match_type == 'exact':
-            return value == pattern_str
-        elif match_type == 'contains':
-            return pattern_str in value
-        elif match_type == 'startswith':
-            return value.startswith(pattern_str)
-        elif match_type == 'endswith':
-            return value.endswith(pattern_str)
-        elif match_type == 'regex':
-            try:
-                flags = 0 if case_sensitive else re.IGNORECASE
-                return bool(re.search(pattern_str, value, flags))
-            except re.error:
-                return False
-        else:
+        original_target = target
+        if not case_sensitive and isinstance(target, str):
+            target = target.lower()
+
+        if search_type == 'exact':
+            # Strict type and value checking for exact matches
+            return target == pattern and type(target) is type(pattern)
+        elif search_type == 'contains':
+            if isinstance(target, str):
+                return pattern in target
+            elif isinstance(target, list):
+                return pattern in target
             return False
-    
-    _search_recursive(data)
-    return matches
+        elif search_type == 'regex':
+            return isinstance(original_target, str) and compiled_regex.search(original_target)
+        return False
 
+    def recurse(current_obj, current_path):
+        if isinstance(current_obj, dict):
+            for k, v in current_obj.items():
+                new_path = current_path + [k]
+                if search_keys and _match(k):
+                    yield new_path
+                if search_values:
+                    if _match(v):
+                        yield new_path
+                    else:
+                        yield from recurse(v, new_path)
+        elif isinstance(current_obj, list):
+            for i, item in enumerate(current_obj):
+                yield from recurse(item, current_path + [i])
 
-# === UTILITY FUNCTIONS ===
+    yield from recurse(obj, [])
 
-# === getpaths_setpaths ===
-def getpaths_setpaths(src, tgt, pairs, default=None):
-    """
-    Copy values from src to tgt by path pairs. Each pair is (src_path, tgt_path).
-    Supports list of pairs or a single pair.
-    """
-    # If pairs is a tuple or list of length 2 and both elements are not themselves pairs,
-    # treat as a single pair
-    if (
-        isinstance(pairs, tuple | list)
-        and len(pairs) == 2
-        and not (isinstance(pairs[0], tuple | list) and len(pairs[0]) == 2)
-    ):
-        pairs = [pairs]
-    if not pairs:
-        return tgt
-    for pair in pairs:
-        if not isinstance(pair, tuple | list) or len(pair) != 2:
-            continue
-        src_path, tgt_path = pair
-        if isinstance(src_path, tuple):
-            src_path = list(src_path)
-        if isinstance(tgt_path, tuple):
-            tgt_path = list(tgt_path)
-        value = getpath(src, src_path, default)
-        if value is None and default is None:
-            if isinstance(src_path, list):
-                str_path = '.'.join(str(p) for p in src_path)
-                value = getpath(src, str_path, default)
-            elif isinstance(src_path, str):
-                list_path = [
-                    int(p) if p.isdigit() or (p.startswith('-') and p[1:].isdigit()) else p
-                    for p in src_path.split('.')
-                ]
-                value = getpath(src, list_path, default)
-        if isinstance(value, list):
-            value = value.copy()
-        elif isinstance(value, dict):
-            value = value.copy()
-        setpath(tgt, tgt_path, value)
-    return tgt
+def findvalues(obj: Any, pattern: Any, search_type: str = 'exact', case_sensitive: bool = True):
+    paths = findpaths(obj, pattern, search_type, case_sensitive)
+    for path in paths:
+        yield getpath(obj, path)
 
-def batch_setpath(
-    data: dict[str, Any], modifications: list[tuple[Any, ...]]
-) -> dict[str, Any]:
-    """
-    Apply multiple modifications to a nested data structure.
-    Example:
-        batch_modify(
-            data,
-            [
-                ('user.name', 'John Doe'),
-                ('user.age', 30),
-                ('user.tags', 'python', 'append'),
-                ('old.field', None, 'delete'),
-            ],
-        )
-    """
+# === BATCH AND UTILITY FUNCTIONS ===
+
+def batch_setpath(data: Any, modifications: list[tuple]):
+    """Applies a batch of modifications to the data object."""
     for mod in modifications:
-        if len(mod) == 2:
-            path, value = mod
-            operation = 'set'
-        else:
-            path, value, operation = mod
-        # Special case: if operation == 'append' and value is a list of length 1,
-        # append the element, not the list
-        if operation == 'append' and isinstance(value, list) and len(value) == 1:
-            setpath(data, path, value[0], operation)
-        else:
-            setpath(data, path, value, operation)
-    return data
+        path, value, *op = mod
+        operation = op[0] if op else 'set'
+        # Delegate to the main setpath function for each modification.
+        setpath(data, path, value, create_missing=True, operation=operation)
 
+def getpaths(obj, paths, default=None):
+    return [getpath(obj, p, default) for p in paths]
 
-def flatten(data: dict[str, Any], separator: str = '.', prefix: str = '') -> dict[str, Any]:
-    """Flatten a nested dictionary into a single-level dictionary with dotted keys."""
-    items: list[tuple[str, Any]] = []
+def getpaths_setpaths(src_obj, tgt_obj, paths_map, default=None):
+    for src_path, tgt_path in paths_map:
+        value = getpath(src_obj, src_path, default)
+        if value is not None:
+            setpath(tgt_obj, tgt_path, value)
+
+def haspath(obj: Any, path: Union[str, PathType], separator: str = '.') -> bool:
+    try:
+        next(selectorspaths(obj, path, only_first=True))
+        return True
+    except StopIteration:
+        return False
+
+# === FLATTEN/UNFLATTEN UTILITIES ===
+
+def flatten(data: dict, separator: str = '.') -> dict[str, Any]:
+    flat_dict = {}
+    def _flatten_recursive(obj, prefix=''):
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                new_prefix = f"{prefix}{separator}{key}" if prefix else key
+                _flatten_recursive(value, new_prefix)
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                new_prefix = f"{prefix}{separator}{i}" if prefix else str(i)
+                _flatten_recursive(item, new_prefix)
+        else:
+            flat_dict[prefix] = obj
+    _flatten_recursive(data)
+    return flat_dict
+
+def unflatten(data: dict[str, Any], separator: str = '.') -> dict:
+    result = {}
     for key, value in data.items():
-        new_key = f"{prefix}{separator}{key}" if prefix else key
-        if isinstance(value, dict):
-            items += list(flatten(value, separator, new_key).items())
-        elif isinstance(value, list):
-            for i, item in enumerate(value):
-                list_key = f"{new_key}[{i}]"
-                if isinstance(item, dict):
-                    items += list(flatten(item, separator, list_key).items())
-                else:
-                    items.append((list_key, item))
-        else:
-            items.append((new_key, value))
-    return dict(items)
-
-
-def unflatten(data: dict[str, Any], separator: str = '.') -> dict[str, Any]:
-    """Unflatten a dictionary with dotted keys into a nested structure."""
-    result: dict[str, Any] = {}
-    import re
-    index_pattern = re.compile(r"([^[\]]+)|\[(\d+)\]")
-    for key, value in data.items():
-        path: list[str | int] = []
-        parts = key.split(separator)
-        for part in parts:
-            for match in index_pattern.finditer(part):
-                if match.group(1) is not None:
-                    seg = match.group(1)
-                    if seg != '':
-                        path.append(seg)
-                elif match.group(2) is not None:
-                    path.append(int(match.group(2)))
-        setpath(result, path, value, create_missing=True)
+        setpath(result, key, value, separator=separator)
     return result
 
+# === MERGE UTILITY ===
 
-def merge(dict1: dict[str, Any], dict2: dict[str, Any]) -> dict[str, Any]:
-    """Deep merge two dictionaries, with dict2 values taking precedence."""
-    result: dict[str, Any] = dict1.copy()
+def merge(dict1: dict, dict2: dict) -> dict:
+    merged = dict1.copy()
     for key, value in dict2.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = merge(result[key], value)
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = merge(merged[key], value)
         else:
-            result[key] = value
-    return result
+            merged[key] = value
+    return merged
 
 
-# === CLOUDFLARE WORKERS INTEGRATION ===
+# === MISC UTILITIES ===
 
-def create_worker_response(
-    data: dict[str, Any],
-    status: int = 200,
-    headers: dict[str, str] | None = None,
-) -> str:
-    """Helper function to create a JSON response for Cloudflare Workers."""
+def safe_json_loads(s: str, default: Any = None) -> Any:
     try:
-        return json.dumps(data, separators=(',', ':'))  # Compact JSON
-    except (TypeError, ValueError) as e:
-        # Fallback for non-serializable data
-        return json.dumps({
-            "error": f"JSON serialization failed: {e!s}",
-            "status": "error"
-        })
-
-
-def safe_json_loads(json_str: str, default: Any = None) -> Any:
-    """Safely parse JSON string with fallback."""
-    try:
-        return json.loads(json_str)
-    except (json.JSONDecodeError, TypeError, ValueError):
+        return json.loads(s)
+    except (json.JSONDecodeError, TypeError):
         return default
 
+# === WORKER-SPECIFIC HELPERS ===
 
-# === EXAMPLE CLOUDFLARE WORKER HANDLER ===
+# This is a generic response creator for Cloudflare Workers.
+# It ensures a consistent JSON response format.
+def create_worker_response(data: Any, success: bool = True, error: str = None) -> str:
+    response_obj = {
+        'success': success,
+        'data': data if success else None,
+        'error': error if not success else None,
+        'timestamp': int(time.time())
+    }
+    return json.dumps(response_obj)
 
+# This is an example of a full Cloudflare Worker handler using these utilities.
+# It demonstrates a simple API that can get, set, or delete values in a JSON object
+# stored in a KV namespace.
 async def example_worker_handler(request, env):
-    """Example Worker handler showing how to use the nested utilities."""
+    # Assumes a KV binding named 'MY_KV_NAMESPACE'
+    KV = env.MY_KV_NAMESPACE
+    
+    # Get the key from the URL path, e.g., /my-json-document
+    key = request.path[1:]
+    if not key:
+        return Response.new("Not Found", status=404)
+
+    # Read the existing JSON from KV
     try:
-        # Import at function level for Cloudflare Workers
-        from js import Response
+        data_str = await KV.get(key)
+        data = json.loads(data_str) if data_str else {}
+    except Exception as e:
+        return Response.new(f"Error reading from KV: {e}", status=500)
+
+    # Determine action from query parameters
+    params = request.query
+    action = params.get('action')
+    path = params.get('path')
+    
+    if not action or not path:
+        return Response.new("Missing 'action' or 'path' query parameter", status=400)
+
+    try:
+        if action == 'get':
+            value = getpath(data, path)
+            response_data = {'key': key, 'path': path, 'value': value}
         
-        # Parse request body
-        request_data = await request.json()
+        elif action == 'set':
+            value_str = params.get('value')
+            if value_str is None:
+                return Response.new("Missing 'value' query parameter for 'set' action", status=400)
+            
+            try:
+                value = json.loads(value_str)
+            except json.JSONDecodeError:
+                value = value_str # Treat as a plain string if not valid JSON
+            
+            setpath(data, path, value)
+            await KV.put(key, json.dumps(data))
+            response_data = {'key': key, 'path': path, 'status': 'set'}
+
+        elif action == 'del':
+            delpath(data, path)
+            await KV.put(key, json.dumps(data))
+            response_data = {'key': key, 'path': path, 'status': 'deleted'}
         
-        # Extract user information safely
-        user_info = getpaths(request_data, {
-            'name': 'user.profile.name',
-            'email': 'user.profile.email',
-            'theme': 'user.settings.theme',
-            'notifications': 'user.settings.notifications'
-        }, default=None)
-        
-        # Add processing metadata
-        setpath(request_data, 'metadata.processed_at', '2025-01-01T00:00:00Z')
-        setpath(request_data, 'metadata.server', 'cloudflare-workers')
-        setpath(request_data, 'metadata.version', '1.0.0')
-        
-        # Search for sensitive data fields
-        sensitive_fields = findpaths(
-            request_data, 
-            r'(password|secret|key|token)', 
-            'regex', 
-            case_sensitive=False
-        )
-        
-        # Batch update user preferences
-        if haspath(request_data, 'user.settings'):
-            batch_setpath(request_data, [
-                ('user.settings.last_login', '2025-01-01T00:00:00Z'),
-                ('user.settings.login_count', 1, 'append'),
-                ('user.flags.processed', True)
-            ])
-        
-        # Create response
-        response_data = {
-            'success': True,
-            'user_info': user_info,
-            'sensitive_fields_detected': len(sensitive_fields),
-            'processed': True,
-            'timestamp': '2025-01-01T00:00:00Z'
-        }
-        
-        # Return JSON response
+        else:
+            return Response.new(f"Invalid action: {action}", status=400)
+
+        # Create a standardized JSON response
         json_response = create_worker_response(response_data)
         return Response.new(json_response, {
             'headers': {'Content-Type': 'application/json'},
@@ -875,8 +508,19 @@ __all__ = [
     'haspath',
     'merge',
     'safe_json_loads',
+    'selectorspaths',
     'setpath',
     'unflatten',
+    # Selectors
+    'select_all',
+    'select_contains',
+    'select_eq',
+    'select_gt',
+    'select_key_exists',
+    'select_key_missing',
+    'select_lt',
+    'select_regex',
+    'select_type',
 ]
 
 
