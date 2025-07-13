@@ -1,14 +1,8 @@
 import json
-import logging
 import re
 import time
 from collections.abc import Callable, Iterator, MutableMapping, MutableSequence
 from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeVar, Union, cast
-
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 # === TYPE DEFINITIONS ===
 
@@ -234,20 +228,12 @@ def _match_selector(key_or_index: Any, value: Any, selector: Any) -> bool:
     Returns:
         bool: True if the value matches the selector, False otherwise
     """
-    import logging
-    logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger(__name__)
-    
-    logger.debug(f"_match_selector: key_or_index={key_or_index} (type: {type(key_or_index)}), value={value} (type: {type(value)}), selector={selector} (type: {type(selector)})")
-    
     # Handle None selector (matches everything)
     if selector is None:
-        logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> True (None selector)")
         return True
         
     # Handle wildcard selector (matches anything)
     if selector is Ellipsis or selector == '*':
-        logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> True (wildcard)")
         return True
         
     # Handle callable selectors
@@ -258,103 +244,76 @@ def _match_selector(key_or_index: Any, value: Any, selector: Any) -> bool:
             selector == select_wildcard):
             # Only match if we're checking a list index (key_or_index is an integer)
             # and this is being called from within a list context
-            if isinstance(key_or_index, int):
-                logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> True (select_all/select_wildcard for list index)")
-                return True
-            return False
+            return isinstance(key_or_index, int)
             
         # For other callable selectors, try calling with (key, value) first
         try:
-            result = selector(key_or_index, value)
-            logger.debug(f"_match_selector: Called selector with (key, value) -> {result}")
-            if result:
+            if selector(key_or_index, value):
                 return True
-        except (TypeError, ValueError) as e:
-            logger.debug(f"_match_selector: Error calling selector with (key, value): {e}")
+        except (TypeError, ValueError):
             # If that fails, try with just the value
             try:
-                result = selector(value)
-                logger.debug(f"_match_selector: Called selector with (value) -> {result}")
-                if result:
+                if selector(value):
                     return True
-            except (TypeError, ValueError) as e:
-                logger.debug(f"_match_selector: Error calling selector with (value): {e}")
+            except (TypeError, ValueError):
                 # If that fails, try with just the key
                 try:
-                    result = selector(key_or_index)
-                    logger.debug(f"_match_selector: Called selector with (key) -> {result}")
-                    if result:
+                    if selector(key_or_index):
                         return True
-                except (TypeError, ValueError) as e:
-                    logger.debug(f"_match_selector: Error calling selector with (key): {e}")
-                    logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> False (all callable attempts failed)")
+                except (TypeError, ValueError):
                     return False
+    
     # Handle dictionary selector (must match all key-value pairs)
     if isinstance(selector, dict):
         # Only match if the value is also a dictionary
         if not isinstance(value, dict):
-            logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> False (value is not a dict)")
             return False
             
         # Special case: empty dict selector matches any non-empty dict
         if not selector:
-            logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={{}} -> {bool(value)} (empty dict selector)")
             return bool(value)
             
         # Check if all key-value pairs in the selector match
         for k, v in selector.items():
             if k not in value:
-                logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> False (key {k} not found)")
                 return False
                 
             # For nested dictionary selectors, use recursive matching
             if isinstance(v, dict):
                 if not _match_selector(k, value[k], v):
-                    logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> False (nested dict mismatch for key {k})")
                     return False
             # For callable selectors, apply them to the value
             elif callable(v):
                 if not v(value[k]):
-                    logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> False (callable selector returned False for key {k})")
                     return False
             # For direct value comparison
             elif value[k] != v:
-                logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> False (value mismatch for key {k}: {value[k]} != {v})")
                 return False
                 
-        logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> True (all key-value pairs match)")
         return True
     
     # Handle slice selector (for list indices)
     if isinstance(selector, slice):
         if not isinstance(key_or_index, (int, str)):
-            logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> False (not an int or string)")
             return False
             
         # Convert key_or_index to int if possible
         try:
             idx = int(key_or_index)
         except (ValueError, TypeError):
-            logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> False (not an int)")
             return False
             
         # Check if the index is within the slice
-        result = (selector.start is None or idx >= selector.start) and \
-                 (selector.stop is None or idx < selector.stop) and \
-                 (selector.step is None or (idx - (selector.start or 0)) % (selector.step or 1) == 0)
-        logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> {result} (slice)")
-        return result
+        return ((selector.start is None or idx >= selector.start) and 
+                (selector.stop is None or idx < selector.stop) and 
+                (selector.step is None or (idx - (selector.start or 0)) % (selector.step or 1) == 0))
     
     # Handle string to int conversion for list indices
     if isinstance(key_or_index, str) and key_or_index.isdigit() and isinstance(selector, int):
-        result = int(key_or_index) == selector
-        logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> {result} (string to int comparison)")
-        return result
+        return int(key_or_index) == selector
         
     # Direct value comparison (for exact matches)
-    result = key_or_index == selector
-    logger.debug(f"_match_selector: key_or_index={key_or_index}, value={value}, selector={selector} -> {result} (direct comparison)")
-    return result
+    return key_or_index == selector
 
 def _find_selector_paths(
     obj: Any, 
@@ -364,30 +323,22 @@ def _find_selector_paths(
     depth: int = 0
 ) -> Iterator[PathType]:
     """Recursively find all paths in the object that match the given selectors."""
-    indent = '  ' * depth
     if not selectors:
-        logger.debug(f"{indent}_find_selector_paths: No more selectors, yielding path: {path_so_far}")
         yield path_so_far
         return
         
     current_selector = selectors[0]
     remaining_selectors = selectors[1:]
     
-    logger.debug(f"{indent}_find_selector_paths: depth={depth}, current_selector={current_selector!r}, remaining_selectors={remaining_selectors}, path_so_far={path_so_far}, type(obj)={type(obj).__name__}")
-    
     def process_value(key: Any, value: Any, new_path: list) -> Iterator[PathType]:
         """Process a single value and continue traversal."""
-        logger.debug(f"{indent}  process_value: key={key!r}, value={value!r}, new_path={new_path}")
         if not remaining_selectors:
-            logger.debug(f"{indent}  No more selectors, yielding path: {new_path}")
             yield new_path
         elif hasattr(value, 'items'):
-            logger.debug(f"{indent}  Recursing into dict: {value}")
             yield from _find_selector_paths(
                 value, remaining_selectors, new_path, only_first, depth + 1
             )
         elif isinstance(value, (list, tuple)):
-            logger.debug(f"{indent}  Recursing into list: {value}")
             for i, v in enumerate(value):
                 yield from _find_selector_paths(
                     v, remaining_selectors, new_path + [i], only_first, depth + 1
@@ -466,8 +417,6 @@ def _find_selector_paths(
         if callable(current_selector) and (current_selector.__name__ in ('select_all', 'select_wildcard') or 
                                           current_selector == select_all or 
                                           current_selector == select_wildcard):
-            logger.debug(f"Processing list with select_all/select_wildcard selector: {current_selector}")
-            
             # For select_all, we want to match all list items by index
             # and only yield the indices, not the item properties
             for idx in range(len(obj)):
@@ -492,12 +441,10 @@ def _find_selector_paths(
         
         # For other callable selectors, apply the selector to each item in the list
         if callable(current_selector):
-            logger.debug(f"Processing list with callable selector: {current_selector}")
             matched = False
             for idx, value in enumerate(obj):
                 # First try to match the selector against the list item
                 if _match_selector(idx, value, current_selector):
-                    logger.debug(f"Callable matched with (idx={idx}, value={value})")
                     new_path = path_so_far + [idx]
                     
                     if not remaining_selectors:
@@ -591,16 +538,7 @@ def _traverse_with_selectors(
     Yields:
         Tuples of (path, value) for each match found
     """
-    logger.debug(
-        "_traverse_with_selectors: "
-        f"obj={obj}, selectors={selectors}, path_so_far={path_so_far}"
-    )
-    
     if not selectors:
-        logger.debug(
-            "_traverse_with_selectors: no more selectors, "
-            "yielding path_so_far and obj"
-        )
         yield (path_so_far, obj)
         return
         
@@ -680,39 +618,17 @@ def _traverse_with_selectors(
     
     # Handle dictionary selectors - special case for matching items in a list
     if isinstance(current_selector, dict) and isinstance(obj, list):
-        logger.debug(
-            "_traverse_with_selectors: Processing list with dict "
-            f"selector: {current_selector}"
-        )
         for idx, item in enumerate(obj):
             if not isinstance(item, dict):
-                logger.debug(
-                    "_traverse_with_selectors: Skipping non-dict "
-                    f"item at index {idx}"
-                )
                 continue
-            
-            # Log the item being checked
-            logger.debug(
-                "_traverse_with_selectors: Checking item at "
-                f"index {idx}: {item}"
-            )
             
             # Check if all key-value pairs in the selector match the item
             match = all(
                 k in item and item[k] == v 
                 for k, v in current_selector.items()
             )
-            logger.debug(
-                "_traverse_with_selectors: Dict selector match "
-                f"result: {match}"
-            )
             
             if match:
-                logger.debug(
-                    "_traverse_with_selectors: Found matching "
-                    f"item at index {idx}"
-                )
                 yield from process_value(
                     key=idx,
                     value=item,
@@ -723,20 +639,8 @@ def _traverse_with_selectors(
                     return
     # Handle dictionary selectors for dictionary objects
     elif isinstance(current_selector, dict) and isinstance(obj, dict):
-        logger.debug(
-            "_traverse_with_selectors: Processing dict with dict "
-            f"selector: {current_selector}"
-        )
         for key, value in obj.items():
-            logger.debug(
-                "_traverse_with_selectors: Checking key: "
-                f"{key}, value: {value}"
-            )
             if _match_selector(key, value, current_selector):
-                logger.debug(
-                    "_traverse_with_selectors: Found matching "
-                    f"key: {key}"
-                )
                 yield from process_value(
                     key=key,
                     value=value,
@@ -788,11 +692,6 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
     Yields:
         Values found at the specified path
     """
-    import logging
-    logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger(__name__)
-    logger.debug(f"getpath_iter: path={path}, obj={obj}")
-    
     if not path and path != 0 and path != '':  # Handle empty path for root
         yield obj
         return
@@ -814,27 +713,15 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
     else:
         path = list(path)  # Make a copy to avoid modifying the input
     
-    logger.debug(f"getpath_iter: path parts={path}")
-    
     # Convert path to selectors
     try:
         selectors = _convert_selectors_path(path)
-        logger.debug(f"getpath_iter: converted selectors={selectors}")
-    except ValueError as e:
+    except ValueError:
         # If we can't convert to selectors, treat as literal path
-        logger.debug(f"getpath_iter: could not convert path to selectors, treating as literal: {e}")
         selectors = path
-    
-    logger.debug(f"getpath_iter: final selectors={selectors}")
-    logger.debug(f"getpath_iter: obj type={type(obj).__name__}")
-    if isinstance(obj, (dict, list, tuple)):
-        logger.debug(f"getpath_iter: obj contents={obj}")
     
     # Check if we have a wildcard in the path
     if '*' in path:
-        logger.debug(
-            "getpath_iter: found wildcard in path, using selector-based traversal"
-        )
         # Use selector-based traversal for paths with wildcards
         found = False
         for p, value in _traverse_with_selectors(obj, path, []):
@@ -866,18 +753,16 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
                             return
                     else:
                         return
-                logger.debug(f"getpath_iter: direct access successful, value={current}")
                 if isinstance(current, (list, tuple)):
                     yield from current
                 else:
                     yield current
-            except (KeyError, IndexError, TypeError, AttributeError) as e:
-                logger.debug(f"getpath_iter: direct access failed with error: {e}")
+            except (KeyError, IndexError, TypeError, AttributeError):
+                pass
         return
     
     # Fast path for simple paths (all strings or integers)
     if all(isinstance(p, (str, int)) for p in path):
-        logger.debug("getpath_iter: using fast direct access path")
         try:
             current = obj
             for p in path:
@@ -924,19 +809,15 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
                         return
                 else:
                     return
-            logger.debug(f"getpath_iter: direct access successful, value={current}")
             yield current
-        except (KeyError, IndexError, TypeError, AttributeError) as e:
-            logger.debug(f"getpath_iter: direct access failed with error: {e}")
+        except (KeyError, IndexError, TypeError, AttributeError):
             return
     else:
         # Use the selector-based traversal
-        logger.debug("getpath_iter: using selector-based traversal")
         found = False
         
         # If we have no selectors, yield the object itself
         if not selectors:
-            logger.debug("getpath_iter: no selectors, yielding object itself")
             yield obj
             return
             
@@ -946,45 +827,25 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
         
         # Handle the first selector
         if first_selector == '*':
-            logger.debug(f"getpath_iter: processing wildcard selector on {type(obj).__name__}")
-            logger.debug(f"getpath_iter: remaining_selectors={remaining_selectors}")
-            logger.debug(f"getpath_iter: obj={obj}")
-            
             # Wildcard selector - match all keys/indices
             if isinstance(obj, dict):
-                logger.debug(f"getpath_iter: iterating over dict items")
                 for key, value in obj.items():
-                    logger.debug(f"getpath_iter: processing dict key: {key}, value={value}")
                     if not remaining_selectors:
-                        logger.debug(f"getpath_iter: no remaining selectors, yielding value: {value}")
                         yield value
                     else:
-                        logger.debug(f"getpath_iter: recursing with remaining selectors: {remaining_selectors}")
                         try:
-                            for result in getpath_iter(value, remaining_selectors, separator):
-                                logger.debug(f"getpath_iter: got result from recursion: {result}")
-                                yield result
-                        except Exception as e:
-                            logger.debug(f"getpath_iter: error during recursion: {e}")
+                            yield from getpath_iter(value, remaining_selectors, separator)
+                        except Exception:
                             continue
             elif isinstance(obj, (list, tuple)):
-                logger.debug(f"getpath_iter: iterating over list/tuple with {len(obj)} items")
                 for idx, item in enumerate(obj):
-                    logger.debug(f"getpath_iter: processing list item at index {idx}: {item}")
                     if not remaining_selectors:
-                        logger.debug(f"getpath_iter: no remaining selectors, yielding item: {item}")
                         yield item
                     else:
-                        logger.debug(f"getpath_iter: recursing with remaining selectors: {remaining_selectors}")
                         try:
-                            for result in getpath_iter(item, remaining_selectors, separator):
-                                logger.debug(f"getpath_iter: got result from recursion: {result}")
-                                yield result
-                        except Exception as e:
-                            logger.debug(f"getpath_iter: error during recursion: {e}")
+                            yield from getpath_iter(item, remaining_selectors, separator)
+                        except Exception:
                             continue
-            else:
-                logger.debug(f"getpath_iter: cannot apply wildcard to non-container type: {type(obj).__name__}")
             return
         elif isinstance(obj, dict):
             # For dictionaries, check if the key matches the selector
@@ -993,11 +854,9 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
                     found = True
                     # If no more selectors, yield the value
                     if not remaining_selectors:
-                        logger.debug(f"getpath_iter: end of path, yielding value={value}")
                         yield value
                     # Otherwise, continue traversal with remaining selectors
                     else:
-                        logger.debug(f"getpath_iter: recursing into dict value at key={key}")
                         yield from getpath_iter(value, remaining_selectors, separator)
         elif isinstance(obj, (list, tuple)):
             # For lists, check if any item matches the selector
@@ -1006,11 +865,9 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
                     found = True
                     # If no more selectors, yield the item
                     if not remaining_selectors:
-                        logger.debug(f"getpath_iter: end of path, yielding item={item}")
                         yield item
                     # Otherwise, continue traversal with remaining selectors
                     else:
-                        logger.debug(f"getpath_iter: recursing into list item at index={idx}")
                         yield from getpath_iter(item, remaining_selectors, separator)
         
         # Special case: if the first selector is a dict and we're processing a list of dicts
@@ -1022,11 +879,9 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
                     found = True
                     # If no more selectors, yield the item
                     if not remaining_selectors:
-                        logger.debug(f"getpath_iter: end of path, yielding item={item}")
                         yield item
                     # Otherwise, continue traversal with remaining selectors
                     else:
-                        logger.debug(f"getpath_iter: recursing into matching dict item")
                         yield from getpath_iter(item, remaining_selectors, separator)
         
         # If no matches found and we have a simple path, try direct access as a fallback
@@ -1274,8 +1129,7 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
             selectors = list(path)
         original_path = path
     
-    logger.debug(f"setpath - path: {path}, selectors: {selectors}, operation: {operation}")
-    logger.debug(f"Initial object: {obj}")
+
 
     # First, try to find existing paths that match the selectors
     paths_to_modify = []
@@ -1307,7 +1161,7 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
                 # If we got here, the direct path is valid
                 paths_to_modify = [selectors]
         except Exception as e:
-            logger.debug(f"Direct path traversal failed: {e}")
+            pass
     
     # If no direct path found, try using selectors
     if not paths_to_modify:
@@ -1315,97 +1169,72 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
     
     # If we found matching paths, update them
     if paths_to_modify:
-        logger.debug(f"Found {len(paths_to_modify)} paths to modify: {paths_to_modify}")
         for p in paths_to_modify:
-            logger.debug(f"Processing path: {p}")
             current = obj
             # Traverse to the parent of the target
             path = []
             for key in p[:-1]:
                 path.append(key)
-                logger.debug(f"  Traversing path part: {key}, current path: {path}")
+
                 if isinstance(current, dict) and key in current:
-                    logger.debug(f"    Found key {key} in dict")
+
                     current = current[key]
                 elif isinstance(current, list) and isinstance(key, (int, str)):
                     try:
                         idx = int(key) if isinstance(key, str) and key.isdigit() else key
                         if 0 <= idx < len(current):
-                            logger.debug(f"    Found index {idx} in list")
+
                             current = current[idx]
                         else:
-                            logger.debug(f"    Index {idx} out of range for list of length {len(current)}")
+
                             current = None
                             break
                     except (ValueError, IndexError) as e:
-                        logger.debug(f"    Error accessing list with key {key}: {e}")
+
                         current = None
                         break
                 else:
-                    logger.debug(f"    Could not traverse path part {key} on {type(current).__name__}")
+
                     current = None
                     break
             
             if current is not None:
                 last_key = p[-1]
-                logger.debug(f"  Reached target container: {current}, last_key: {last_key}")
+
                 
                 if operation == 'set':
                     if isinstance(current, dict):
-                        logger.debug(f"  Setting dict[{last_key}] = {value}")
+
                         current[last_key] = value
                     elif isinstance(current, list) and isinstance(last_key, int):
                         if 0 <= last_key < len(current):
-                            logger.debug(f"  Setting list[{last_key}] = {value}")
+
                             current[last_key] = value
                         elif last_key == len(current) and create_missing:
-                            logger.debug(f"  Appending to list: {value}")
+
                             current.append(value)
                 elif operation == 'append':
-                    logger.debug(f"Attempting append operation. current={current}, last_key={last_key}, value={value}")
                     
                     # Get the target value
                     target = None
                     if isinstance(current, dict):
-                        logger.debug(f"Current is dict. Keys: {list(current.keys())}")
                         if last_key in current:
                             target = current[last_key]
-                            logger.debug(f"Found key '{last_key}' in dict. Current value: {target}")
+                            if isinstance(target, list):
+                                target.append(value)
+                            else:
+                                current[last_key] = [target, value] if target is not None else [value]
                         else:
-                            logger.debug(f"Key '{last_key}' not found in dict")
+                            current[last_key] = [value]
                     elif isinstance(current, list) and isinstance(last_key, int):
-                        logger.debug(f"Current is list. Length: {len(current)}")
                         if 0 <= last_key < len(current):
                             target = current[last_key]
-                            logger.debug(f"Found index {last_key} in list. Current value: {target}")
-                        else:
-                            logger.debug(f"Index {last_key} out of range for list of length {len(current)}")
-                    
-                    # Handle the append operation
-                    if target is not None:
-                        if isinstance(target, list):
-                            logger.debug(f"Appending {value} to existing list: {target}")
-                            target.append(value)
-                            logger.debug(f"After append, list is now: {target}")
-                        else:
-                            logger.debug(f"Converting non-list value {target} to list and appending {value}")
-                            if isinstance(current, dict):
-                                current[last_key] = [target, value]
-                                logger.debug(f"After conversion and append, dict is now: {current}")
-                            else:  # list case
-                                current[last_key] = [target, value]
-                                logger.debug(f"After conversion and append, list is now: {current}")
-                    elif isinstance(current, dict):
-                        # If the key doesn't exist, create a new list with the value
-                        logger.debug(f"Creating new list at key {last_key} with value [{value}]")
-                        current[last_key] = [value]
-                        logger.debug(f"After creation, dict is now: {current}")
-                    else:
-                        logger.debug(f"No valid append target found. current type: {type(current).__name__}, last_key: {last_key}")
-                        if isinstance(current, dict):
-                            logger.debug(f"Current keys: {list(current.keys())}")
-                        elif isinstance(current, list):
-                            logger.debug(f"Current list length: {len(current)}")
+                            if isinstance(target, list):
+                                target.append(value)
+                            else:
+                                current[last_key] = [target, value] if target is not None else [value]
+                        elif last_key == len(current):
+                            current.append(value)
                 elif operation == 'extend' and isinstance(value, list):
                     if last_key in current and isinstance(current[last_key], list):
                         current[last_key].extend(value)
