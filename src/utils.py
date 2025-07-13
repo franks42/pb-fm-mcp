@@ -138,3 +138,39 @@ async def async_http_get_json(
         except Exception as e:
             return {"MCP-ERROR": f"Unknown exception raised: {e}"}
 
+
+class WorkerLogger:
+    """Simple logger that works in Cloudflare Workers environment.
+    
+    This logger is designed to work in environments where the standard Python logging
+    module might not be available, such as Cloudflare Workers running Python via Pyodide.
+    It provides basic logging methods that output to standard output with print.
+    """
+    
+    @staticmethod
+    def debug(msg, *args, **kwargs):
+        """Log a debug message."""
+        print(f"DEBUG: {msg % args if args else msg}")
+    
+    @staticmethod
+    def info(msg, *args, **kwargs):
+        """Log an info message."""
+        print(f"INFO: {msg % args if args else msg}")
+    
+    @staticmethod
+    def warning(msg, *args, **kwargs):
+        """Log a warning message."""
+        print(f"WARNING: {msg % args if args else msg}")
+    
+    @staticmethod
+    def error(msg, *args, **kwargs):
+        """Log an error message."""
+        print(f"ERROR: {msg % args if args else msg}")
+    
+    @staticmethod
+    def critical(msg, *args, **kwargs):
+        """Log a critical message."""
+        print(f"CRITICAL: {msg % args if args else msg}")
+
+# Create a default logger instance
+default_logger = WorkerLogger()
