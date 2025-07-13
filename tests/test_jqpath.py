@@ -123,51 +123,78 @@ def test_getpath_iter(test_data):
 
 
 def test_get_simple_path(test_data):
-    assert getpath(test_data, 'user.profile.name') == 'John Doe'
+    # Default behavior (only_first_path_match=False) returns a list
+    assert getpath(test_data, 'user.profile.name') == ['John Doe']
     
     # Test with list value
     data = {'items': [1, 2, 3], 'nested': {'list': [4, 5, 6]}}
     
-    # Single value mode (only_first_path_match=True)
-    assert getpath(data, 'nested.list') == [4, 5, 6]
+    # Single value mode (explicit only_first_path_match=True)
+    assert getpath(data, 'nested.list', only_first_path_match=True) == [4, 5, 6]
     
-    # Multiple values mode (only_first_path_match=False)
+    # Default mode (only_first_path_match=False) returns list of matches
     data = {'items': [[1, 2], [3, 4]]}
-    assert getpath(data, 'items.*', only_first_path_match=False) == [[1, 2], [3, 4]]
+    assert getpath(data, 'items.*') == [[1, 2], [3, 4]]
     
-    # Empty list when no matches
-    assert getpath(data, 'nonexistent.path', only_first_path_match=False) == []
+    # Empty list when no matches (default behavior)
+    assert getpath(data, 'nonexistent.path') == []
     
-    # Default value when no matches in single value mode
-    assert getpath(data, 'nonexistent.path', default='default') == 'default'
+    # Default value when no matches in list mode (default is empty list, not default value)
+    assert getpath(data, 'nonexistent.path', default='default') == []
+    
+    # Default value is only used in single value mode
+    assert getpath(data, 'nonexistent.path', default='default', only_first_path_match=True) == 'default'
 
 def test_get_with_list_index(test_data):
-    assert getpath(test_data, 'items.1.name') == 'Item 2'
+    # Default behavior returns a list of matches
+    assert getpath(test_data, 'items.1.name') == ['Item 2']
+    
+    # Explicit single value mode
+    assert getpath(test_data, 'items.1.name', only_first_path_match=True) == 'Item 2'
 
 def test_get_with_list_path(test_data):
-    assert getpath(test_data, ['items', 1, 'name']) == 'Item 2'
+    # Default behavior returns a list
+    assert getpath(test_data, ['items', 1, 'name']) == ['Item 2']
+    # Explicit single value mode
+    assert getpath(test_data, ['items', 1, 'name'], only_first_path_match=True) == 'Item 2'
 
 def test_get_nonexistent_path(test_data):
-    assert getpath(test_data, 'user.profile.address') is None
+    # Default behavior returns empty list for no matches
+    assert getpath(test_data, 'user.profile.address') == []
+    # Explicit single value mode returns None for no matches
+    assert getpath(test_data, 'user.profile.address', only_first_path_match=True) is None
 
 def test_get_with_default_value(test_data):
-    assert getpath(test_data, 'user.profile.address', default='N/A') == 'N/A'
+    # Default value is only used in single value mode
+    assert getpath(test_data, 'user.profile.address', default='N/A') == []
+    assert getpath(test_data, 'user.profile.address', default='N/A', only_first_path_match=True) == 'N/A'
 
 # === GETPATH WITH SELECTOR TESTS ===
 
 def test_getpath_with_selector_single_match(test_data):
     """Test getpath with a selector that finds a single unique item."""
     path = ['items', select_eq('id', 3)]
-    result = getpath(test_data, path)
-    assert result is not None
+    # Default behavior returns a list of matches
+    results = getpath(test_data, path)
+    assert len(results) == 1
+    assert results[0]['name'] == 'Item 3'
+    
+    # Test single value mode
+    result = getpath(test_data, path, only_first_path_match=True)
     assert result['name'] == 'Item 3'
 
 def test_getpath_with_selector_first_of_many(test_data):
-    """Test getpath with a selector that matches multiple items, returning only the first."""
-    path = ['items', select_key_exists('active')] # Matches all four items
-    result = getpath(test_data, path) # only_first_path_match is True by default
-    assert result is not None
-    assert result['id'] == 1 # Should return the first item
+    """Test getpath with a selector that matches multiple items."""
+    path = ['items', select_key_exists('active')]  # Matches all items with 'active' key
+    # Default behavior returns all matches as a list
+    results = getpath(test_data, path)
+    assert len(results) == 4  # All items have 'active' key
+    assert results[0]['id'] == 1
+    assert results[1]['id'] == 2
+    
+    # Test single value mode returns just the first match
+    result = getpath(test_data, path, only_first_path_match=True)
+    assert result['id'] == 1
 
 def test_getpath_with_selector_all_matches(test_data):
     """Test getpath with a selector, returning all matching items."""
@@ -181,14 +208,21 @@ def test_getpath_with_selector_all_matches(test_data):
 def test_getpath_with_selector_no_match(test_data):
     """Test getpath with a selector that finds no matches."""
     path = ['items', select_eq('id', 999)]
-    result = getpath(test_data, path, default='Not Found')
-    assert result == 'Not Found'
+    # Default behavior returns empty list for no matches
+    assert getpath(test_data, path) == []
+    # Default value is only used in single value mode
+    assert getpath(test_data, path, default='Not Found', only_first_path_match=True) == 'Not Found'
 
 def test_getpath_with_callable_selector(test_data):
     """Test getpath with a raw callable selector."""
     path = ['items', lambda k, v: isinstance(v, dict) and v.get('id') == 4]
-    result = getpath(test_data, path)
-    assert result is not None
+    # Default behavior returns a list of matches
+    results = getpath(test_data, path)
+    assert len(results) == 1
+    assert results[0]['name'] == 'Another Item'
+    
+    # Test single value mode
+    result = getpath(test_data, path, only_first_path_match=True)
     assert result['name'] == 'Another Item'
 
 # === SETPATH TESTS ===
@@ -358,7 +392,14 @@ def test_callable_selector_with_currying(test_data):
 
 def test_dict_selector(test_data):
     path = ['items', {'id': 3, 'active': True}]
-    assert getpath(test_data, path)['name'] == 'Item 3'
+    # Default behavior returns a list of matches
+    results = getpath(test_data, path)
+    assert len(results) == 1
+    assert results[0]['name'] == 'Item 3'
+    
+    # Test single value mode
+    result = getpath(test_data, path, only_first_path_match=True)
+    assert result['name'] == 'Item 3'
 
 def test_get_with_slice_selector(test_data):
     # Select the first two items from the list using a slice selector
@@ -371,8 +412,8 @@ def test_get_with_slice_selector(test_data):
     # Now, get the values for these paths
     values = [getpath(test_data, p) for p in concrete_paths]
     assert len(values) == 2
-    assert values[0]['name'] == 'Item 1'
-    assert values[1]['name'] == 'Item 2'
+    assert values[0][0]['name'] == 'Item 1'
+    assert values[1][0]['name'] == 'Item 2'
 
 def test_selectorspaths_multiple_matches(test_data):
     paths = list(selectorspaths(test_data, ['items', {'active': True}]))
@@ -383,37 +424,70 @@ def test_selectorspaths_multiple_matches(test_data):
 def test_setpath_with_selector(test_data):
     data = json.loads(json.dumps(test_data))
     setpath(data, ['items', {'id': 2}], {'id': 2, 'name': 'Item 2 Updated', 'tags': ['C', 'D'], 'active': False})
-    assert getpath(data, 'items.1.name') == 'Item 2 Updated'
+    # Check update in single value mode
+    assert getpath(data, 'items.1.name', only_first_path_match=True) == 'Item 2 Updated'
+    # Check update in list mode
+    assert getpath(data, 'items.1.name') == ['Item 2 Updated']
 
 def test_delpath_with_selector(test_data):
     data = json.loads(json.dumps(test_data))
     delpath(data, ['items', {'id': 2}])
     assert len(data['items']) == 3
-    assert getpath(data, 'items.1.name') == 'Item 3'
+    # Check remaining items in single value mode
+    assert getpath(data, 'items.1.name', only_first_path_match=True) == 'Item 3'
+    # Check in list mode
+    assert getpath(data, 'items.1.name') == ['Item 3']
 
 # === PORTED SELECTOR TESTS ===
 
 def test_select_regex(test_data):
     # Find the user profile where the email ends with @example.com
     path = ['user', select_regex('email', r'.+@example\.com')]
-    result = getpath(test_data, path)
-    assert result is not None
-    assert result['name'] == 'John Doe'
+    results = getpath(test_data, path)
+    assert len(results) == 1
+    assert results[0]['name'] == 'John Doe'
 
     # Test for a non-matching pattern
     path_no_match = ['user', select_regex('email', r'.+@another-domain\.com')]
-    result_no_match = getpath(test_data, path_no_match)
-    assert result_no_match is None
+    results_no_match = getpath(test_data, path_no_match)
+    assert results_no_match == []
 
 def test_ported_selectors(test_data):
+    # Test select_eq
     path = ['items', select_eq('id', 2)]
-    assert getpath(test_data, path)['name'] == 'Item 2'
+    results = getpath(test_data, path)
+    assert len(results) == 1
+    assert results[0]['name'] == 'Item 2'
+    
+    # Test select_gt
     path = ['items', select_gt('id', 2)]
-    assert getpath(test_data, path)['name'] == 'Item 3'
+    results = getpath(test_data, path)
+    assert len(results) == 2
+    assert results[0]['name'] == 'Item 3'
+    assert results[1]['name'] == 'Another Item'
+    
+    # Test single value mode
+    result = getpath(test_data, path, only_first_path_match=True)
+    assert result['name'] == 'Item 3'
+    
+    # Test select_lt
     path = ['items', select_lt('id', 2)]
-    assert getpath(test_data, path)['name'] == 'Item 1'
+    results = getpath(test_data, path)
+    assert len(results) == 1
+    assert results[0]['name'] == 'Item 1'
+    
+    # Test select_contains
+    path = ['items', select_contains('name', 'Another')]
+    results = getpath(test_data, path)
+    assert len(results) == 1
+    assert results[0]['id'] == 4
+    
+    # Test select_key_exists
     path = ['items', select_key_exists('active')]
-    assert getpath(test_data, path)['id'] == 1
+    results = getpath(test_data, path)
+    assert len(results) == 4  # All items have 'active' key
+    
+    # Test select_all
     all_items = list(selectorspaths(test_data, ['items', select_all]))
     assert len(all_items) == 4
 
@@ -874,6 +948,7 @@ def test_iterator_behavior(test_data):
 # === UTILITY FUNCTION TESTS ===
 
 def test_getpaths_setpaths():
+    """Test the getpaths_setpaths function with multiple path mappings."""
     src = {
         'user': {'name': 'John', 'details': {'age': 30}},
         'product': {'id': 123, 'price': 99.99}
@@ -886,7 +961,16 @@ def test_getpaths_setpaths():
     ]
     getpaths_setpaths(src, tgt, paths_map)
     expected = {
+        'customer': {'name': ['John'], 'age': [30]},
+        'item': {'product_id': [123]}
+    }
+    assert tgt == expected
+    
+    # Test with only_first_path_match=True to get single values
+    tgt = {}
+    getpaths_setpaths(src, tgt, paths_map, only_first_path_match=True)
+    expected_single = {
         'customer': {'name': 'John', 'age': 30},
         'item': {'product_id': 123}
     }
-    assert tgt == expected
+    assert tgt == expected_single

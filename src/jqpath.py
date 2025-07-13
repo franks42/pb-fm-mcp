@@ -1126,7 +1126,7 @@ def delpaths(obj: Any, paths: list, separator: str = '.'):
     for path in paths:
         delpath(obj, path, separator)
 
-def getpath(obj: Any, path: Union[str, PathType], default: Any = None, separator: str = '.', only_first_path_match: bool = True) -> Any:
+def getpath(obj: Any, path: Union[str, PathType], default: Any = None, separator: str = '.', only_first_path_match: bool = False) -> Any:
     """Gets a value from a nested object using a path, with support for selectors.
     
     Args:
@@ -1135,14 +1135,13 @@ def getpath(obj: Any, path: Union[str, PathType], default: Any = None, separator
         default: The default value to return if the path doesn't exist.
         separator: The separator to use for string paths.
         only_first_path_match: 
+            If False (default), always returns a list of all matching values (empty list if no matches found).
             If True, returns the first matching value (or default if none found).
-            If False, always returns a list of all matching values (empty list if no matches found).
             
     Returns:
-        If only_first_path_match is True:
-            - The first matching value, or default if no matches found
-        If only_first_path_match is False:
-            - A list of all matching values (empty list if no matches found)
+        When only_first_path_match==False (default), the return value is always a list of matches, 
+            even if there is only one match or no matches (empty list).
+        When only_first_path_match==True  - The return value is first matching value, or default if no matches found.
     """
     if not path and path != 0 and path != '':  # Handle empty path for root
         return obj if default is None else default
@@ -1493,14 +1492,23 @@ def batch_setpath(data: Any, modifications: list[tuple]):
         # Delegate to the main setpath function for each modification.
         setpath(data, path, value, create_missing=True, operation=operation)
 
-def getpaths(obj, paths, default=None):
-    return [getpath(obj, p, default) for p in paths]
+def getpaths(obj, paths, default=None, only_first_path_match: bool = False):
+    return [getpath(obj, p, default, only_first_path_match) for p in paths]
 
-def getpaths_setpaths(src_obj, tgt_obj, paths_map, default=None):
+def getpaths_setpaths(src_obj, tgt_obj, paths_map, default=None, only_first_path_match=False):
+    """Copy values from source to target object using path mappings.
+    
+    Args:
+        src_obj: Source object to read values from
+        tgt_obj: Target object to write values to
+        paths_map: List of (source_path, target_path) tuples
+        default: Default value if source path doesn't exist
+        only_first_path_match: If True, only use first match when source path has multiple matches
+    """
     for src_path, tgt_path in paths_map:
-        value = getpath(src_obj, src_path, default)
-        if value is not None:
-            setpath(tgt_obj, tgt_path, value)
+        value = getpath(src_obj, src_path, default, only_first_path_match=only_first_path_match)
+        if value is not None and value != []:  # Don't set if empty list (no matches)
+            setpath(tgt_obj, tgt_path, value, only_first_path_match=only_first_path_match)
 
 def haspath(obj: Any, path: Union[str, PathType], separator: str = '.') -> bool:
     """Check if a path exists in the object.
