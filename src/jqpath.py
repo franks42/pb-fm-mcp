@@ -231,21 +231,21 @@ def _match_selector(key_or_index: Any, value: Any, selector: Any) -> bool:
     # Handle None selector (matches everything)
     if selector is None:
         return True
-        
+
     # Handle wildcard selector (matches anything)
     if selector is Ellipsis or selector == '*':
         return True
-        
+
     # Handle callable selectors
     if callable(selector):
         # Special case for select_all/select_wildcard - only match list indices
-        if (selector.__name__ in ('select_all', 'select_wildcard') or 
-            selector == select_all or 
+        if (selector.__name__ in ('select_all', 'select_wildcard') or
+            selector == select_all or
             selector == select_wildcard):
             # Only match if we're checking a list index (key_or_index is an integer)
             # and this is being called from within a list context
             return isinstance(key_or_index, int)
-            
+
         # For other callable selectors, try calling with (key, value) first
         try:
             if selector(key_or_index, value):
@@ -262,22 +262,22 @@ def _match_selector(key_or_index: Any, value: Any, selector: Any) -> bool:
                         return True
                 except (TypeError, ValueError):
                     return False
-    
+
     # Handle dictionary selector (must match all key-value pairs)
     if isinstance(selector, dict):
         # Only match if the value is also a dictionary
         if not isinstance(value, dict):
             return False
-            
+
         # Special case: empty dict selector matches any non-empty dict
         if not selector:
             return bool(value)
-            
+
         # Check if all key-value pairs in the selector match
         for k, v in selector.items():
             if k not in value:
                 return False
-                
+
             # For nested dictionary selectors, use recursive matching
             if isinstance(v, dict):
                 if not _match_selector(k, value[k], v):
@@ -289,36 +289,36 @@ def _match_selector(key_or_index: Any, value: Any, selector: Any) -> bool:
             # For direct value comparison
             elif value[k] != v:
                 return False
-                
+
         return True
-    
+
     # Handle slice selector (for list indices)
     if isinstance(selector, slice):
         if not isinstance(key_or_index, (int, str)):
             return False
-            
+
         # Convert key_or_index to int if possible
         try:
             idx = int(key_or_index)
         except (ValueError, TypeError):
             return False
-            
+
         # Check if the index is within the slice
-        return ((selector.start is None or idx >= selector.start) and 
-                (selector.stop is None or idx < selector.stop) and 
+        return ((selector.start is None or idx >= selector.start) and
+                (selector.stop is None or idx < selector.stop) and
                 (selector.step is None or (idx - (selector.start or 0)) % (selector.step or 1) == 0))
-    
+
     # Handle string to int conversion for list indices
     if isinstance(key_or_index, str) and key_or_index.isdigit() and isinstance(selector, int):
         return int(key_or_index) == selector
-        
+
     # Direct value comparison (for exact matches)
     return key_or_index == selector
 
 def _find_selector_paths(
-    obj: Any, 
-    selectors: PathType, 
-    path_so_far: list, 
+    obj: Any,
+    selectors: PathType,
+    path_so_far: list,
     only_first: bool = False,
     depth: int = 0
 ) -> Iterator[PathType]:
@@ -326,10 +326,10 @@ def _find_selector_paths(
     if not selectors:
         yield path_so_far
         return
-        
+
     current_selector = selectors[0]
     remaining_selectors = selectors[1:]
-    
+
     def process_value(key: Any, value: Any, new_path: list) -> Iterator[PathType]:
         """Process a single value and continue traversal."""
         if not remaining_selectors:
@@ -343,7 +343,7 @@ def _find_selector_paths(
                 yield from _find_selector_paths(
                     v, remaining_selectors, new_path + [i], only_first, depth + 1
                 )
-    
+
     if isinstance(obj, dict):
         # First try direct key matching
         if current_selector in obj:
@@ -351,7 +351,7 @@ def _find_selector_paths(
             yield from process_value(current_selector, obj[current_selector], new_path)
             if only_first and path_so_far:
                 return
-                        
+
         # Then try matching keys/values with the selector
         for key, value in obj.items():
             if _match_selector(key, value, current_selector):
@@ -365,7 +365,7 @@ def _find_selector_paths(
                 )
                 if only_first and path_so_far:
                     return
-                        
+
     # Handle lists and tuples
     elif isinstance(obj, (list, tuple)):
         # Handle slice selectors first
@@ -374,7 +374,7 @@ def _find_selector_paths(
             start = current_selector.start if current_selector.start is not None else 0
             stop = current_selector.stop if current_selector.stop is not None else len(obj)
             step = current_selector.step if current_selector.step is not None else 1
-            
+
             # Apply the slice to the list indices
             for idx in range(start, stop, step):
                 if 0 <= idx < len(obj):
@@ -394,7 +394,7 @@ def _find_selector_paths(
                         if only_first and path_so_far:
                             return
             return
-            
+
         # If current_selector is a string that can be an index, try it first
         if isinstance(current_selector, str) and current_selector.isdigit():
             try:
@@ -412,10 +412,10 @@ def _find_selector_paths(
                         return
             except (ValueError, IndexError):
                 pass
-                
+
         # If we have a select_all/select_wildcard selector, match all list indices
-        if callable(current_selector) and (current_selector.__name__ in ('select_all', 'select_wildcard') or 
-                                          current_selector == select_all or 
+        if callable(current_selector) and (current_selector.__name__ in ('select_all', 'select_wildcard') or
+                                          current_selector == select_all or
                                           current_selector == select_wildcard):
             # For select_all, we want to match all list items by index
             # and only yield the indices, not the item properties
@@ -438,7 +438,7 @@ def _find_selector_paths(
                     if only_first and path_so_far:
                         return
             return
-        
+
         # For other callable selectors, apply the selector to each item in the list
         if callable(current_selector):
             matched = False
@@ -446,7 +446,7 @@ def _find_selector_paths(
                 # First try to match the selector against the list item
                 if _match_selector(idx, value, current_selector):
                     new_path = path_so_far + [idx]
-                    
+
                     if not remaining_selectors:
                         # If no more selectors, yield the path to this item
                         yield new_path
@@ -464,11 +464,11 @@ def _find_selector_paths(
                         )
                         if only_first and path_so_far:
                             return
-            
+
             # If we found matches and there are no remaining selectors, we're done
             if matched and not remaining_selectors:
                 return
-                
+
         # For non-callable selectors, use the standard matching logic
         # But skip if we already processed callable selectors to avoid duplicates
         if not callable(current_selector):
@@ -504,14 +504,14 @@ def selectorspaths(obj: Any, selectors: PathType, only_first: bool = False) -> I
     # If selectors is a string, split it into components
     if isinstance(selectors, str):
         selectors = selectors.split('.')
-    
+
     # If selectors is a list, check if it contains any selectors
     if isinstance(selectors, list):
         if any(isinstance(s, (dict, Callable, slice)) for s in selectors):
             # If it contains selectors, convert them
             selectors = _convert_selectors_path(selectors)
         # Otherwise, use the path components as-is
-    
+
     return _find_selector_paths(obj, selectors, [], only_first)
 
 def _traverse_with_selectors(
@@ -541,29 +541,29 @@ def _traverse_with_selectors(
     if not selectors:
         yield (path_so_far, obj)
         return
-        
+
     current_selector = selectors[0]
     remaining_selectors = selectors[1:]
     current_key = (
-        original_path[0] 
-        if original_path and len(original_path) > 0 
+        original_path[0]
+        if original_path and len(original_path) > 0
         else None
     )
     remaining_original_path = original_path[1:] if original_path else None
-    
+
     def process_value(key, value, new_path, new_obj):
         if not remaining_selectors:
             yield (new_path, value)
         else:
             yield from _traverse_with_selectors(
-                obj=new_obj, 
-                selectors=remaining_selectors, 
+                obj=new_obj,
+                selectors=remaining_selectors,
                 path_so_far=new_path,
                 only_first=only_first,
                 create_missing=create_missing,
                 original_path=remaining_original_path
             )
-    
+
     # Determine if we can create missing path elements. We can only create paths when:
     # 1. create_missing is True
     # 2. All remaining selectors (from current to end) are literals
@@ -573,17 +573,17 @@ def _traverse_with_selectors(
         _is_literal_selector(s) for s in selectors
     )
     can_create_missing = (
-        create_missing and 
-        remaining_are_literals and 
+        create_missing and
+        remaining_are_literals and
         _is_literal_selector(current_selector)
     )
-    
+
     # Try to create missing path if possible and needed
     if can_create_missing:
         literal_key = _get_literal_value(current_selector)
         if literal_key is not None:
             if isinstance(obj, dict):
-                # For dictionaries, create missing keys with empty dicts 
+                # For dictionaries, create missing keys with empty dicts
                 # if there are more selectors
                 if literal_key not in obj:
                     obj[literal_key] = {}
@@ -603,31 +603,31 @@ def _traverse_with_selectors(
                             f"Invalid list index: {literal_key}"
                         )
                     literal_key = int(literal_key)
-                
+
                 # Extend the list with appropriate empty containers if needed
                 # If there are more selectors, use empty dicts, otherwise None
                 while len(obj) <= literal_key:
                     obj.append({} if remaining_selectors else None)
-                
+
                 yield from process_value(
                     key=literal_key,
                     value=obj[literal_key],
                     new_path=path_so_far + [literal_key],
                     new_obj=obj[literal_key]
                 )
-    
+
     # Handle dictionary selectors - special case for matching items in a list
     if isinstance(current_selector, dict) and isinstance(obj, list):
         for idx, item in enumerate(obj):
             if not isinstance(item, dict):
                 continue
-            
+
             # Check if all key-value pairs in the selector match the item
             match = all(
-                k in item and item[k] == v 
+                k in item and item[k] == v
                 for k, v in current_selector.items()
             )
-            
+
             if match:
                 yield from process_value(
                     key=idx,
@@ -649,7 +649,7 @@ def _traverse_with_selectors(
                 )
                 if only_first:
                     return
-    
+
     # Regular traversal for existing elements
     found = False
     if isinstance(obj, dict):
@@ -676,7 +676,7 @@ def _traverse_with_selectors(
                 )
                 if only_first:
                     return
-    
+
     # If no matches found and we can't create missing elements, we're done
     if not found and not can_create_missing:
         return
@@ -695,7 +695,7 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
     if not path and path != 0 and path != '':  # Handle empty path for root
         yield obj
         return
-    
+
     # Convert path to list if it's a string
     if isinstance(path, str):
         # First, handle the case where the entire path might be a float
@@ -712,14 +712,14 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
         path = path_parts
     else:
         path = list(path)  # Make a copy to avoid modifying the input
-    
+
     # Convert path to selectors
     try:
         selectors = _convert_selectors_path(path)
     except ValueError:
         # If we can't convert to selectors, treat as literal path
         selectors = path
-    
+
     # Check if we have a wildcard in the path
     if '*' in path:
         # Use selector-based traversal for paths with wildcards
@@ -760,7 +760,7 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
             except (KeyError, IndexError, TypeError, AttributeError):
                 pass
         return
-    
+
     # Fast path for simple paths (all strings or integers)
     if all(isinstance(p, (str, int)) for p in path):
         try:
@@ -815,16 +815,16 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
     else:
         # Use the selector-based traversal
         found = False
-        
+
         # If we have no selectors, yield the object itself
         if not selectors:
             yield obj
             return
-            
+
         # Get the first selector and remaining selectors
         first_selector = selectors[0]
         remaining_selectors = selectors[1:]
-        
+
         # Handle the first selector
         if first_selector == '*':
             # Wildcard selector - match all keys/indices
@@ -869,7 +869,7 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
                     # Otherwise, continue traversal with remaining selectors
                     else:
                         yield from getpath_iter(item, remaining_selectors, separator)
-        
+
         # Special case: if the first selector is a dict and we're processing a list of dicts
         if not found and isinstance(first_selector, dict) and isinstance(obj, (list, tuple)):
             for item in obj:
@@ -883,10 +883,10 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
                     # Otherwise, continue traversal with remaining selectors
                     else:
                         yield from getpath_iter(item, remaining_selectors, separator)
-        
+
         # If no matches found and we have a simple path, try direct access as a fallback
-        if not found and all(isinstance(s, (str, int)) or (isinstance(s, str) and s.isdigit()) or 
-                           (isinstance(s, str) and s.startswith('-') and s[1:].isdigit()) 
+        if not found and all(isinstance(s, (str, int)) or (isinstance(s, str) and s.isdigit()) or
+                           (isinstance(s, str) and s.startswith('-') and s[1:].isdigit())
                            for s in selectors):
             try:
                 current = obj
@@ -927,7 +927,7 @@ def _get_value_by_path(obj: Any, path: PathType):
     """
     if not path:
         return obj
-        
+
     try:
         current = obj
         for p in path:
@@ -961,58 +961,58 @@ def delpath(obj: Any, path: Union[str, PathType], separator: str = '.') -> int:
     if isinstance(path, str):
         # Don't convert to int here, we'll handle string indices in the helper functions
         path = path.split(separator)
-    
+
     if not path:
         raise ValueError("Path cannot be empty")
-    
+
     deleted_count = 0
-    
+
     # If the last element is a selector, we need to find all matching elements
     last_key = path[-1]
     if isinstance(last_key, (dict, Callable, slice)):
         # Convert selectors to paths and delete each one
         parent_path = path[:-1]
         selector = last_key
-        
+
         # Get all parent objects that might contain matching children
         parent_paths = list(selectorspaths(obj, parent_path))
-        
+
         for p_path in parent_paths:
             parent = _get_value_by_path(obj, p_path)
             if parent is None:
                 continue
-                
+
             if isinstance(parent, dict):
                 # For dictionaries, find keys that match the selector
-                matching_keys = [k for k, v in parent.items() 
+                matching_keys = [k for k, v in parent.items()
                                if _match_selector(k, v, selector)]
                 for k in matching_keys:
                     if k in parent:
                         del parent[k]
                         deleted_count += 1
-                    
+
             elif isinstance(parent, list):
                 # For lists, find indices that match the selector
                 # Need to collect indices first to avoid modifying while iterating
-                matching_indices = [i for i, v in enumerate(parent) 
+                matching_indices = [i for i, v in enumerate(parent)
                                   if _match_selector(i, v, selector)]
                 # Delete in reverse order to avoid index shifting issues
                 for i in sorted(matching_indices, reverse=True):
                     if 0 <= i < len(parent):
                         del parent[i]
                         deleted_count += 1
-                        
+
         return deleted_count
-    
+
     # For regular paths, find the parent and delete the key/index
     parent_path = path[:-1]
     parent = _get_value_by_path(obj, parent_path)
-    
+
     if parent is None:
         return 0  # Path doesn't exist, nothing to delete
-        
+
     key_to_delete = path[-1]
-    
+
     if isinstance(parent, dict):
         if key_to_delete in parent:
             del parent[key_to_delete]
@@ -1021,11 +1021,11 @@ def delpath(obj: Any, path: Union[str, PathType], separator: str = '.') -> int:
         # Convert string indices to integers if possible
         if isinstance(key_to_delete, str) and key_to_delete.isdigit():
             key_to_delete = int(key_to_delete)
-        
+
         if isinstance(key_to_delete, int) and 0 <= key_to_delete < len(parent):
             del parent[key_to_delete]
             return 1
-    
+
     return 0  # No deletion occurred
 
 def delpaths(obj: Any, paths: list, separator: str = '.'):
@@ -1058,16 +1058,16 @@ def getpath(obj: Any, path: Union[str, PathType], default: Any = None, separator
     """
     if not path and path != 0 and path != '':  # Handle empty path for root
         return obj if default is None else default
-    
+
     # Convert path to list if it's a string
     if isinstance(path, str):
         path = path.split(separator) if path else []
     path = list(path) if not isinstance(path, list) else path
-    
+
     # Special case: empty path returns the root object
     if not path:
         return obj if default is None else default
-    
+
     # Handle wildcard selector for lists
     if len(path) == 1 and path[0] == '*':
         if isinstance(obj, (list, tuple)):
@@ -1076,17 +1076,17 @@ def getpath(obj: Any, path: Union[str, PathType], default: Any = None, separator
             values = list(obj.values())
             return values if not only_first_path_match else (values[0] if values else default)
         return default
-    
+
     # Convert path to selectors
     selectors = _convert_selectors_path(path)
-    
+
     # Use the iterator to get all matching values
     results = []
     try:
         for _, value in _traverse_with_selectors(
-            obj, 
-            selectors, 
-            [], 
+            obj,
+            selectors,
+            [],
             only_first=only_first_path_match,
             create_missing=False,
             original_path=path
@@ -1096,7 +1096,7 @@ def getpath(obj: Any, path: Union[str, PathType], default: Any = None, separator
                 break
     except (KeyError, IndexError, TypeError, AttributeError):
         return default
-    
+
     if only_first_path_match:
         return results[0] if results else default
     return results
@@ -1128,12 +1128,12 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
             # Otherwise, treat as direct path
             selectors = list(path)
         original_path = path
-    
+
 
 
     # First, try to find existing paths that match the selectors
     paths_to_modify = []
-    
+
     # First, try direct path traversal for simple paths
     if all(isinstance(p, (str, int)) for p in selectors):
         try:
@@ -1156,17 +1156,17 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
                 else:
                     valid_path = False
                     break
-            
+
             if valid_path:
                 # If we got here, the direct path is valid
                 paths_to_modify = [selectors]
         except Exception as e:
             pass
-    
+
     # If no direct path found, try using selectors
     if not paths_to_modify:
         paths_to_modify = list(selectorspaths(obj, selectors, only_first=only_first_path_match))
-    
+
     # If we found matching paths, update them
     if paths_to_modify:
         for p in paths_to_modify:
@@ -1197,11 +1197,11 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
 
                     current = None
                     break
-            
+
             if current is not None:
                 last_key = p[-1]
 
-                
+
                 if operation == 'set':
                     if isinstance(current, dict):
 
@@ -1214,7 +1214,7 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
 
                             current.append(value)
                 elif operation == 'append':
-                    
+
                     # Get the target value
                     target = None
                     if isinstance(current, dict):
@@ -1240,23 +1240,23 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
                         current[last_key].extend(value)
                     elif last_key not in current and isinstance(current, dict):
                         current[last_key] = value.copy()
-    
+
     # If no paths matched and we can create missing ones, build the path
     elif create_missing and all(_is_literal_selector(s) for s in selectors):
         current = obj
         path_parts = []
-        
+
         # Convert all selectors to their literal values
         for s in selectors:
             part = _get_literal_value(s)
             if part is None:
                 return  # Can't create path with non-literal selector
             path_parts.append(part)
-        
+
         # Traverse and create missing path elements
         for i, part in enumerate(path_parts[:-1]):
             next_part = path_parts[i + 1] if i + 1 < len(path_parts) else None
-            
+
             # Handle dictionary case
             if isinstance(current, dict):
                 # If part doesn't exist, create appropriate container based on next part
@@ -1277,7 +1277,7 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
                     part = int(part)
                 elif not isinstance(part, int):
                     return  # Invalid list index
-                
+
                 # Ensure the list is large enough
                 while len(current) <= part:
                     # If next part is an integer or a string that can be an integer, create a list
@@ -1289,7 +1289,7 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
             else:
                 # Can't traverse through non-container types
                 return
-        
+
         # Set the final value
         if path_parts:
             last_part = path_parts[-1]
@@ -1299,7 +1299,7 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
                 # Convert last_part to int if it's a string representation of a number
                 if isinstance(last_part, str) and last_part.isdigit():
                     last_part = int(last_part)
-                
+
                 if isinstance(last_part, int):
                     if 0 <= last_part < len(current):
                         current[last_part] = value
@@ -1329,7 +1329,7 @@ def findpaths(obj: Any, pattern: Any, search_type: str = 'exact', case_sensitive
     def _match(target):
         if target is None:
             return False
-        
+
         original_target = target
         if not case_sensitive and isinstance(target, str):
             target = target.lower()
@@ -1410,11 +1410,11 @@ def haspath(obj: Any, path: Union[str, PathType], separator: str = '.') -> bool:
     """
     # First, normalize the path
     path_components = _normalize_path(path, separator)
-    
+
     # If no path components, the path exists by definition
     if not path_components:
         return True
-        
+
     # Traverse the object to check if the path exists
     current = obj
     for component in path_components:
@@ -1430,7 +1430,7 @@ def haspath(obj: Any, path: Union[str, PathType], separator: str = '.') -> bool:
             current = current[component]
         else:
             return False
-            
+
     return True
 
 # === FLATTEN/UNFLATTEN UTILITIES ===
@@ -1447,7 +1447,7 @@ def flatten(data: Any, separator: str = '.', _path: str = '') -> dict[str, Any]:
         A flattened dictionary with dot-notation keys
     """
     items: dict[str, Any] = {}
-    
+
     if isinstance(data, dict):
         if not data and _path:  # Only add empty dict if it's not the root
             items[_path] = {}
@@ -1465,7 +1465,7 @@ def flatten(data: Any, separator: str = '.', _path: str = '') -> dict[str, Any]:
     else:
         if _path:  # Only add non-empty paths
             items[_path] = data
-    
+
     return items
 
 def unflatten(data: dict[str, Any], separator: str = '.') -> Any:
@@ -1481,37 +1481,37 @@ def unflatten(data: dict[str, Any], separator: str = '.') -> Any:
     def _is_list_key(key: str) -> bool:
         # Check if the key represents a list index
         return key.isdigit() or (key.startswith('-') and key[1:].isdigit())
-    
+
     def _get_list_index(key: str) -> int:
         # Convert string to list index, handling negative indices
         return int(key)
-    
+
     # First, build a tree structure with nested dictionaries
     tree = {}
-    
+
     for key, value in data.items():
         if not key:  # Skip empty keys
             continue
-            
+
         parts = key.split(separator)
         current = tree
-        
+
         # Process all parts except the last one
         for part in parts[:-1]:
             if part not in current:
                 current[part] = {}
             current = current[part]
-        
+
         # Set the value for the last part
         last_part = parts[-1]
         if last_part:  # Only process non-empty last parts
             current[last_part] = value
-    
+
     # Now convert the tree to the final structure with proper lists
     def _convert_node(node):
         if not isinstance(node, dict):
             return node
-            
+
         # Check if all keys are list indices
         keys = [k for k in node.keys() if k != '']
         if keys and all(_is_list_key(k) for k in keys):
@@ -1519,7 +1519,7 @@ def unflatten(data: dict[str, Any], separator: str = '.') -> Any:
             indices = [_get_list_index(k) for k in keys]
             max_idx = max(indices) if indices else -1
             lst = [None] * (max_idx + 1)
-            
+
             for k, v in node.items():
                 if not k:  # Skip empty keys
                     continue
@@ -1534,7 +1534,7 @@ def unflatten(data: dict[str, Any], separator: str = '.') -> Any:
                 if k:  # Skip empty keys
                     result[k] = _convert_node(v)
             return result
-    
+
     return _convert_node(tree)
 
 # === MERGE UTILITY ===
@@ -1576,7 +1576,7 @@ def create_worker_response(data: Any, success: bool = True, error: str = None) -
 async def example_worker_handler(request, env):
     # Assumes a KV binding named 'MY_KV_NAMESPACE'
     KV = env.MY_KV_NAMESPACE
-    
+
     # Get the key from the URL path, e.g., /my-json-document
     key = request.path[1:]
     if not key:
@@ -1593,7 +1593,7 @@ async def example_worker_handler(request, env):
     params = request.query
     action = params.get('action')
     path = params.get('path')
-    
+
     if not action or not path:
         return Response.new("Missing 'action' or 'path' query parameter", status=400)
 
@@ -1601,17 +1601,17 @@ async def example_worker_handler(request, env):
         if action == 'get':
             value = getpath(data, path)
             response_data = {'key': key, 'path': path, 'value': value}
-        
+
         elif action == 'set':
             value_str = params.get('value')
             if value_str is None:
                 return Response.new("Missing 'value' query parameter for 'set' action", status=400)
-            
+
             try:
                 value = json.loads(value_str)
             except json.JSONDecodeError:
                 value = value_str # Treat as a plain string if not valid JSON
-            
+
             setpath(data, path, value)
             await KV.put(key, json.dumps(data))
             response_data = {'key': key, 'path': path, 'status': 'set'}
@@ -1620,7 +1620,7 @@ async def example_worker_handler(request, env):
             delpath(data, path)
             await KV.put(key, json.dumps(data))
             response_data = {'key': key, 'path': path, 'status': 'deleted'}
-        
+
         else:
             return Response.new(f"Invalid action: {action}", status=400)
 
@@ -1630,7 +1630,7 @@ async def example_worker_handler(request, env):
             'headers': {'Content-Type': 'application/json'},
             'status': 200
         })
-        
+
     except Exception as e:
         # Error handling
         error_response = create_worker_response({
@@ -1653,7 +1653,7 @@ __license__ = "MIT"
 # Modules used (all available in Cloudflare Python Workers)
 __dependencies__ = [
     "re",          # Regular expressions
-    "json",        # JSON parsing/serialization  
+    "json",        # JSON parsing/serialization
     "functools",   # reduce function
     "typing"       # Type hints (optional)
 ]
@@ -1761,4 +1761,3 @@ if __name__ == "__main__":
     # Get value at path
     value = getpath(data, args.path)
     print(json.dumps(value, indent=2 if args.pretty else None, ensure_ascii=False))
-    
