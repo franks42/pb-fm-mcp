@@ -121,6 +121,103 @@ def test_getpath_iter(test_data):
     values = list(getpath_iter(data, 'items.*'))
     assert values == [[1, 2], [3, 4], [5, 6]]
 
+def test_getpath_iter_nested_empty_structures():
+    """Test getpath_iter with empty nested structures."""
+    from jqpath import getpath_iter
+    
+    data = {'a': {'b': [], 'c': {}}, 'd': None, 'e': ''}
+    assert list(getpath_iter(data, 'a.b')) == [[]]  # Empty list
+    assert list(getpath_iter(data, 'a.c')) == [{}]  # Empty dict
+    assert list(getpath_iter(data, 'd')) == [None]  # None value
+    assert list(getpath_iter(data, 'e')) == ['']    # Empty string
+
+def test_getpath_iter_escaped_separators():
+    """Test getpath_iter with escaped separators in keys."""
+    from jqpath import getpath_iter
+    
+    data = {'a.b': {'c': 1}, 'd': {'e.f': 2}}
+    assert list(getpath_iter(data, 'a\\.b.c')) == [1]
+    assert list(getpath_iter(data, 'd.e\\.f')) == [2]
+
+def test_getpath_iter_mixed_access():
+    """Test getpath_iter with mixed dictionary and list access."""
+    from jqpath import getpath_iter, select_eq
+    
+    data = {'items': [{'id': 1, 'name': 'Item 1'}, {'id': 2, 'name': 'Item 2'}]}
+    # Get all names
+    assert list(getpath_iter(data, 'items.*.name')) == ['Item 1', 'Item 2']
+    # Get specific item by id using select_eq
+    assert list(getpath_iter(data, ['items', select_eq('id', 1), 'name'])) == ['Item 1']
+
+def test_getpath_iter_negative_indices():
+    """Test getpath_iter with negative list indices."""
+    from jqpath import getpath_iter
+    
+    data = {'items': ['a', 'b', 'c']}
+    assert list(getpath_iter(data, 'items.-1')) == ['c']
+    assert list(getpath_iter(data, 'items.-2')) == ['b']
+
+def test_getpath_iter_non_string_keys():
+    """Test getpath_iter with non-string dictionary keys."""
+    from jqpath import getpath_iter
+    
+    # Use more distinct keys to avoid Python's True == 1 behavior
+    data = {1: 'one', 2.5: 'two point five', 'true_key': 'true value'}
+    assert list(getpath_iter(data, '1')) == ['one']
+    assert list(getpath_iter(data, '2.5')) == ['two point five']
+    # Test with a string key that looks like a boolean
+    assert list(getpath_iter(data, 'true_key')) == ['true value']
+
+def test_getpath_iter_deep_nesting():
+    """Test getpath_iter with deeply nested structures."""
+    from jqpath import getpath_iter
+    
+    data = {'a': {'b': {'c': {'d': 'value'}}}}
+    assert list(getpath_iter(data, 'a.b.c.d')) == ['value']
+    # With wildcards
+    assert list(getpath_iter(data, 'a.*.c.d')) == ['value']
+
+def test_getpath_iter_custom_separator():
+    """Test getpath_iter with custom separator."""
+    from jqpath import getpath_iter
+    
+    data = {'a': {'b': {'c': 1}}}
+    assert list(getpath_iter(data, 'a/b/c', separator='/')) == [1]
+
+def test_getpath_iter_special_chars():
+    """Test getpath_iter with special characters in keys."""
+    from jqpath import getpath_iter
+    
+    data = {'a.b': {'c.d': {'e-f': 1, 'g/h': 2}}}
+    assert list(getpath_iter(data, 'a\\.b.c\\.d.e-f')) == [1]
+    assert list(getpath_iter(data, 'a\\.b.c\\.d.g/h')) == [2]
+
+def test_getpath_iter_large_structures():
+    """Test getpath_iter with large data structures."""
+    from jqpath import getpath_iter
+    
+    data = {'items': [{'id': i, 'value': f'item-{i}'} for i in range(1000)]}
+    # Test first, middle, last
+    assert list(getpath_iter(data, 'items.0.value')) == ['item-0']
+    assert list(getpath_iter(data, 'items.499.value')) == ['item-499']
+    assert list(getpath_iter(data, 'items.-1.value')) == ['item-999']
+
+def test_getpath_iter_performance():
+    """Test getpath_iter performance with deep nesting."""
+    from jqpath import getpath_iter
+    
+    # Create a deeply nested structure (100 levels deep)
+    data = current = {}
+    path = []
+    for i in range(100):
+        current['level'] = {'value': f'level-{i}'}
+        current = current['level']
+        path.append('level')
+    
+    # Test access to deepest level
+    deep_path = '.'.join(path) + '.value'
+    assert list(getpath_iter(data, deep_path)) == ['level-99']
+
 
 def test_get_simple_path(test_data):
     # Default behavior (only_first_path_match=False) returns a list

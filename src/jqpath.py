@@ -799,10 +799,18 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
     
     # Convert path to list if it's a string
     if isinstance(path, str):
-        # Handle escaped separators
-        path = path.replace(f'\\{separator}', '\0')
-        path_parts = path.split(separator)
-        path = [p.replace('\0', separator) for p in path_parts]
+        # First, handle the case where the entire path might be a float
+        try:
+            # If the entire path is a float, use it as a single path component
+            float(path)
+            path_parts = [path]
+        except ValueError:
+            # Not a float, handle as normal path with separators
+            # Handle escaped separators
+            path = path.replace(f'\\{separator}', '\0')
+            path_parts = path.split(separator)
+            path_parts = [p.replace('\0', separator) for p in path_parts]
+        path = path_parts
     else:
         path = list(path)  # Make a copy to avoid modifying the input
     
@@ -874,13 +882,42 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
             current = obj
             for p in path:
                 if isinstance(current, dict):
+                    # Handle non-string keys by trying different type conversions
+                    if p not in current:
+                        # Try converting the key to different types if direct lookup fails
+                        if str(p) in current:
+                            p = str(p)
+                        else:
+                            # Try converting to int, float, or bool if possible
+                            try:
+                                if p.isdigit():
+                                    p_int = int(p)
+                                    if p_int in current:
+                                        p = p_int
+                                elif p.replace('.', '', 1).isdigit() and p.count('.') <= 1:
+                                    p_float = float(p)
+                                    if p_float in current:
+                                        p = p_float
+                                elif p.lower() in ('true', 'false'):
+                                    p_bool = p.lower() == 'true'
+                                    if p_bool in current:
+                                        p = p_bool
+                            except (ValueError, AttributeError):
+                                pass
                     current = current[p]
-                elif isinstance(current, list):
+                elif isinstance(current, (list, tuple)):
                     if not isinstance(p, int):
                         try:
                             p = int(p)
                         except (ValueError, TypeError):
-                            return
+                            # Try negative indices for strings that can't be converted to int
+                            if p.startswith('-') and p[1:].isdigit():
+                                p = int(p)
+                            else:
+                                return
+                    # Handle negative indices
+                    if p < 0:
+                        p = len(current) + p
                     if 0 <= p < len(current):
                         current = current[p]
                     else:
@@ -993,18 +1030,39 @@ def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> 
                         yield from getpath_iter(item, remaining_selectors, separator)
         
         # If no matches found and we have a simple path, try direct access as a fallback
-        if not found and all(isinstance(s, (str, int)) for s in selectors):
+        if not found and all(isinstance(s, (str, int)) or (isinstance(s, str) and s.isdigit()) or 
+                           (isinstance(s, str) and s.startswith('-') and s[1:].isdigit()) 
+                           for s in selectors):
             try:
                 current = obj
                 for p in selectors:
                     if isinstance(current, dict):
+                        # Handle string conversion for dictionary keys
+                        if p not in current and str(p) in current:
+                            p = str(p)
                         current = current[p]
-                    elif isinstance(current, list) and isinstance(p, int) and 0 <= p < len(current):
-                        current = current[p]
+                    elif isinstance(current, (list, tuple)):
+                        if not isinstance(p, int):
+                            try:
+                                p = int(p)
+                            except (ValueError, TypeError):
+                                # Try negative indices for strings that can't be converted to int
+                                if isinstance(p, str) and p.startswith('-') and p[1:].isdigit():
+                                    p = int(p)
+                                else:
+                                    return
+                        # Handle negative indices
+                        if p < 0:
+                            p = len(current) + p
+                        if 0 <= p < len(current):
+                            current = current[p]
+                        else:
+                            return
                     else:
                         return
                 yield current
             except (KeyError, IndexError, TypeError, AttributeError):
+                pass
                 pass
 
 def _get_value_by_path(obj: Any, path: PathType):
