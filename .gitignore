@@ -8,3 +8,4 @@ __pycache__/
 src/vendor/
 .vscode/
 .wrangler/
+.DS_Store
