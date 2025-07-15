@@ -87,7 +87,7 @@ docs/
     - [x] String literals with special characters
     - [x] Escaped characters in keys
   - [x] Basic Path Resolution
-    - [x] `get()` function
+    - [x] `get_path()` function
     - [x] `has_path()` function
     - [ ] `set_path()` function
     - [ ] `delete_path()` function

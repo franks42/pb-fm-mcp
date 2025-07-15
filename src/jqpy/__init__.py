@@ -14,8 +14,7 @@ Example:
 __version__ = "0.1.0"
 
 # Import core functionality
-from .path import get, has_path, set_path, delete_path  # noqa: F401
+from .path import get_path, has_path, set_path, delete_path  # noqa: F401
 
-# For backwards compatibility
-set = set_path  # type: ignore
-delete = delete_path  # type: ignore
+# Note: We don't provide short aliases to avoid name clashes with built-ins
+# and to maintain explicit, clear API

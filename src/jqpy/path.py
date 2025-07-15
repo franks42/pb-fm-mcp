@@ -9,7 +9,7 @@ from typing import Any, List, Union
 from .parser import PathComponent, PathComponentType
 
 
-def get(data: Any, path: Union[str, List[PathComponent]], default: Any = None) -> Any:
+def get_path(data: Any, path: Union[str, List[PathComponent]], default: Any = None) -> Any:
     """
     Get a value from a nested data structure using a path expression.
 
