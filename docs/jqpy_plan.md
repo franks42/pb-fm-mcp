@@ -86,11 +86,13 @@ docs/
     - [x] Array indices: `.[0]`, `.[-1]`
     - [x] String literals with special characters
     - [x] Escaped characters in keys
+    - [x] Proper handling of `raw_value` for all components
   - [x] Basic Path Resolution
     - [x] `get_path()` function
     - [x] `has_path()` function
-    - [ ] `set_path()` function
+    - [x] `set_path()` function (basic implementation)
     - [ ] `delete_path()` function
+    - [x] Comprehensive test coverage for all path operations
 - [ ] Phase 2: Advanced Features
   - [ ] Selectors
     - [x] Basic selector `[]`
