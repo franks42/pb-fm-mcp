@@ -1,4 +1,4 @@
-""
+"""
 jqpy - A Python implementation of jq-like path expressions
 
 This module provides a clean, iterator-based implementation of jq's path handling

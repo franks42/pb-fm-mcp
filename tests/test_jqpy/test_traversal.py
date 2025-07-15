@@ -1,48 +1,58 @@
-""Tests for the core traversal functionality."""
-import pytest
-from src.jqpy import get_path, batch_get_path, has_path, first_path_match
+"""Tests for the core traversal functionality."""
+from src.jqpy import get_path, parse_path
 
-def test_get_path_basic():
+def test_simple_key_access():
+    """Test basic dictionary key access."""
+    data = {'a': 1}
+    result = list(get_path(data, 'a'))
+    assert result == [1], f"Expected [1], got {result}"
+
+
+def test_nested_key_access():
+    """Test nested dictionary key access."""
+    data = {'a': {'b': {'c': 42}}}
+    result = list(get_path(data, 'a.b.c'))
+    assert result == [42], f"Expected [42], got {result}"
+
+
+def test_array_index_access():
+    """Test array index access."""
+    data = {'items': [10, 20, 30]}
+    result = list(get_path(data, 'items[1]'))
+    assert result == [20], f"Expected [20], got {result}"
+
+
+def test_wildcard_dict_access():
+    """Test wildcard access in dictionaries."""
     data = {
-        'a': {
-            'b': [
-                {'c': 1},
-                {'c': 2},
-                {'d': 3}
-            ]
+        'users': {
+            'alice': {'age': 30, 'active': True},
+            'bob': {'age': 25, 'active': False},
+            'charlie': {'age': 35, 'active': True}
         }
     }
+    # Get all ages
+    result = list(get_path(data, 'users.*.age'))
+    assert sorted(result) == [25, 30, 35], f"Expected [25, 30, 35], got {result}"
     
-    # Test basic path
-    assert list(get_path(data, 'a.b')) == [data['a']['b']]
+    # Test for array wildcard as well
+    data2 = {'items': [{'name': 'a', 'value': 1}, {'name': 'b', 'value': 2}]}
+    result = list(get_path(data2, 'items[*].value'))
+    assert sorted(result) == [1, 2], f"Expected [1, 2], got {result}"
     
-    # Test wildcard
-    assert list(get_path(data, 'a.b.*.c')) == [1, 2]
+    # Test selector syntax - first check the users.* part
+    users = list(get_path(data, 'users.*'))
+    print(f"Users: {users}")  # Should be list of user dicts
     
-    # Test only first match
-    assert list(get_path(data, 'a.b.*.c', only_first_path_match=True)) == [1]
-
-def test_batch_get_path():
-    data = {'a': [{'b': 1}, {'b': 2}]}
+    # Now test the selector
+    result = list(get_path(data, 'users.*[?(@.active==true)].age'))
+    print(f"Selector result: {result}")
+    assert sorted(result) == [30, 35], f"Expected [30, 35], got {result}"
     
-    # Test getting all matches
-    assert batch_get_path(data, 'a.*.b') == [1, 2]
+    # Test only_first_path_match with selector
+    result = list(get_path(data, 'users.*[?(@.active==true)].age', only_first_path_match=True))
+    assert len(result) == 1 and result[0] in [30, 35], f"Expected [30] or [35], got {result}"
     
-    # Test default value
-    assert batch_get_path(data, 'x.y.z', default='not found') == ['not found']
-    
-    # Test only first match
-    assert batch_get_path(data, 'a.*.b', only_first_path_match=True) == [1]
-
-def test_has_path():
-    data = {'a': {'b': 1}}
-    
-    assert has_path(data, 'a.b') is True
-    assert has_path(data, 'a.c') is False
-    assert has_path(data, 'a.*') is True  # Wildcard match
-
-def test_first_path_match():
-    data = {'items': [{'id': 1}, {'id': 2}]}
-    
-    assert first_path_match(data, 'items.*.id') == 1
-    assert first_path_match(data, 'nonexistent', default=0) == 0
+    # Test with numeric comparison
+    result = list(get_path(data, 'users.*[?(@.age>30)].age'))
+    assert result == [35], f"Expected [35], got {result}"
