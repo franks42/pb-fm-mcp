@@ -3,95 +3,184 @@ Core traversal functionality for jqpy.
 
 This module provides the base iterator that powers all path operations.
 """
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, cast
+import logging
+from collections.abc import Iterator
+from typing import Any
+
 from .parser import PathComponent, PathComponentType
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 def traverse(
     data: Any, 
-    path_components: List[PathComponent],
-    current_path: Optional[List[PathComponent]] = None
-) -> Iterator[Tuple[List[PathComponent], Any]]:
-    """Core traversal function that yields (path_taken, value) pairs.
-    
+    path_components: list[PathComponent],
+    current_path: list[PathComponent] | None = None,
+    max_depth: int = 100,  # Default max depth
+    current_depth: int = 0  # Current traversal depth
+) -> Iterator[Any]:
+    """Core traversal function that yields values found during traversal.
+
     Args:
         data: The data structure to traverse
         path_components: List of path components to follow
         current_path: The path taken so far (used internally for recursion)
-        
+        max_depth: Maximum depth to traverse
+        current_depth: Current depth in traversal
+
     Yields:
-        Tuples of (path_taken, value) where:
-        - path_taken: The actual path taken through the data structure
-        - value: The value found at that path
+        Values found during traversal
     """
     if current_path is None:
         current_path = []
+        current_depth = 0
+        logger.debug("\n=== Starting traversal ===")
+        logger.debug(f"Path: {path_components}")
+        logger.debug(f"Data: {data}")
+        logger.debug(f"Max depth: {max_depth}")
 
     if not path_components:
-        yield current_path, data
+        logger.debug("\n=== Reached end of path ===")
+        logger.debug(f"Final data: {data}")
+        logger.debug(f"Final path: {current_path}")
+        yield data
         return
-
-    component, *rest = path_components
     
-    # Handle wildcard matching
-    if component.type in (PathComponentType.WILDCARD, PathComponentType.KEY and component.value == '*'):
-        # Handle dictionary wildcard
-        if isinstance(data, dict):
-            for k, v in data.items():
-                new_component = PathComponent(
-                    type=PathComponentType.KEY,
-                    value=k,
-                    raw_value=str(k)
-                )
-                new_path = [*current_path, new_component]
-                
-                # If next component is a selector, apply it to the current value
-                if rest and rest[0].type == PathComponentType.SELECTOR:
-                    selector = rest[0].value
-                    if _matches_selector(v, selector):
-                        # If there are components after the selector, continue with those
-                        if len(rest) > 1:
-                            yield from traverse(v, rest[1:], new_path)
-                        else:
-                            # If selector is the last component, yield the matching value
-                            yield new_path, v
+    if current_depth >= max_depth:
+        logger.debug(f"\n=== Max depth {max_depth} reached at depth {current_depth} ===")
+        logger.debug(f"Current path: {current_path}")
+        logger.debug(f"Current data: {data}")
+        return
+    
+    component, *rest = path_components
+    logger.debug(f"\n=== Processing component {component} at depth {current_depth} ===")
+    logger.debug(f"Current data: {data}")
+    logger.debug(f"Remaining components: {rest}")
+    logger.debug(f"Current path: {current_path}")
+    
+    # Handle literals first - they don't depend on data
+    if component.type == PathComponentType.KEY and component.value.startswith('LITERAL:'):
+        logger.debug(f"Processing literal: {component.value}")
+        literal_str = component.value[8:]  # Remove 'LITERAL:' prefix
+        logger.debug(f"Literal string: {literal_str}")
+        
+        # Convert string representation back to actual value
+        if literal_str == 'None':
+            logger.debug("Yielding None")
+            yield None
+        elif literal_str == 'True':
+            logger.debug("Yielding True")
+            yield True
+        elif literal_str == 'False':
+            logger.debug("Yielding False")
+            yield False
+        elif literal_str.replace('.', '').replace('-', '').isdigit():
+            if '.' in literal_str:
+                logger.debug(f"Yielding float: {float(literal_str)}")
+                yield float(literal_str)
+            else:
+                logger.debug(f"Yielding int: {int(literal_str)}")
+                yield int(literal_str)
+        else:
+            # For actual string literals, yield the string without LITERAL: prefix
+            logger.debug(f"Yielding string: {literal_str}")
+            yield literal_str
+        return
+    
+    # Make sure current_path is always a list
+    if not isinstance(current_path, list):
+        current_path = []
+    
+    # Update current path (create new list to avoid sharing state between recursive calls)
+    current_path = current_path + [component]
+    
+    # Handle null input
+    if data is None:
+        if not rest:
+            try:
+                # Try to convert to appropriate type
+                if component.value.lower() == 'true':
+                    yield True
+                elif component.value.lower() == 'false':
+                    yield False
+                elif component.value.isdigit() or (component.value.startswith('-') and component.value[1:].isdigit()):
+                    yield int(component.value)
+                elif component.value.replace('.', '').isdigit() or (component.value.startswith('-') and component.value[1:].replace('.', '').isdigit()):
+                    yield float(component.value)
                 else:
-                    yield from traverse(v, rest, new_path)
-        # Handle list/tuple wildcard
-        elif isinstance(data, (list, tuple)):
+                    yield component.value
+            except Exception:
+                yield component.value
+            return
+        return
+    
+    # Handle array splat (empty key or [] value)
+    if (component.type == PathComponentType.KEY and component.value == '') or \
+       (component.type == PathComponentType.KEY and component.value == '[]'):
+        logger.debug("Processing array splat (empty key)")
+        if isinstance(data, (list, tuple)):
+            logger.debug(f"Processing array splat with {len(data)} items")
             for i, item in enumerate(data):
-                new_component = PathComponent(
-                    type=PathComponentType.INDEX,
-                    value=i,
-                    raw_value=str(i)
-                )
-                new_path = [*current_path, new_component]
-                
-                # If next component is a selector, apply it to the current item
-                if rest and rest[0].type == PathComponentType.SELECTOR and isinstance(item, dict):
-                    selector = rest[0].value
-                    if _matches_selector(item, selector):
-                        # If there are components after the selector, continue with those
-                        if len(rest) > 1:
-                            yield from traverse(item, rest[1:], new_path)
-                        else:
-                            # If selector is the last component, yield the matching item
-                            yield new_path, item
+                yield from traverse(item, rest, current_path, max_depth, current_depth + 1)
+        return
+    
+    # Handle wildcard
+    if component.type == PathComponentType.WILDCARD:
+        logger.debug("Processing wildcard component")
+        # Handle wildcard for dictionaries
+        if isinstance(data, dict):
+            logger.debug(f"Processing dict wildcard with {len(data)} items")
+            for k, v in data.items():
+                logger.debug(f"Processing wildcard key: {k}")
+                if not rest:
+                    # No more components, yield the value
+                    yield v
                 else:
-                    yield from traverse(item, rest, new_path)
-        # For non-container types, don't yield anything for wildcard
+                    # Continue with remaining components
+                    yield from traverse(v, rest, current_path, max_depth, current_depth + 1)
+        # Handle wildcard for lists
+        elif isinstance(data, (list, tuple)):
+            logger.debug(f"Processing list wildcard with {len(data)} items")
+            for i, item in enumerate(data):
+                logger.debug(f"Processing wildcard index: {i}")
+                if not rest:
+                    # No more components, yield the item
+                    yield item
+                else:
+                    # Continue with remaining components  
+                    yield from traverse(item, rest, current_path, max_depth, current_depth + 1)
+        else:
+            logger.debug(f"Skipping wildcard for non-container type: {type(data)}")
         return
     
     # Handle selector
     elif component.type == PathComponentType.SELECTOR:
+        logger.debug(f"Processing selector: {component.value}")
         selector = component.value
+        
+        # Handle select() function call
+        if selector.startswith('SELECT:'):
+            selector_expr = selector[7:]  # Remove 'SELECT:' prefix
+            logger.debug(f"Processing select() function with expression: {selector_expr}")
+            
+            # Parse the selector expression
+            parsed_selector = _parse_select_expression(selector_expr)
+            
+            # Check if the current data matches the selector
+            if _matches_selector(data, parsed_selector):
+                if not rest:  # This is the last component
+                    yield data
+                else:  # Continue with the rest of the path
+                    yield from traverse(data, rest, current_path, max_depth, current_depth + 1)
+            return
         
         # If we're at a dictionary, check if it matches the selector
         if isinstance(data, dict):
             if _matches_selector(data, selector):
                 if not rest:  # This is the last component
-                    yield current_path, data
+                    yield data
                 else:  # Continue with the rest of the path
-                    yield from traverse(data, rest, current_path)
+                    yield from traverse(data, rest, current_path, max_depth, current_depth + 1)
         
         # If we're at a list, apply selector to each item
         elif isinstance(data, (list, tuple)):
@@ -99,29 +188,70 @@ def traverse(
                 if not isinstance(item, dict):
                     continue
                 if _matches_selector(item, selector):
-                    new_path = current_path + [PathComponent(
-                        type=PathComponentType.INDEX,
-                        value=i,
-                        raw_value=str(i)
-                    )]
                     if not rest:  # This is the last component
-                        yield new_path, item
+                        yield item
                     else:  # Continue with the rest of the path
-                        yield from traverse(item, rest, new_path)
+                        yield from traverse(item, rest, current_path, max_depth, current_depth + 1)
+        return
+    
+    
+    # Handle object construction
+    if component.type == PathComponentType.KEY and component.value.startswith('OBJECT_CONSTRUCT:'):
+        logger.debug(f"Processing object construction: {component.value}")
+        obj_definition = component.value[len('OBJECT_CONSTRUCT:'):]
+        
+        # Parse {a: .a, b: .b} format
+        if obj_definition.startswith('{') and obj_definition.endswith('}'):
+            obj_content = obj_definition[1:-1]  # Remove { }
+            pairs = obj_content.split(',')
+            result = {}
+            
+            for pair in pairs:
+                if ':' in pair:
+                    key_part, value_part = pair.split(':', 1)
+                    key = key_part.strip()
+                    value_path = value_part.strip()
+                    
+                    # Special handling for single-key objects
+                    if value_path == '.key' and isinstance(data, dict) and len(data) == 1:
+                        # For single-key objects, '.key' means the key name
+                        result[key] = list(data.keys())[0]
+                    elif value_path == '.value' and isinstance(data, dict) and len(data) == 1:
+                        # For single-key objects, '.value' means the value
+                        result[key] = list(data.values())[0]
+                    else:
+                        # Parse the value path and get the result
+                        from .parser import parse_path
+                        value_components = parse_path(value_path)
+                        
+                        # Get the value from the data using the parsed path
+                        value_results = list(traverse(data, value_components, current_path, max_depth, current_depth + 1))
+                        if value_results:
+                            result[key] = value_results[0]  # Take first result
+            
+            if result:
+                logger.debug(f"Constructed object: {result}")
+                yield result
         return
     
     # Handle direct key access
     if component.type == PathComponentType.KEY:
+        logger.debug(f"Processing key: {component.value}")
+        # Skip literal components that should have been handled above
+        if component.value.startswith('LITERAL:'):
+            logger.debug(f"Skipping literal that should have been handled: {component.value}")
+            return
         if isinstance(data, dict) and component.value in data:
-            yield from traverse(data[component.value], rest, [*current_path, component])
+            yield from traverse(data[component.value], rest, current_path, max_depth, current_depth + 1)
     
     # Handle array index access
     elif component.type == PathComponentType.INDEX:
+        logger.debug(f"Processing index: {component.value}")
         if isinstance(data, (list, tuple)):
             idx = component.value
             # Handle negative indices and bounds checking
             if -len(data) <= idx < len(data):
-                yield from traverse(data[idx], rest, [*current_path, component])
+                yield from traverse(data[idx], rest, current_path, max_depth, current_depth + 1)
     
     # Handle the case where we have more components but current data isn't a container
     # This will naturally stop the recursion for that path
@@ -130,6 +260,53 @@ def traverse(
     
     # If we get here, the path didn't match anything
     return
+
+
+def _parse_select_expression(expr: str) -> dict:
+    """Parse a select() expression into a selector condition.
+    
+    Args:
+        expr: The select expression (e.g., '.active == true')
+        
+    Returns:
+        dict: Parsed selector condition
+    """
+    # Remove leading dot if present
+    if expr.startswith('.'):
+        expr = expr[1:]
+    
+    # Check for comparison operators
+    operators = ['==', '>=', '<=', '>', '<']
+    op = None
+    for op_test in operators:
+        if op_test in expr:
+            op = op_test
+            break
+    
+    if op:
+        left, right = expr.split(op, 1)
+        left = left.strip()
+        right = right.strip()
+        
+        # Remove quotes if present
+        if (right.startswith('"') and right.endswith('"')) or \
+           (right.startswith("'") and right.endswith("'")):
+            right = right[1:-1]
+        # Convert to boolean if needed
+        elif right.lower() == 'true':
+            right = True
+        elif right.lower() == 'false':
+            right = False
+        # Convert to number if possible
+        elif right.replace('.', '').replace('-', '').isdigit():
+            if '.' in right:
+                right = float(right)
+            else:
+                right = int(right)
+        
+        return {'type': 'compare', 'key': left, 'op': op, 'value': right}
+    
+    raise ValueError(f"Unsupported select expression: {expr}")
 
 
 def _matches_selector(value: Any, selector: dict) -> bool:
