@@ -53,7 +53,7 @@ def test_getpaths_setpaths_with_base64():
     getpaths_setpaths(expanded_src, target, paths_map)
     
     # Debug output
-    print("\nTarget after getpaths_setpaths:", target)
+    # Target after getpaths_setpaths
     
     # Verify the results
     assert target.get('account_info', {}).get('type') == ['Continuous Vesting Account'], \
@@ -81,7 +81,7 @@ def test_getpaths_setpaths_with_base64():
     getpaths_setpaths(expanded_src, target, paths_map)
     
     # Debug output
-    print("\nTarget with array paths:", target)
+    # Target with array paths
     
     # Verify the results
     if first_attribute:

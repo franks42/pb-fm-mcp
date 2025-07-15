@@ -823,15 +823,9 @@ def test_find_selector_paths():
     # Test slice selector
     slice_paths = get_paths(['products', slice(0, 2), 'id'])
     
-    # Debug: Print detailed information about the paths and the data structure
-    print("\nAll paths returned by slice selector:")
-    for i, path in enumerate(slice_paths):
-        print(f"\nPath {i}:")
-        print(f"  Full path: {path}")
-        print(f"  Type: {type(path)}")
-        print(f"  Length: {len(path) if hasattr(path, '__len__') else 'N/A'}")
-        
-        # Try to access the actual value at this path
+    # Process paths for testing
+    for path in slice_paths:
+        # Access the value to ensure the path is valid
         try:
             value = data
             for key in path:
@@ -840,11 +834,10 @@ def test_find_selector_paths():
                 elif isinstance(value, dict) and key in value:
                     value = value[key]
                 else:
-                    value = f"[Cannot access {key} in {type(value).__name__}]"
                     break
-            print(f"  Value at path: {value} (type: {type(value).__name__})")
-        except Exception as e:
-            print(f"  Error accessing path: {e}")
+        except Exception:
+            # If there's an error accessing the path, just continue with the next path
+            continue
     
     # Convert paths to tuples for hashability and deduplicate
     unique_paths = {tuple(p) for p in slice_paths}
@@ -1071,3 +1064,81 @@ def test_getpaths_setpaths():
         'item': {'product_id': 123}
     }
     assert tgt == expected_single
+
+
+def test_getpaths_setpaths_real_world():
+    """Test getpaths_setpaths with real-world example data."""
+    import os
+    import json
+    
+    # Load the real world example data
+    test_file = os.path.join(os.path.dirname(__file__), 'real_world_example.json')
+    with open(test_file, 'r') as f:
+        src = json.load(f)
+    
+    # First, let's test the direct path mappings
+    paths_map = [
+        # Simple field mapping
+        ('accountType', 'account_type'),
+        
+        # Nested field mapping
+        ('publicKey.type', 'key_info.key_type'),
+        
+        # Array element mapping
+        ('publicKey.sigList.0.address', 'signature.signer_address')
+    ]
+    
+    # Initialize target dictionary
+    target = {}
+    
+    # Perform the mapping
+    getpaths_setpaths(src, target, paths_map)
+    
+    # Verify the results - note that getpaths_setpaths returns values as lists
+    assert target['account_type'] == ['Continuous Vesting Account']
+    assert target['key_info']['key_type'] == ['secp256k1']
+    assert target['signature']['signer_address'] == ['pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8']
+    
+    # For the attributes array, we need to find a specific attribute
+    # Since we can't use a lambda in the path, we'll do this in two steps:
+    # 1. Find the attribute we want
+    # 2. Add it to the target
+    passport_attr = next(
+        (attr for attr in src.get('attributes', []) 
+         if attr.get('attribute') == 'kyc-aml.passport.pb'),
+        None
+    )
+    
+    if passport_attr and 'data' in passport_attr:
+        # Now use setpath to add it to the target
+        setpath(target, 'kyc.passport_data', passport_attr['data'])
+    
+    # Verify the passport data exists and is a non-empty string
+    assert 'passport_data' in target['kyc']
+    assert isinstance(target['kyc']['passport_data'], str)
+    assert len(target['kyc']['passport_data']) > 0
+    
+    # Test with a selector to find specific attribute
+    # Since we can't use a lambda in the path, we'll extract the values first
+    def find_attribute(obj, attr_name):
+        for attr in obj.get('attributes', []):
+            if attr.get('attribute') == attr_name:
+                return attr['data']
+        return None
+    
+    # Alternative approach - extract values first, then set them
+    target = {}
+    
+    # Extract the values using our helper function
+    yields_approval = find_attribute(src, 'approved.ylds.pb')
+    member_approvals = find_attribute(src, 'memberapproval.sc.pb')
+    
+    # Now set them in the target using setpath
+    if yields_approval is not None:
+        setpath(target, 'approvals.yields_approval', yields_approval)
+    if member_approvals is not None:
+        setpath(target, 'approvals.member_approvals', member_approvals)
+    
+    # Verify the results
+    assert target['approvals']['yields_approval'] == 'eyJwYXNzcG9ydFV1aWQiOnsidmFsdWUiOiI4ODJjY2Q2MC1jMjUzLTRkZTgtODNmMS04MDE4MWY1YjExNzMifX0='
+    assert target['approvals']['member_approvals'] == 'MTIxNA=='
