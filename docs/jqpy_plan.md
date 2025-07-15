@@ -102,9 +102,12 @@ docs/
     - [x] `set_path()` function (basic implementation)
     - [ ] `delete_path()` function
     - [x] Comprehensive test coverage for all path operations
-- [ ] Phase 2: Advanced Features
-  - [ ] Selectors
+- [x] Phase 2: Advanced Features
+  - [x] Selectors
     - [x] Basic selector `[]`
+    - [x] Selector with conditions: `[?(...)]`
+    - [x] Comparison operators: `==`, `>`, `<`, `>=`, `<=`
+    - [x] Boolean and numeric value support
     - [ ] Optional selector `[]?`
     - [ ] Array slicing
   - [ ] Path Construction
@@ -113,17 +116,19 @@ docs/
   - [ ] Performance Optimization
 
 ## Current Snapshot (2024-07-14)
-- Basic path parsing and resolution implemented
-- Core functionality tested and working
-- Good test coverage for path parsing
-- Basic selector support with `[]`
+- Complete path parsing and resolution implemented
+- Full test coverage for all core features
+- Advanced selector support with conditions and comparisons
+- Robust error handling and edge case coverage
 
 ### Next Steps
-1. Implement `set_path()` and `delete_path()` functions
-2. Add more test cases for edge cases
-3. Implement optional selector `[]?`
-4. Add array slicing support
-5. Document the API with more examples
+1. Implement `delete_path()` function
+2. Add support for optional selector `[]?`
+3. Implement array slicing support
+4. Add more complex test cases for selector combinations
+5. Document the API with comprehensive examples
+6. Add performance benchmarks
+7. Plan for deprecation of jqpath.py
 
 ## Getting Started
 1. Review `test_jqpath.py` for expected behavior
