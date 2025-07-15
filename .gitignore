@@ -1,12 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
 .venv/
 .venv-workers/
-.ruff_cache/
+venv/
+ENV/
+
+# Testing
 .pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Node
 node_modules/
 package-lock.json
-__pycache__/
-src/vendor/
-.vscode/
+
+# Wrangler
 .wrangler/
-.DS_Store
-.DS_Store
+
+# Local development
+.env
+.env.local
+
+# Misc
+.ruff_cache/
+.mypy_cache/

@@ -1,20 +1,19 @@
+""
+jqpy - A Python implementation of jq-like path expressions
+
+This module provides a clean, iterator-based implementation of jq's path handling
+with support for nested data structures, wildcards, and more.
 """
-jqpy - A Python implementation of jq-like path expressions for JSON-like data.
+from .parser import parse_path, PathComponent, PathComponentType
+from .operations import get_path, batch_get_path, has_path, first_path_match
 
-This package provides a Pythonic way to query and manipulate nested data structures
-using jq-style path expressions.
-
-Example:
-    >>> import jqpy
-    >>> data = {"a": {"b": [1, 2, 3]}}
-    >>> jqpy.get(data, "a.b.1")
-    2
-"""
-
-__version__ = "0.1.0"
-
-# Import core functionality
-from .path import get_path, has_path, set_path, delete_path  # noqa: F401
-
-# Note: We don't provide short aliases to avoid name clashes with built-ins
-# and to maintain explicit, clear API
+# Re-export the most commonly used functions and types
+__all__ = [
+    'parse_path',
+    'PathComponent',
+    'PathComponentType',
+    'get_path',
+    'batch_get_path',
+    'has_path',
+    'first_path_match',
+]

@@ -34,20 +34,29 @@ docs/
 
 ## Implementation Phases
 
-### Phase 1: Core Path Parsing
-1. **Path Parser** (`jqpy/parser.py`)
+### Phase 1: Core Path Traversal (Iterator-based)
+1. **Core Traversal** (`jqpy/traverse.py`)
+   - Implement `traverse()` as the base generator function
+   - Yields `(path_components, value)` pairs
+   - Handles all path navigation logic
+
+2. **Path Parser** (`jqpy/parser.py`)
    - Lexer for jq path expressions
    - Parser for path components
    - Support for:
      - Dot notation: `.a.b.c`
      - Bracket notation: `.["a"]["b"]["c"]`
      - Array indices: `.[0]`, `.[-1]`
+     - Wildcards: `.*`, `[*]`
      - String literals with special characters
 
-2. **Basic Path Handling** (`jqpy/path.py`)
-   - `Path` class to represent parsed paths
-   - `get`/`set`/`delete` operations
-   - Path resolution logic
+3. **Basic Path Operations** (`jqpy/operations.py`)
+   - `get_path()` - Iterator over values at path
+   - `batch_get_path()` - Get all values as a list
+   - `has_path()` - Check if path exists
+   - `first_path_match()` - Get first matching path
+   - `set_path()` - Set value at path (future)
+   - `delete_path()` - Delete value at path (future)
 
 ### Phase 2: Advanced Features
 1. **Selectors** (`jqpy/selectors.py`)
