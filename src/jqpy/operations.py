@@ -543,11 +543,11 @@ def batch_getpaths(data: Any, paths: list[str | list[PathComponent]], default: A
     return results
 
 
-def resolve_to_atomic_paths(data: Any, path: str | list[PathComponent]) -> Iterator[str]:
-    """Resolve a complex path expression to atomic paths that lead to scalar values.
+def resolve_to_atomic_paths(data: Any, path: str | list[PathComponent], type_filter: str | None = None) -> Iterator[str]:
+    """Resolve a complex path expression to atomic paths for any matching values.
     
     Takes a path expression that may match containers (objects, arrays) and yields
-    concrete paths that lead to indivisible atomic values (scalars).
+    concrete paths that lead to the matching values. Can optionally filter by type.
     
     Supports all path expressions that work with get_path() and set_path(), including:
     - Wildcards: .*, []
@@ -558,17 +558,29 @@ def resolve_to_atomic_paths(data: Any, path: str | list[PathComponent]) -> Itera
     Args:
         data: The data structure to resolve paths in
         path: Complex path expression (may contain wildcards, match containers)
+        type_filter: Optional filter - 'objects', 'arrays', 'scalars', or None for all types
         
     Yields:
-        Concrete path strings, each leading to a scalar value
+        Concrete path strings, each leading to a value of the specified type
         
-    Example:
+    Examples:
         data = {"users": [{"name": "john", "age": 30}, {"name": "jane", "age": 25}]}
+        
+        # All paths (default behavior - backwards compatible with scalars for now)
         list(resolve_to_atomic_paths(data, "users[]"))
         # Returns: ["users[0].name", "users[0].age", "users[1].name", "users[1].age"]
         
-        list(resolve_to_atomic_paths(data, "users[?(@.age > 25)]"))
-        # Returns: ["users[0].name", "users[0].age"] (only john, age 30)
+        # Only object paths
+        list(resolve_to_atomic_paths(data, "users[]", type_filter="objects"))
+        # Returns: ["users[0]", "users[1]"]
+        
+        # Only scalar paths (explicit)
+        list(resolve_to_atomic_paths(data, "users[]", type_filter="scalars"))
+        # Returns: ["users[0].name", "users[0].age", "users[1].name", "users[1].age"]
+        
+        # All types
+        list(resolve_to_atomic_paths(data, ".", type_filter=None))
+        # Returns: [".", "users", "users[0]", "users[0].name", "users[0].age", ...]
     """
     # Parse the input path if it's a string
     if isinstance(path, str):
@@ -576,26 +588,67 @@ def resolve_to_atomic_paths(data: Any, path: str | list[PathComponent]) -> Itera
     else:
         path_components = path
     
+    # Default to scalars for backwards compatibility
+    if type_filter is None:
+        type_filter = "scalars"
+    
     # Use the full traverse function with custom path tracking
-    yield from _traverse_with_full_atomic_paths(data, path_components)
+    yield from _traverse_with_full_atomic_paths(data, path_components, type_filter)
 
 
-def _traverse_with_full_atomic_paths(data: Any, path_components: list[PathComponent], current_path: list = None) -> Iterator[str]:
+def _traverse_with_full_atomic_paths(data: Any, path_components: list[PathComponent], type_filter: str = "scalars", current_path: list = None) -> Iterator[str]:
     """Traverse data structure using full traverse() function and yield atomic paths."""
     if current_path is None:
         current_path = []
     
     if not path_components:
-        # End of path - find all atomic paths within this value
+        # End of path - find all paths within this value based on type filter
         from .traverse import _get_all_paths, _get_jq_type
         
-        # If this is already a scalar, return the current path
-        if _get_jq_type(data) in ('string', 'number', 'boolean', 'null'):
+        # Check if the current data itself matches the type filter
+        data_type = _get_jq_type(data)
+        should_include_current = False
+        
+        if type_filter == "scalars" and data_type in ('string', 'number', 'boolean', 'null'):
+            should_include_current = True
+        elif type_filter == "objects" and data_type == "object":
+            should_include_current = True
+        elif type_filter == "arrays" and data_type == "array":
+            should_include_current = True
+        elif type_filter is None:  # Include all types
+            should_include_current = True
+        
+        # If current data matches filter, include its path
+        if should_include_current and current_path:
             yield path_components_to_string(current_path)
+        
+        # If this is a scalar and we're looking for scalars, return current path
+        if type_filter == "scalars" and data_type in ('string', 'number', 'boolean', 'null'):
+            if not current_path:  # Root scalar
+                yield "."
             return
         
-        # Otherwise, find all scalar paths within this value
-        inner_atomic_paths = _get_all_paths(data, "scalars")
+        # For containers, find inner paths based on type filter
+        if type_filter is None:
+            # Get all types
+            all_inner_paths = []
+            for filter_type in ["objects", "arrays", "scalars"]:
+                inner_paths = _get_all_paths(data, filter_type)
+                all_inner_paths.extend(inner_paths)
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_paths = []
+            for path in all_inner_paths:
+                path_str = path_components_to_string(path)
+                if path_str not in seen:
+                    seen.add(path_str)
+                    unique_paths.append(path)
+            inner_atomic_paths = unique_paths
+        else:
+            # Get specific type
+            inner_atomic_paths = _get_all_paths(data, type_filter)
+        
         for inner_path in inner_atomic_paths:
             full_path = current_path + inner_path
             yield path_components_to_string(full_path)
@@ -614,7 +667,7 @@ def _traverse_with_full_atomic_paths(data: Any, path_components: list[PathCompon
     
     if component.type in (PathComponentType.KEY, PathComponentType.INDEX, PathComponentType.WILDCARD):
         # Use the existing simple implementation for these
-        yield from _traverse_with_atomic_paths_simple(data, path_components, current_path)
+        yield from _traverse_with_atomic_paths_simple(data, path_components, type_filter, current_path)
     else:
         # For complex expressions, fall back to a hybrid approach
         # Get the results from traverse and try to map them back to paths
@@ -627,22 +680,57 @@ def _traverse_with_full_atomic_paths(data: Any, path_components: list[PathCompon
         return
 
 
-def _traverse_with_atomic_paths_simple(data: Any, path_components: list[PathComponent], current_path: list = None) -> Iterator[str]:
+def _traverse_with_atomic_paths_simple(data: Any, path_components: list[PathComponent], type_filter: str = "scalars", current_path: list = None) -> Iterator[str]:
     """Simple traversal for basic path components."""
     if current_path is None:
         current_path = []
     
     if not path_components:
-        # End of path - find all atomic paths within this value
+        # End of path - find all paths within this value based on type filter
         from .traverse import _get_all_paths, _get_jq_type
         
-        # If this is already a scalar, return the current path
-        if _get_jq_type(data) in ('string', 'number', 'boolean', 'null'):
+        # Check if the current data itself matches the type filter
+        data_type = _get_jq_type(data)
+        should_include_current = False
+        
+        if type_filter == "scalars" and data_type in ('string', 'number', 'boolean', 'null'):
+            should_include_current = True
+        elif type_filter == "objects" and data_type == "object":
+            should_include_current = True
+        elif type_filter == "arrays" and data_type == "array":
+            should_include_current = True
+        elif type_filter is None:  # Include all types
+            should_include_current = True
+        
+        # If current data matches filter, include its path
+        if should_include_current:
             yield path_components_to_string(current_path)
+        
+        # If this is a scalar, no need to recurse further
+        if data_type in ('string', 'number', 'boolean', 'null'):
             return
         
-        # Otherwise, find all scalar paths within this value
-        inner_atomic_paths = _get_all_paths(data, "scalars")
+        # For containers, find inner paths based on type filter
+        if type_filter is None:
+            # Get all types
+            all_inner_paths = []
+            for filter_type in ["objects", "arrays", "scalars"]:
+                inner_paths = _get_all_paths(data, filter_type)
+                all_inner_paths.extend(inner_paths)
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_paths = []
+            for path in all_inner_paths:
+                path_str = path_components_to_string(path)
+                if path_str not in seen:
+                    seen.add(path_str)
+                    unique_paths.append(path)
+            inner_atomic_paths = unique_paths
+        else:
+            # Get specific type
+            inner_atomic_paths = _get_all_paths(data, type_filter)
+        
         for inner_path in inner_atomic_paths:
             full_path = current_path + inner_path
             yield path_components_to_string(full_path)
@@ -659,6 +747,7 @@ def _traverse_with_atomic_paths_simple(data: Any, path_components: list[PathComp
             yield from _traverse_with_atomic_paths_simple(
                 data[key], 
                 rest, 
+                type_filter,
                 current_path + [key]
             )
     elif component.type == PathComponentType.INDEX:
@@ -670,6 +759,7 @@ def _traverse_with_atomic_paths_simple(data: Any, path_components: list[PathComp
                 yield from _traverse_with_atomic_paths_simple(
                     data[idx], 
                     rest, 
+                    type_filter,
                     current_path + [idx]
                 )
     elif component.type == PathComponentType.WILDCARD:
@@ -679,6 +769,7 @@ def _traverse_with_atomic_paths_simple(data: Any, path_components: list[PathComp
                 yield from _traverse_with_atomic_paths_simple(
                     data[key], 
                     rest, 
+                    type_filter,
                     current_path + [key]
                 )
         elif isinstance(data, list):
@@ -686,6 +777,7 @@ def _traverse_with_atomic_paths_simple(data: Any, path_components: list[PathComp
                 yield from _traverse_with_atomic_paths_simple(
                     data[idx], 
                     rest, 
+                    type_filter,
                     current_path + [idx]
                 )
     elif component.type == PathComponentType.SLICE:
@@ -696,6 +788,7 @@ def _traverse_with_atomic_paths_simple(data: Any, path_components: list[PathComp
                 yield from _traverse_with_atomic_paths_simple(
                     data[idx], 
                     rest, 
+                    type_filter,
                     current_path + [idx]
                 )
     # Other component types would need to be handled here
