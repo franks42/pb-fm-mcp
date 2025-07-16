@@ -13,11 +13,10 @@ import logging
 from collections.abc import Callable
 from datetime import timedelta
 from types import TracebackType
-from typing import Any, TypeAlias
+from typing import Any, Self, TypeAlias
 
 import anyio
 from pydantic import BaseModel
-from typing_extensions import Self
 
 import mcp
 from mcp import types

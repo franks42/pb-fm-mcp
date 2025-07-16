@@ -3,13 +3,12 @@ from collections.abc import Callable
 from contextlib import AsyncExitStack
 from datetime import timedelta
 from types import TracebackType
-from typing import Any, Generic, Protocol, TypeVar
+from typing import Any, Generic, Protocol, Self, TypeVar
 
 import anyio
 import httpx
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from pydantic import BaseModel
-from typing_extensions import Self
 
 from mcp.shared.exceptions import McpError
 from mcp.shared.message import MessageMetadata, ServerMessageMetadata, SessionMessage

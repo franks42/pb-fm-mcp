@@ -1,9 +1,7 @@
 import sys
 import types
 from pathlib import Path
-from typing import Any, _GenericAlias  # type: ignore [attr-defined]
-
-from typing_extensions import get_origin
+from typing import Any, _GenericAlias, get_origin  # type: ignore [attr-defined]
 
 _PATH_TYPE_LABELS = {
     Path.is_dir: 'directory',

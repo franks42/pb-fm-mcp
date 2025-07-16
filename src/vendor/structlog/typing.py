@@ -15,28 +15,20 @@ probably change to something more elegant.
 from __future__ import annotations
 
 import sys
-
+from collections.abc import Callable, Mapping, MutableMapping
 from types import TracebackType
 from typing import (
     Any,
-    Callable,
-    Dict,
-    Mapping,
-    MutableMapping,
-    Optional,
     Protocol,
     TextIO,
-    Tuple,
-    Type,
     Union,
     runtime_checkable,
 )
 
-
 if sys.version_info >= (3, 11):
     from typing import Self
 else:
-    from typing_extensions import Self
+    from typing import Self
 
 
 WrappedLogger = Any
@@ -50,7 +42,7 @@ the output of the log entries.
 """
 
 
-Context = Union[Dict[str, Any], Dict[Any, Any]]
+Context = Union[dict[str, Any], dict[Any, Any]]
 """
 A dict-like context carrier.
 
@@ -69,7 +61,7 @@ copy itself.
 """
 
 ProcessorReturnValue = Union[
-    Mapping[str, Any], str, bytes, bytearray, Tuple[Any, ...]
+    Mapping[str, Any], str, bytes, bytearray, tuple[Any, ...]
 ]
 """
 A value returned by a processor.
@@ -84,7 +76,7 @@ See :doc:`processors`.
 .. versionadded:: 20.2.0
 """
 
-ExcInfo = Tuple[Type[BaseException], BaseException, Optional[TracebackType]]
+ExcInfo = tuple[type[BaseException], BaseException, TracebackType | None]
 """
 An exception info tuple as returned by `sys.exc_info`.
 

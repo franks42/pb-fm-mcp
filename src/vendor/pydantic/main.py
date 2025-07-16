@@ -7,21 +7,20 @@ import sys
 import types
 import typing
 import warnings
+from collections.abc import Callable, Generator, Mapping
 from copy import copy, deepcopy
 from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Dict,
-    Generator,
     Literal,
-    Mapping,
-    Set,
-    Tuple,
+    Self,
+    TypeAlias,
     TypeVar,
     Union,
+    Unpack,
     cast,
     overload,
 )
@@ -29,7 +28,6 @@ from typing import (
 import pydantic_core
 import typing_extensions
 from pydantic_core import PydanticUndefined
-from typing_extensions import Self, TypeAlias, Unpack
 
 from ._internal import (
     _config,
@@ -50,7 +48,13 @@ from .aliases import AliasChoices, AliasPath
 from .annotated_handlers import GetCoreSchemaHandler, GetJsonSchemaHandler
 from .config import ConfigDict
 from .errors import PydanticUndefinedAnnotation, PydanticUserError
-from .json_schema import DEFAULT_REF_TEMPLATE, GenerateJsonSchema, JsonSchemaMode, JsonSchemaValue, model_json_schema
+from .json_schema import (
+    DEFAULT_REF_TEMPLATE,
+    GenerateJsonSchema,
+    JsonSchemaMode,
+    JsonSchemaValue,
+    model_json_schema,
+)
 from .plugin._schema_validator import PluggableSchemaValidator
 from .warnings import PydanticDeprecatedSince20
 
@@ -72,11 +76,11 @@ else:
 __all__ = 'BaseModel', 'create_model'
 
 # Keep these type aliases available at runtime:
-TupleGenerator: TypeAlias = Generator[Tuple[str, Any], None, None]
+TupleGenerator: TypeAlias = Generator[tuple[str, Any], None, None]
 # NOTE: In reality, `bool` should be replaced by `Literal[True]` but mypy fails to correctly apply bidirectional
 # type inference (e.g. when using `{'a': {'b': True}}`):
 # NOTE: Keep this type alias in sync with the stub definition in `pydantic-core`:
-IncEx: TypeAlias = Union[Set[int], Set[str], Mapping[int, Union['IncEx', bool]], Mapping[str, Union['IncEx', bool]]]
+IncEx: TypeAlias = set[int] | set[str] | Mapping[int, Union['IncEx', bool]] | Mapping[str, Union['IncEx', bool]]
 
 _object_setattr = _model_construction.object_setattr
 
@@ -199,7 +203,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
             code='base-model-instantiated',
         )
 
-    __slots__ = '__dict__', '__pydantic_fields_set__', '__pydantic_extra__', '__pydantic_private__'
+    __slots__ = '__dict__', '__pydantic_extra__', '__pydantic_fields_set__', '__pydantic_private__'
 
     def __init__(self, /, **data: Any) -> None:
         """Create a new model by parsing and validating input data from keyword arguments.
@@ -277,7 +281,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
         return self.__pydantic_fields_set__
 
     @classmethod
-    def model_construct(cls, _fields_set: set[str] | None = None, **values: Any) -> Self:  # noqa: C901
+    def model_construct(cls, _fields_set: set[str] | None = None, **values: Any) -> Self:
         """Creates a new instance of the `Model` class with validated data.
 
         Creates a new model setting `__dict__` and `__pydantic_fields_set__` from trusted or pre-validated data.
@@ -766,7 +770,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
 
         # Build map from generic typevars to passed params
         typevars_map: dict[TypeVar, type[Any]] = dict(
-            zip(cls.__pydantic_generic_metadata__['parameters'], typevar_values)
+            zip(cls.__pydantic_generic_metadata__['parameters'], typevar_values, strict=False)
         )
 
         if _utils.all_identical(typevars_map.keys(), typevars_map.values()) and typevars_map:
@@ -782,7 +786,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
             origin = cls.__pydantic_generic_metadata__['origin'] or cls
             model_name = origin.model_parametrized_name(args)
             params = tuple(
-                {param: None for param in _generics.iter_contained_typevars(typevars_map.values())}
+                dict.fromkeys(_generics.iter_contained_typevars(typevars_map.values()))
             )  # use dict as ordered set
 
             with _generics.generic_recursion_self_type(origin, args) as maybe_self_type:
@@ -1153,7 +1157,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
         return self.__pydantic_fields_set__
 
     @typing_extensions.deprecated('The `dict` method is deprecated; use `model_dump` instead.', category=None)
-    def dict(  # noqa: D102
+    def dict(
         self,
         *,
         include: IncEx | None = None,
@@ -1178,7 +1182,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
         )
 
     @typing_extensions.deprecated('The `json` method is deprecated; use `model_dump_json` instead.', category=None)
-    def json(  # noqa: D102
+    def json(
         self,
         *,
         include: IncEx | None = None,
@@ -1213,7 +1217,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
 
     @classmethod
     @typing_extensions.deprecated('The `parse_obj` method is deprecated; use `model_validate` instead.', category=None)
-    def parse_obj(cls, obj: Any) -> Self:  # noqa: D102
+    def parse_obj(cls, obj: Any) -> Self:
         warnings.warn(
             'The `parse_obj` method is deprecated; use `model_validate` instead.',
             category=PydanticDeprecatedSince20,
@@ -1227,7 +1231,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
         'otherwise load the data then use `model_validate` instead.',
         category=None,
     )
-    def parse_raw(  # noqa: D102
+    def parse_raw(
         cls,
         b: str | bytes,
         *,
@@ -1281,7 +1285,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
         'use `model_validate_json`, otherwise `model_validate` instead.',
         category=None,
     )
-    def parse_file(  # noqa: D102
+    def parse_file(
         cls,
         path: str | Path,
         *,
@@ -1313,7 +1317,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
         "`model_config['from_attributes']=True` and use `model_validate` instead.",
         category=None,
     )
-    def from_orm(cls, obj: Any) -> Self:  # noqa: D102
+    def from_orm(cls, obj: Any) -> Self:
         warnings.warn(
             'The `from_orm` method is deprecated; set '
             "`model_config['from_attributes']=True` and use `model_validate` instead.",
@@ -1328,7 +1332,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
 
     @classmethod
     @typing_extensions.deprecated('The `construct` method is deprecated; use `model_construct` instead.', category=None)
-    def construct(cls, _fields_set: set[str] | None = None, **values: Any) -> Self:  # noqa: D102
+    def construct(cls, _fields_set: set[str] | None = None, **values: Any) -> Self:
         warnings.warn(
             'The `construct` method is deprecated; use `model_construct` instead.',
             category=PydanticDeprecatedSince20,
@@ -1415,7 +1419,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
 
     @classmethod
     @typing_extensions.deprecated('The `schema` method is deprecated; use `model_json_schema` instead.', category=None)
-    def schema(  # noqa: D102
+    def schema(
         cls, by_alias: bool = True, ref_template: str = DEFAULT_REF_TEMPLATE
     ) -> Dict[str, Any]:  # noqa UP006
         warnings.warn(
@@ -1430,7 +1434,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
         'The `schema_json` method is deprecated; use `model_json_schema` and json.dumps instead.',
         category=None,
     )
-    def schema_json(  # noqa: D102
+    def schema_json(
         cls, *, by_alias: bool = True, ref_template: str = DEFAULT_REF_TEMPLATE, **dumps_kwargs: Any
     ) -> str:  # pragma: no cover
         warnings.warn(
@@ -1450,7 +1454,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
 
     @classmethod
     @typing_extensions.deprecated('The `validate` method is deprecated; use `model_validate` instead.', category=None)
-    def validate(cls, value: Any) -> Self:  # noqa: D102
+    def validate(cls, value: Any) -> Self:
         warnings.warn(
             'The `validate` method is deprecated; use `model_validate` instead.',
             category=PydanticDeprecatedSince20,
@@ -1463,7 +1467,7 @@ class BaseModel(metaclass=_model_construction.ModelMetaclass):
         'The `update_forward_refs` method is deprecated; use `model_rebuild` instead.',
         category=None,
     )
-    def update_forward_refs(cls, **localns: Any) -> None:  # noqa: D102
+    def update_forward_refs(cls, **localns: Any) -> None:
         warnings.warn(
             'The `update_forward_refs` method is deprecated; use `model_rebuild` instead.',
             category=PydanticDeprecatedSince20,
@@ -1563,7 +1567,7 @@ def create_model(
 ) -> type[ModelT]: ...
 
 
-def create_model(  # noqa: C901
+def create_model(
     model_name: str,
     /,
     *,

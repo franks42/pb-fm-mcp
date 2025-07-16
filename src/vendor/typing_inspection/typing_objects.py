@@ -13,10 +13,10 @@ import typing
 import warnings
 from textwrap import dedent
 from types import FunctionType, GenericAlias
-from typing import Any, Final
+from typing import Any, Final, LiteralString, TypeAliasType
 
 import typing_extensions
-from typing_extensions import LiteralString, TypeAliasType, TypeIs, deprecated
+from typing_extensions import TypeIs, deprecated
 
 __all__ = (
     'DEPRECATED_ALIASES',

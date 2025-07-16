@@ -3,10 +3,9 @@
 from __future__ import annotations as _annotations
 
 from inspect import Parameter, signature
-from typing import Any, Dict, Tuple, Union, cast
+from typing import Any, Protocol, Union, cast
 
 from pydantic_core import core_schema
-from typing_extensions import Protocol
 
 from ..errors import PydanticUserError
 from ._utils import can_be_positional
@@ -105,9 +104,9 @@ def make_generic_v1_field_validator(validator: V1Validator) -> core_schema.WithI
         return wrapper2
 
 
-RootValidatorValues = Dict[str, Any]
+RootValidatorValues = dict[str, Any]
 # technically tuple[model_dict, model_extra, fields_set] | tuple[dataclass_dict, init_vars]
-RootValidatorFieldsTuple = Tuple[Any, ...]
+RootValidatorFieldsTuple = tuple[Any, ...]
 
 
 class V1RootValidatorFunction(Protocol):

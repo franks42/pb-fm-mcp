@@ -1,8 +1,9 @@
 import json
 import pickle
+from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Union
+from typing import Any
 
 from pydantic.v1.types import StrBytes
 
@@ -45,7 +46,7 @@ def load_str_bytes(
 
 
 def load_file(
-    path: Union[str, Path],
+    path: str | Path,
     *,
     content_type: str = None,
     encoding: str = 'utf8',

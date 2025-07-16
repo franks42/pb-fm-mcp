@@ -18,15 +18,12 @@ import os
 import sys
 import threading
 import time
-
+from collections.abc import Callable, Collection, Sequence
 from types import FrameType, TracebackType
 from typing import (
     Any,
-    Callable,
     ClassVar,
-    Collection,
     NamedTuple,
-    Sequence,
     TextIO,
     cast,
 )
@@ -45,7 +42,6 @@ from .typing import (
     ExcInfo,
     WrappedLogger,
 )
-
 
 __all__ = [
     "NAME_TO_LEVEL",  # some people rely on it being here
@@ -520,14 +516,14 @@ def _make_stamper(
     if utc:
 
         def now() -> datetime.datetime:
-            return datetime.datetime.now(tz=datetime.timezone.utc)
+            return datetime.datetime.now(tz=datetime.UTC)
 
     else:
 
         def now() -> datetime.datetime:
             # We don't need the TZ for our own formatting. We add it only for
             # user-defined formats later.
-            return datetime.datetime.now()  # noqa: DTZ005
+            return datetime.datetime.now()
 
     if fmt is None:
 

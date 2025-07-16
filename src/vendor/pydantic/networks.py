@@ -7,8 +7,15 @@ import re
 from dataclasses import fields
 from functools import lru_cache
 from importlib.metadata import version
-from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network
-from typing import TYPE_CHECKING, Any, ClassVar
+from ipaddress import (
+    IPv4Address,
+    IPv4Interface,
+    IPv4Network,
+    IPv6Address,
+    IPv6Interface,
+    IPv6Network,
+)
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Self, TypeAlias
 
 from pydantic_core import (
     MultiHostHost,
@@ -19,7 +26,6 @@ from pydantic_core import (
 )
 from pydantic_core import MultiHostUrl as _CoreMultiHostUrl
 from pydantic_core import Url as _CoreUrl
-from typing_extensions import Annotated, Self, TypeAlias
 
 from pydantic.errors import PydanticUserError
 
@@ -39,31 +45,31 @@ else:
 
 
 __all__ = [
-    'AnyUrl',
+    'AmqpDsn',
     'AnyHttpUrl',
+    'AnyUrl',
+    'AnyWebsocketUrl',
+    'ClickHouseDsn',
+    'CockroachDsn',
+    'EmailStr',
     'FileUrl',
     'FtpUrl',
     'HttpUrl',
-    'WebsocketUrl',
-    'AnyWebsocketUrl',
-    'UrlConstraints',
-    'EmailStr',
-    'NameEmail',
     'IPvAnyAddress',
     'IPvAnyInterface',
     'IPvAnyNetwork',
-    'PostgresDsn',
-    'CockroachDsn',
-    'AmqpDsn',
-    'RedisDsn',
-    'MongoDsn',
     'KafkaDsn',
-    'NatsDsn',
-    'validate_email',
-    'MySQLDsn',
     'MariaDBDsn',
-    'ClickHouseDsn',
+    'MongoDsn',
+    'MySQLDsn',
+    'NameEmail',
+    'NatsDsn',
+    'PostgresDsn',
+    'RedisDsn',
     'SnowflakeDsn',
+    'UrlConstraints',
+    'WebsocketUrl',
+    'validate_email',
 ]
 
 
@@ -954,7 +960,7 @@ else:
         print(Model(email='contact@mail.com'))
         #> email='contact@mail.com'
         ```
-        """  # noqa: D212
+        """
 
         @classmethod
         def __get_pydantic_core_schema__(
@@ -1012,9 +1018,9 @@ class NameEmail(_repr.Representation):
     print(user.email.name)
     #> fred.bloggs
     ```
-    """  # noqa: D212
+    """
 
-    __slots__ = 'name', 'email'
+    __slots__ = 'email', 'name'
 
     def __init__(self, name: str, email: str):
         self.name = name

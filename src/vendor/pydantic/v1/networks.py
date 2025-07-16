@@ -1,4 +1,5 @@
 import re
+from collections.abc import Collection, Generator
 from ipaddress import (
     IPv4Address,
     IPv4Interface,
@@ -9,19 +10,10 @@ from ipaddress import (
     _BaseAddress,
     _BaseNetwork,
 )
+from re import Match, Pattern
 from typing import (
     TYPE_CHECKING,
     Any,
-    Collection,
-    Dict,
-    Generator,
-    List,
-    Match,
-    Optional,
-    Pattern,
-    Set,
-    Tuple,
-    Type,
     Union,
     cast,
     no_type_check,
@@ -43,21 +35,21 @@ if TYPE_CHECKING:
 
     class Parts(TypedDict, total=False):
         scheme: str
-        user: Optional[str]
-        password: Optional[str]
-        ipv4: Optional[str]
-        ipv6: Optional[str]
-        domain: Optional[str]
-        port: Optional[str]
-        path: Optional[str]
-        query: Optional[str]
-        fragment: Optional[str]
+        user: str | None
+        password: str | None
+        ipv4: str | None
+        ipv6: str | None
+        domain: str | None
+        port: str | None
+        path: str | None
+        query: str | None
+        fragment: str | None
 
     class HostParts(TypedDict, total=False):
         host: str
-        tld: Optional[str]
-        host_type: Optional[str]
-        port: Optional[str]
+        tld: str | None
+        host_type: str | None
+        port: str | None
         rebuild: bool
 
 else:
@@ -67,25 +59,25 @@ else:
         pass
 
 
-NetworkType = Union[str, bytes, int, Tuple[Union[str, bytes, int], Union[str, int]]]
+NetworkType = Union[str, bytes, int, tuple[str | bytes | int, str | int]]
 
 __all__ = [
-    'AnyUrl',
+    'AmqpDsn',
     'AnyHttpUrl',
+    'AnyUrl',
+    'CockroachDsn',
+    'EmailStr',
     'FileUrl',
     'HttpUrl',
-    'stricturl',
-    'EmailStr',
-    'NameEmail',
     'IPvAnyAddress',
     'IPvAnyInterface',
     'IPvAnyNetwork',
-    'PostgresDsn',
-    'CockroachDsn',
-    'AmqpDsn',
-    'RedisDsn',
-    'MongoDsn',
     'KafkaDsn',
+    'MongoDsn',
+    'NameEmail',
+    'PostgresDsn',
+    'RedisDsn',
+    'stricturl',
     'validate_email',
 ]
 
@@ -172,16 +164,16 @@ class AnyUrl(str):
     strip_whitespace = True
     min_length = 1
     max_length = 2**16
-    allowed_schemes: Optional[Collection[str]] = None
+    allowed_schemes: Collection[str] | None = None
     tld_required: bool = False
     user_required: bool = False
     host_required: bool = True
-    hidden_parts: Set[str] = set()
+    hidden_parts: set[str] = set()
 
-    __slots__ = ('scheme', 'user', 'password', 'host', 'tld', 'host_type', 'port', 'path', 'query', 'fragment')
+    __slots__ = ('fragment', 'host', 'host_type', 'password', 'path', 'port', 'query', 'scheme', 'tld', 'user')
 
     @no_type_check
-    def __new__(cls, url: Optional[str], **kwargs) -> object:
+    def __new__(cls, url: str | None, **kwargs) -> object:
         return str.__new__(cls, cls.build(**kwargs) if url is None else url)
 
     def __init__(
@@ -189,15 +181,15 @@ class AnyUrl(str):
         url: str,
         *,
         scheme: str,
-        user: Optional[str] = None,
-        password: Optional[str] = None,
-        host: Optional[str] = None,
-        tld: Optional[str] = None,
+        user: str | None = None,
+        password: str | None = None,
+        host: str | None = None,
+        tld: str | None = None,
         host_type: str = 'domain',
-        port: Optional[str] = None,
-        path: Optional[str] = None,
-        query: Optional[str] = None,
-        fragment: Optional[str] = None,
+        port: str | None = None,
+        path: str | None = None,
+        query: str | None = None,
+        fragment: str | None = None,
     ) -> None:
         str.__init__(url)
         self.scheme = scheme
@@ -216,13 +208,13 @@ class AnyUrl(str):
         cls,
         *,
         scheme: str,
-        user: Optional[str] = None,
-        password: Optional[str] = None,
+        user: str | None = None,
+        password: str | None = None,
         host: str,
-        port: Optional[str] = None,
-        path: Optional[str] = None,
-        query: Optional[str] = None,
-        fragment: Optional[str] = None,
+        port: str | None = None,
+        path: str | None = None,
+        query: str | None = None,
+        fragment: str | None = None,
         **_kwargs: str,
     ) -> str:
         parts = Parts(
@@ -256,7 +248,7 @@ class AnyUrl(str):
         return url
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         update_not_none(field_schema, minLength=cls.min_length, maxLength=cls.max_length, format='uri')
 
     @classmethod
@@ -308,11 +300,11 @@ class AnyUrl(str):
         )
 
     @staticmethod
-    def _match_url(url: str) -> Optional[Match[str]]:
+    def _match_url(url: str) -> Match[str] | None:
         return url_regex().match(url)
 
     @staticmethod
-    def _validate_port(port: Optional[str]) -> None:
+    def _validate_port(port: str | None) -> None:
         if port is not None and int(port) > 65_535:
             raise errors.UrlPortError()
 
@@ -339,7 +331,7 @@ class AnyUrl(str):
         return parts
 
     @classmethod
-    def validate_host(cls, parts: 'Parts') -> Tuple[str, Optional[str], str, bool]:
+    def validate_host(cls, parts: 'Parts') -> tuple[str, str | None, str, bool]:
         tld, host_type, rebuild = None, None, False
         for f in ('domain', 'ipv4', 'ipv6'):
             host = parts[f]  # type: ignore[literal-required]
@@ -423,12 +415,12 @@ class FileUrl(AnyUrl):
 class MultiHostDsn(AnyUrl):
     __slots__ = AnyUrl.__slots__ + ('hosts',)
 
-    def __init__(self, *args: Any, hosts: Optional[List['HostParts']] = None, **kwargs: Any):
+    def __init__(self, *args: Any, hosts: list['HostParts'] | None = None, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.hosts = hosts
 
     @staticmethod
-    def _match_url(url: str) -> Optional[Match[str]]:
+    def _match_url(url: str) -> Match[str] | None:
         return multi_host_url_regex().match(url)
 
     @classmethod
@@ -437,7 +429,7 @@ class MultiHostDsn(AnyUrl):
 
     @classmethod
     def _build_url(cls, m: Match[str], url: str, parts: 'Parts') -> 'MultiHostDsn':
-        hosts_parts: List['HostParts'] = []
+        hosts_parts: list[HostParts] = []
         host_re = host_regex()
         for host in m.groupdict()['hosts'].split(','):
             d: Parts = host_re.match(host).groupdict()  # type: ignore
@@ -558,8 +550,8 @@ def stricturl(
     max_length: int = 2**16,
     tld_required: bool = True,
     host_required: bool = True,
-    allowed_schemes: Optional[Collection[str]] = None,
-) -> Type[AnyUrl]:
+    allowed_schemes: Collection[str] | None = None,
+) -> type[AnyUrl]:
     # use kwargs then define conf in a dict to aid with IDE type hinting
     namespace = dict(
         strip_whitespace=strip_whitespace,
@@ -582,7 +574,7 @@ def import_email_validator() -> None:
 
 class EmailStr(str):
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         field_schema.update(type='string', format='email')
 
     @classmethod
@@ -594,12 +586,12 @@ class EmailStr(str):
         yield cls.validate
 
     @classmethod
-    def validate(cls, value: Union[str]) -> str:
+    def validate(cls, value: str) -> str:
         return validate_email(value)[1]
 
 
 class NameEmail(Representation):
-    __slots__ = 'name', 'email'
+    __slots__ = 'email', 'name'
 
     def __init__(self, name: str, email: str):
         self.name = name
@@ -609,7 +601,7 @@ class NameEmail(Representation):
         return isinstance(other, NameEmail) and (self.name, self.email) == (other.name, other.email)
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         field_schema.update(type='string', format='name-email')
 
     @classmethod
@@ -633,7 +625,7 @@ class IPvAnyAddress(_BaseAddress):
     __slots__ = ()
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         field_schema.update(type='string', format='ipvanyaddress')
 
     @classmethod
@@ -641,7 +633,7 @@ class IPvAnyAddress(_BaseAddress):
         yield cls.validate
 
     @classmethod
-    def validate(cls, value: Union[str, bytes, int]) -> Union[IPv4Address, IPv6Address]:
+    def validate(cls, value: str | bytes | int) -> IPv4Address | IPv6Address:
         try:
             return IPv4Address(value)
         except ValueError:
@@ -657,7 +649,7 @@ class IPvAnyInterface(_BaseAddress):
     __slots__ = ()
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         field_schema.update(type='string', format='ipvanyinterface')
 
     @classmethod
@@ -665,7 +657,7 @@ class IPvAnyInterface(_BaseAddress):
         yield cls.validate
 
     @classmethod
-    def validate(cls, value: NetworkType) -> Union[IPv4Interface, IPv6Interface]:
+    def validate(cls, value: NetworkType) -> IPv4Interface | IPv6Interface:
         try:
             return IPv4Interface(value)
         except ValueError:
@@ -679,7 +671,7 @@ class IPvAnyInterface(_BaseAddress):
 
 class IPvAnyNetwork(_BaseNetwork):  # type: ignore
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         field_schema.update(type='string', format='ipvanynetwork')
 
     @classmethod
@@ -687,7 +679,7 @@ class IPvAnyNetwork(_BaseNetwork):  # type: ignore
         yield cls.validate
 
     @classmethod
-    def validate(cls, value: NetworkType) -> Union[IPv4Network, IPv6Network]:
+    def validate(cls, value: NetworkType) -> IPv4Network | IPv6Network:
         # Assume IP Network is defined with a default value for ``strict`` argument.
         # Define your own class if you want to specify network address check strictness.
         try:
@@ -708,7 +700,7 @@ A somewhat arbitrary but very generous number compared to what is allowed by mos
 """
 
 
-def validate_email(value: Union[str]) -> Tuple[str, str]:
+def validate_email(value: str) -> tuple[str, str]:
     """
     Email address validation using https://pypi.org/project/email-validator/
     Notes:
@@ -723,7 +715,7 @@ def validate_email(value: Union[str]) -> Tuple[str, str]:
         raise errors.EmailError()
 
     m = pretty_email_regex.fullmatch(value)
-    name: Union[str, None] = None
+    name: str | None = None
     if m:
         name, value = m.groups()
     email = value.strip()

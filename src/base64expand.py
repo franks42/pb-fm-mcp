@@ -2,7 +2,8 @@
 # Utility for recursively expanding base64-encoded strings in JSON-like structures.
 
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from hastra_types import JSONType
 
@@ -69,8 +70,8 @@ def base64expand(obj: 'JSONType') -> 'JSONType':
         return obj
 
 if __name__ == "__main__":
-    import sys
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(description="Recursively expand all base64-encoded strings in a JSON-like structure from stdin or file.")
     parser.add_argument('input', nargs='?', type=argparse.FileType('r'), default=sys.stdin, help='Input JSON file (default: stdin)')

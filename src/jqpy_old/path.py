@@ -5,11 +5,12 @@ This module provides the core functionality for getting, setting, and deleting
 values in nested data structures using path expressions.
 """
 
-from typing import Any, List, Union
+from typing import Any
+
 from .parser import PathComponent, PathComponentType
 
 
-def get_path(data: Any, path: Union[str, List[PathComponent]], default: Any = None) -> Any:
+def get_path(data: Any, path: str | list[PathComponent], default: Any = None) -> Any:
     """
     Get a value from a nested data structure using a path expression.
 
@@ -51,7 +52,7 @@ def get_path(data: Any, path: Union[str, List[PathComponent]], default: Any = No
     return current
 
 
-def set_path(data: Any, path: Union[str, List[PathComponent]], value: Any) -> Any:
+def set_path(data: Any, path: str | list[PathComponent], value: Any) -> Any:
     """
     Set a value in a nested data structure using a path expression.
     
@@ -195,7 +196,7 @@ def set_path(data: Any, path: Union[str, List[PathComponent]], value: Any) -> An
     return current
 
 
-def delete_path(data: Any, path: Union[str, List[PathComponent]]) -> Any:
+def delete_path(data: Any, path: str | list[PathComponent]) -> Any:
     """
     Delete a value from a nested data structure using a path expression.
     
@@ -209,7 +210,7 @@ def delete_path(data: Any, path: Union[str, List[PathComponent]]) -> Any:
     raise NotImplementedError("delete_path() not implemented yet")
 
 
-def has_path(data: Any, path: Union[str, List[PathComponent]]) -> bool:
+def has_path(data: Any, path: str | list[PathComponent]) -> bool:
     """
     Check if a path exists in a nested data structure.
     

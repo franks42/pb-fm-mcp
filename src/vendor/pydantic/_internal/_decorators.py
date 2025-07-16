@@ -3,14 +3,15 @@
 from __future__ import annotations as _annotations
 
 from collections import deque
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from functools import cached_property, partial, partialmethod
 from inspect import Parameter, Signature, isdatadescriptor, ismethoddescriptor, signature
 from itertools import islice
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Iterable, TypeVar, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, TypeAlias, TypeVar
 
 from pydantic_core import PydanticUndefined, core_schema
-from typing_extensions import Literal, TypeAlias, is_typeddict
+from typing_extensions import is_typeddict
 
 from ..errors import PydanticUserError
 from ._core_utils import get_type_ref
@@ -141,19 +142,11 @@ class ModelValidatorDecoratorInfo:
     mode: Literal['wrap', 'before', 'after']
 
 
-DecoratorInfo: TypeAlias = """Union[
-    ValidatorDecoratorInfo,
-    FieldValidatorDecoratorInfo,
-    RootValidatorDecoratorInfo,
-    FieldSerializerDecoratorInfo,
-    ModelSerializerDecoratorInfo,
-    ModelValidatorDecoratorInfo,
-    ComputedFieldInfo,
-]"""
+DecoratorInfo: TypeAlias = """ValidatorDecoratorInfo | FieldValidatorDecoratorInfo | RootValidatorDecoratorInfo | FieldSerializerDecoratorInfo | ModelSerializerDecoratorInfo | ModelValidatorDecoratorInfo | ComputedFieldInfo"""
 
 ReturnType = TypeVar('ReturnType')
 DecoratedType: TypeAlias = (
-    'Union[classmethod[Any, Any, ReturnType], staticmethod[Any, ReturnType], Callable[..., ReturnType], property]'
+    'classmethod[Any, Any, ReturnType] | staticmethod[Any, ReturnType] | Callable[..., ReturnType] | property'
 )
 
 
@@ -424,7 +417,7 @@ class DecoratorInfos:
     computed_fields: dict[str, Decorator[ComputedFieldInfo]] = field(default_factory=dict)
 
     @staticmethod
-    def build(model_dc: type[Any]) -> DecoratorInfos:  # noqa: C901 (ignore complexity)
+    def build(model_dc: type[Any]) -> DecoratorInfos:
         """We want to collect all DecFunc instances that exist as
         attributes in the namespace of the class (a BaseModel or dataclass)
         that called us
@@ -666,7 +659,7 @@ def _serializer_info_arg(mode: Literal['plain', 'wrap'], n_positional: int) -> b
 
 
 AnyDecoratorCallable: TypeAlias = (
-    'Union[classmethod[Any, Any, Any], staticmethod[Any, Any], partialmethod[Any], Callable[..., Any]]'
+    'classmethod[Any, Any, Any] | staticmethod[Any, Any] | partialmethod[Any] | Callable[..., Any]'
 )
 
 

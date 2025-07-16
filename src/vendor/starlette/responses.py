@@ -8,13 +8,13 @@ import re
 import stat
 import sys
 import warnings
-from collections.abc import AsyncIterable, Awaitable, Iterable, Mapping, Sequence
+from collections.abc import AsyncIterable, Awaitable, Callable, Iterable, Mapping, Sequence
 from datetime import datetime
 from email.utils import format_datetime, formatdate
 from functools import partial
 from mimetypes import guess_type
 from secrets import token_hex
-from typing import Any, Callable, Literal, Union
+from typing import Any, Literal, Union
 from urllib.parse import quote
 
 import anyio

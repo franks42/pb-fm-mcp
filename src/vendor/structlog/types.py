@@ -24,7 +24,6 @@ from .typing import (
     WrappedLogger,
 )
 
-
 __all__ = (
     "BindableLogger",
     "Context",

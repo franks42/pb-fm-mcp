@@ -70,7 +70,7 @@ _token_wrappers: dict[Any, _TokenWrapper] = {}
 
 @dataclass(frozen=True)
 class _TokenWrapper:
-    __slots__ = "_token", "__weakref__"
+    __slots__ = "__weakref__", "_token"
     _token: object
 
 
@@ -79,7 +79,7 @@ class _NoValueSet(enum.Enum):
 
 
 class RunvarToken(Generic[T]):
-    __slots__ = "_var", "_value", "_redeemed"
+    __slots__ = "_redeemed", "_value", "_var"
 
     def __init__(self, var: RunVar[T], value: T | Literal[_NoValueSet.NO_VALUE_SET]):
         self._var = var
@@ -92,7 +92,7 @@ class RunVar(Generic[T]):
     Like a :class:`~contextvars.ContextVar`, except scoped to the running event loop.
     """
 
-    __slots__ = "_name", "_default"
+    __slots__ = "_default", "_name"
 
     NO_VALUE_SET: Literal[_NoValueSet.NO_VALUE_SET] = _NoValueSet.NO_VALUE_SET
 

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import functools
-from typing import TYPE_CHECKING, Any, Callable, Iterable, TypeVar
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 from pydantic_core import CoreConfig, CoreSchema, SchemaValidator, ValidationError
-from typing_extensions import Literal, ParamSpec
+from typing_extensions import ParamSpec
 
 if TYPE_CHECKING:
     from . import BaseValidateHandlerProtocol, PydanticPluginProtocol, SchemaKind, SchemaTypePath

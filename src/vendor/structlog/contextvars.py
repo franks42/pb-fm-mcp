@@ -21,14 +21,13 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
-
+from collections.abc import Generator, Mapping
 from types import FrameType
-from typing import Any, Generator, Mapping
+from typing import Any
 
 import structlog
 
 from .typing import BindableLogger, EventDict, WrappedLogger
-
 
 STRUCTLOG_KEY_PREFIX = "structlog_"
 STRUCTLOG_KEY_PREFIX_LEN = len(STRUCTLOG_KEY_PREFIX)

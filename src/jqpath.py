@@ -1,14 +1,14 @@
 import json
 import re
 import time
-from collections.abc import Callable, Iterator, MutableMapping, MutableSequence
-from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeVar, Union, cast
+from collections.abc import Callable, Iterator
+from typing import Any, TypeVar, Union
 
 # === TYPE DEFINITIONS ===
 
 # Type aliases
 Selector = Union[str, int, slice, Callable[..., bool]]
-PathType = Union[str, int, List[Union[str, int, dict, Callable, slice]]]
+PathType = Union[str, int, list[str | int | dict | Callable | slice]]
 T = TypeVar('T')
 
 # Constants
@@ -19,8 +19,8 @@ class Response:
     """Mock response class for type hints."""
     status_code: int
     text: str
-    json: Callable[[], Dict[str, Any]]
-    headers: Dict[str, str]
+    json: Callable[[], dict[str, Any]]
+    headers: dict[str, str]
     elapsed: float
     request: Any
 
@@ -118,7 +118,7 @@ def select_wildcard(key, value):
 
 # === CORE PATH LOGIC ===
 
-def _normalize_path(path: Union[str, PathType], separator: str = '.') -> PathType:
+def _normalize_path(path: str | PathType, separator: str = '.') -> PathType:
     if isinstance(path, str):
         return [int(p) if p.isdigit() or (p.startswith('-') and p[1:].isdigit()) else p for p in path.split(separator)]
     return path
@@ -521,7 +521,7 @@ def _traverse_with_selectors(
     only_first: bool = False,
     create_missing: bool = False,
     original_path: list = None
-) -> Iterator[Tuple[list, Any]]:
+) -> Iterator[tuple[list, Any]]:
     """Traverse an object using a list of selector functions.
     
     This function recursively traverses a nested data structure using a list
@@ -681,7 +681,7 @@ def _traverse_with_selectors(
     if not found and not can_create_missing:
         return
 
-def getpath_iter(obj: Any, path: Union[str, PathType], separator: str = '.') -> Iterator[Any]:
+def getpath_iter(obj: Any, path: str | PathType, separator: str = '.') -> Iterator[Any]:
     """Iterate over values in a nested object using a path, with support for selectors.
     
     Args:
@@ -947,7 +947,7 @@ def _get_value_by_path(obj: Any, path: PathType):
     except (KeyError, IndexError, TypeError, AttributeError):
         return None
 
-def delpath(obj: Any, path: Union[str, PathType], separator: str = '.') -> int:
+def delpath(obj: Any, path: str | PathType, separator: str = '.') -> int:
     """Deletes an item from the data object at the specified path.
     
     Args:
@@ -1039,7 +1039,7 @@ def delpaths(obj: Any, paths: list, separator: str = '.'):
     for path in paths:
         delpath(obj, path, separator)
 
-def getpath(obj: Any, path: Union[str, PathType], default: Any = None, separator: str = '.', only_first_path_match: bool = False) -> Any:
+def getpath(obj: Any, path: str | PathType, default: Any = None, separator: str = '.', only_first_path_match: bool = False) -> Any:
     """Gets a value from a nested object using a path, with support for selectors.
     
     Args:
@@ -1101,7 +1101,7 @@ def getpath(obj: Any, path: Union[str, PathType], default: Any = None, separator
         return results[0] if results else default
     return results
 
-def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bool = True, separator: str = '.', operation: str = 'set', only_first_path_match: bool = False):
+def setpath(obj: Any, path: str | PathType, value: Any, create_missing: bool = True, separator: str = '.', operation: str = 'set', only_first_path_match: bool = False):
     """Set a value at a path in a nested structure.
     
     Args:
@@ -1160,7 +1160,7 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
             if valid_path:
                 # If we got here, the direct path is valid
                 paths_to_modify = [selectors]
-        except Exception as e:
+        except Exception:
             pass
 
     # If no direct path found, try using selectors
@@ -1189,7 +1189,7 @@ def setpath(obj: Any, path: Union[str, PathType], value: Any, create_missing: bo
 
                             current = None
                             break
-                    except (ValueError, IndexError) as e:
+                    except (ValueError, IndexError):
 
                         current = None
                         break
@@ -1397,7 +1397,7 @@ def getpaths_setpaths(src_obj, tgt_obj, paths_map, default=None, only_first_path
         if value is not None and value != []:  # Don't set if empty list (no matches)
             setpath(tgt_obj, tgt_path, value, only_first_path_match=only_first_path_match)
 
-def haspath(obj: Any, path: Union[str, PathType], separator: str = '.') -> bool:
+def haspath(obj: Any, path: str | PathType, separator: str = '.') -> bool:
     """Check if a path exists in the object.
     
     Args:
@@ -1718,7 +1718,7 @@ if __name__ == "__main__":
 
     # Read input
     if args.file:
-        with open(args.file, "r", encoding="utf-8") as f:
+        with open(args.file, encoding="utf-8") as f:
             input_str = f.read()
     else:
         input_str = sys.stdin.read()

@@ -1,35 +1,33 @@
 import re
 import warnings
 from collections import defaultdict
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import is_dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from enum import Enum
-from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network
+from ipaddress import (
+    IPv4Address,
+    IPv4Interface,
+    IPv4Network,
+    IPv6Address,
+    IPv6Interface,
+    IPv6Network,
+)
 from pathlib import Path
+from re import Pattern
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
-    Callable,
-    Dict,
     ForwardRef,
-    FrozenSet,
     Generic,
-    Iterable,
-    List,
-    Optional,
-    Pattern,
-    Sequence,
-    Set,
-    Tuple,
-    Type,
+    Literal,
     TypeVar,
     Union,
     cast,
 )
 from uuid import UUID
-
-from typing_extensions import Annotated, Literal
 
 from pydantic.v1.fields import (
     MAPPING_LIKE_SHAPES,
@@ -89,12 +87,12 @@ if TYPE_CHECKING:
 default_prefix = '#/definitions/'
 default_ref_template = '#/definitions/{model}'
 
-TypeModelOrEnum = Union[Type['BaseModel'], Type[Enum]]
-TypeModelSet = Set[TypeModelOrEnum]
+TypeModelOrEnum = Union[type['BaseModel'], type[Enum]]
+TypeModelSet = set[TypeModelOrEnum]
 
 
 def _apply_modify_schema(
-    modify_schema: Callable[..., None], field: Optional[ModelField], field_schema: Dict[str, Any]
+    modify_schema: Callable[..., None], field: ModelField | None, field_schema: dict[str, Any]
 ) -> None:
     from inspect import signature
 
@@ -107,14 +105,14 @@ def _apply_modify_schema(
 
 
 def schema(
-    models: Sequence[Union[Type['BaseModel'], Type['Dataclass']]],
+    models: Sequence[type['BaseModel'] | type['Dataclass']],
     *,
     by_alias: bool = True,
-    title: Optional[str] = None,
-    description: Optional[str] = None,
-    ref_prefix: Optional[str] = None,
+    title: str | None = None,
+    description: str | None = None,
+    ref_prefix: str | None = None,
     ref_template: str = default_ref_template,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Process a list of models and generate a single JSON Schema with all of them defined in the ``definitions``
     top-level JSON key, including their sub-models.
@@ -138,7 +136,7 @@ def schema(
     flat_models = get_flat_models_from_models(clean_models)
     model_name_map = get_model_name_map(flat_models)
     definitions = {}
-    output_schema: Dict[str, Any] = {}
+    output_schema: dict[str, Any] = {}
     if title:
         output_schema['title'] = title
     if description:
@@ -160,11 +158,11 @@ def schema(
 
 
 def model_schema(
-    model: Union[Type['BaseModel'], Type['Dataclass']],
+    model: type['BaseModel'] | type['Dataclass'],
     by_alias: bool = True,
-    ref_prefix: Optional[str] = None,
+    ref_prefix: str | None = None,
     ref_template: str = default_ref_template,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate a JSON Schema for one model. With all the sub-models defined in the ``definitions`` top-level
     JSON key.
@@ -197,11 +195,11 @@ def model_schema(
     return m_schema
 
 
-def get_field_info_schema(field: ModelField, schema_overrides: bool = False) -> Tuple[Dict[str, Any], bool]:
+def get_field_info_schema(field: ModelField, schema_overrides: bool = False) -> tuple[dict[str, Any], bool]:
     # If no title is explicitly set, we don't set title in the schema for enums.
     # The behaviour is the same as `BaseModel` reference, where the default title
     # is in the definitions part of the schema.
-    schema_: Dict[str, Any] = {}
+    schema_: dict[str, Any] = {}
     if field.field_info.title or not lenient_issubclass(field.type_, Enum):
         schema_['title'] = field.field_info.title or field.alias.title().replace('_', ' ')
 
@@ -223,11 +221,11 @@ def field_schema(
     field: ModelField,
     *,
     by_alias: bool = True,
-    model_name_map: Dict[TypeModelOrEnum, str],
-    ref_prefix: Optional[str] = None,
+    model_name_map: dict[TypeModelOrEnum, str],
+    ref_prefix: str | None = None,
     ref_template: str = default_ref_template,
-    known_models: Optional[TypeModelSet] = None,
-) -> Tuple[Dict[str, Any], Dict[str, Any], Set[str]]:
+    known_models: TypeModelSet | None = None,
+) -> tuple[dict[str, Any], dict[str, Any], set[str]]:
     """
     Process a Pydantic field and return a tuple with a JSON Schema for it as the first item.
     Also return a dictionary of definitions with models as keys and their schemas as values. If the passed field
@@ -271,13 +269,13 @@ def field_schema(
 
 
 numeric_types = (int, float, Decimal)
-_str_types_attrs: Tuple[Tuple[str, Union[type, Tuple[type, ...]], str], ...] = (
+_str_types_attrs: tuple[tuple[str, type | tuple[type, ...], str], ...] = (
     ('max_length', numeric_types, 'maxLength'),
     ('min_length', numeric_types, 'minLength'),
     ('regex', str, 'pattern'),
 )
 
-_numeric_types_attrs: Tuple[Tuple[str, Union[type, Tuple[type, ...]], str], ...] = (
+_numeric_types_attrs: tuple[tuple[str, type | tuple[type, ...], str], ...] = (
     ('gt', numeric_types, 'exclusiveMinimum'),
     ('lt', numeric_types, 'exclusiveMaximum'),
     ('ge', numeric_types, 'minimum'),
@@ -286,12 +284,12 @@ _numeric_types_attrs: Tuple[Tuple[str, Union[type, Tuple[type, ...]], str], ...]
 )
 
 
-def get_field_schema_validations(field: ModelField) -> Dict[str, Any]:
+def get_field_schema_validations(field: ModelField) -> dict[str, Any]:
     """
     Get the JSON Schema validation keywords for a ``field`` with an annotation of
     a Pydantic ``FieldInfo`` with validation arguments.
     """
-    f_schema: Dict[str, Any] = {}
+    f_schema: dict[str, Any] = {}
 
     if lenient_issubclass(field.type_, Enum):
         # schema is already updated by `enum_process_schema`; just update with field extra
@@ -319,7 +317,7 @@ def get_field_schema_validations(field: ModelField) -> Dict[str, Any]:
     return f_schema
 
 
-def get_model_name_map(unique_models: TypeModelSet) -> Dict[TypeModelOrEnum, str]:
+def get_model_name_map(unique_models: TypeModelSet) -> dict[TypeModelOrEnum, str]:
     """
     Process a set of models and generate unique names for them to be used as keys in the JSON Schema
     definitions. By default the names are the same as the class name. But if two models in different Python
@@ -330,7 +328,7 @@ def get_model_name_map(unique_models: TypeModelSet) -> Dict[TypeModelOrEnum, str
     :return: dict mapping models to names
     """
     name_model_map = {}
-    conflicting_names: Set[str] = set()
+    conflicting_names: set[str] = set()
     for model in unique_models:
         model_name = normalize_name(model.__name__)
         if model_name in conflicting_names:
@@ -346,7 +344,7 @@ def get_model_name_map(unique_models: TypeModelSet) -> Dict[TypeModelOrEnum, str
     return {v: k for k, v in name_model_map.items()}
 
 
-def get_flat_models_from_model(model: Type['BaseModel'], known_models: Optional[TypeModelSet] = None) -> TypeModelSet:
+def get_flat_models_from_model(model: type['BaseModel'], known_models: TypeModelSet | None = None) -> TypeModelSet:
     """
     Take a single ``model`` and generate a set with itself and all the sub-models in the tree. I.e. if you pass
     model ``Foo`` (subclass of Pydantic ``BaseModel``) as ``model``, and it has a field of type ``Bar`` (also
@@ -413,7 +411,7 @@ def get_flat_models_from_fields(fields: Sequence[ModelField], known_models: Type
     return flat_models
 
 
-def get_flat_models_from_models(models: Sequence[Type['BaseModel']]) -> TypeModelSet:
+def get_flat_models_from_models(models: Sequence[type['BaseModel']]) -> TypeModelSet:
     """
     Take a list of ``models`` and generate a set with them and all their sub-models in their trees. I.e. if you pass
     a list of two models, ``Foo`` and ``Bar``, both subclasses of Pydantic ``BaseModel`` as models, and ``Bar`` has
@@ -433,23 +431,23 @@ def field_type_schema(
     field: ModelField,
     *,
     by_alias: bool,
-    model_name_map: Dict[TypeModelOrEnum, str],
+    model_name_map: dict[TypeModelOrEnum, str],
     ref_template: str,
     schema_overrides: bool = False,
-    ref_prefix: Optional[str] = None,
+    ref_prefix: str | None = None,
     known_models: TypeModelSet,
-) -> Tuple[Dict[str, Any], Dict[str, Any], Set[str]]:
+) -> tuple[dict[str, Any], dict[str, Any], set[str]]:
     """
     Used by ``field_schema()``, you probably should be using that function.
 
     Take a single ``field`` and generate the schema for its type only, not including additional
     information as title, etc. Also return additional schema definitions, from sub-models.
     """
-    from pydantic.v1.main import BaseModel  # noqa: F811
+    from pydantic.v1.main import BaseModel
 
     definitions = {}
-    nested_models: Set[str] = set()
-    f_schema: Dict[str, Any]
+    nested_models: set[str] = set()
+    f_schema: dict[str, Any]
     if field.shape in {
         SHAPE_LIST,
         SHAPE_TUPLE_ELLIPSIS,
@@ -496,7 +494,7 @@ def field_type_schema(
             f_schema['additionalProperties'] = items_schema
     elif field.shape == SHAPE_TUPLE or (field.shape == SHAPE_GENERIC and not issubclass(field.type_, BaseModel)):
         sub_schema = []
-        sub_fields = cast(List[ModelField], field.sub_fields)
+        sub_fields = cast(list[ModelField], field.sub_fields)
         for sf in sub_fields:
             sf_schema, sf_definitions, sf_nested_models = field_type_schema(
                 sf,
@@ -552,12 +550,12 @@ def model_process_schema(
     model: TypeModelOrEnum,
     *,
     by_alias: bool = True,
-    model_name_map: Dict[TypeModelOrEnum, str],
-    ref_prefix: Optional[str] = None,
+    model_name_map: dict[TypeModelOrEnum, str],
+    ref_prefix: str | None = None,
     ref_template: str = default_ref_template,
-    known_models: Optional[TypeModelSet] = None,
-    field: Optional[ModelField] = None,
-) -> Tuple[Dict[str, Any], Dict[str, Any], Set[str]]:
+    known_models: TypeModelSet | None = None,
+    field: ModelField | None = None,
+) -> tuple[dict[str, Any], dict[str, Any], set[str]]:
     """
     Used by ``model_schema()``, you probably should be using that function.
 
@@ -569,10 +567,10 @@ def model_process_schema(
 
     known_models = known_models or set()
     if lenient_issubclass(model, Enum):
-        model = cast(Type[Enum], model)
+        model = cast(type[Enum], model)
         s = enum_process_schema(model, field=field)
         return s, {}, set()
-    model = cast(Type['BaseModel'], model)
+    model = cast(type['BaseModel'], model)
     s = {'title': model.__config__.title or model.__name__}
     doc = getdoc(model)
     if doc:
@@ -599,14 +597,14 @@ def model_process_schema(
 
 
 def model_type_schema(
-    model: Type['BaseModel'],
+    model: type['BaseModel'],
     *,
     by_alias: bool,
-    model_name_map: Dict[TypeModelOrEnum, str],
+    model_name_map: dict[TypeModelOrEnum, str],
     ref_template: str,
-    ref_prefix: Optional[str] = None,
+    ref_prefix: str | None = None,
     known_models: TypeModelSet,
-) -> Tuple[Dict[str, Any], Dict[str, Any], Set[str]]:
+) -> tuple[dict[str, Any], dict[str, Any], set[str]]:
     """
     You probably should be using ``model_schema()``, this function is indirectly used by that function.
 
@@ -615,8 +613,8 @@ def model_type_schema(
     """
     properties = {}
     required = []
-    definitions: Dict[str, Any] = {}
-    nested_models: Set[str] = set()
+    definitions: dict[str, Any] = {}
+    nested_models: set[str] = set()
     for k, f in model.__fields__.items():
         try:
             f_schema, f_definitions, f_nested_models = field_schema(
@@ -652,7 +650,7 @@ def model_type_schema(
     return out_schema, definitions, nested_models
 
 
-def enum_process_schema(enum: Type[Enum], *, field: Optional[ModelField] = None) -> Dict[str, Any]:
+def enum_process_schema(enum: type[Enum], *, field: ModelField | None = None) -> dict[str, Any]:
     """
     Take a single `enum` and generate its schema.
 
@@ -660,7 +658,7 @@ def enum_process_schema(enum: Type[Enum], *, field: Optional[ModelField] = None)
     """
     import inspect
 
-    schema_: Dict[str, Any] = {
+    schema_: dict[str, Any] = {
         'title': enum.__name__,
         # Python assigns all enums a default docstring value of 'An enumeration', so
         # all enums will have a description field even if not explicitly provided.
@@ -682,21 +680,21 @@ def field_singleton_sub_fields_schema(
     field: ModelField,
     *,
     by_alias: bool,
-    model_name_map: Dict[TypeModelOrEnum, str],
+    model_name_map: dict[TypeModelOrEnum, str],
     ref_template: str,
     schema_overrides: bool = False,
-    ref_prefix: Optional[str] = None,
+    ref_prefix: str | None = None,
     known_models: TypeModelSet,
-) -> Tuple[Dict[str, Any], Dict[str, Any], Set[str]]:
+) -> tuple[dict[str, Any], dict[str, Any], set[str]]:
     """
     This function is indirectly used by ``field_schema()``, you probably should be using that function.
 
     Take a list of Pydantic ``ModelField`` from the declaration of a type with parameters, and generate their
     schema. I.e., fields used as "type parameters", like ``str`` and ``int`` in ``Tuple[str, int]``.
     """
-    sub_fields = cast(List[ModelField], field.sub_fields)
+    sub_fields = cast(list[ModelField], field.sub_fields)
     definitions = {}
-    nested_models: Set[str] = set()
+    nested_models: set[str] = set()
     if len(sub_fields) == 1:
         return field_type_schema(
             sub_fields[0],
@@ -708,13 +706,13 @@ def field_singleton_sub_fields_schema(
             known_models=known_models,
         )
     else:
-        s: Dict[str, Any] = {}
+        s: dict[str, Any] = {}
         # https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.2.md#discriminator-object
         field_has_discriminator: bool = field.discriminator_key is not None
         if field_has_discriminator:
             assert field.sub_fields_mapping is not None
 
-            discriminator_models_refs: Dict[str, Union[str, Dict[str, Any]]] = {}
+            discriminator_models_refs: dict[str, str | dict[str, Any]] = {}
 
             for discriminator_value, sub_field in field.sub_fields_mapping.items():
                 if isinstance(discriminator_value, Enum):
@@ -771,7 +769,7 @@ def field_singleton_sub_fields_schema(
 
 # Order is important, e.g. subclasses of str must go before str
 # this is used only for standard library types, custom types should use __modify_schema__ instead
-field_class_to_schema: Tuple[Tuple[Any, Dict[str, Any]], ...] = (
+field_class_to_schema: tuple[tuple[Any, dict[str, Any]], ...] = (
     (Path, {'type': 'string', 'format': 'path'}),
     (datetime, {'type': 'string', 'format': 'date-time'}),
     (date, {'type': 'string', 'format': 'date'}),
@@ -801,7 +799,7 @@ field_class_to_schema: Tuple[Tuple[Any, Dict[str, Any]], ...] = (
 json_scheme = {'type': 'string', 'format': 'json-string'}
 
 
-def add_field_type_to_schema(field_type: Any, schema_: Dict[str, Any]) -> None:
+def add_field_type_to_schema(field_type: Any, schema_: dict[str, Any]) -> None:
     """
     Update the given `schema` with the type-specific metadata for the given `field_type`.
 
@@ -815,7 +813,7 @@ def add_field_type_to_schema(field_type: Any, schema_: Dict[str, Any]) -> None:
             break
 
 
-def get_schema_ref(name: str, ref_prefix: Optional[str], ref_template: str, schema_overrides: bool) -> Dict[str, Any]:
+def get_schema_ref(name: str, ref_prefix: str | None, ref_template: str, schema_overrides: bool) -> dict[str, Any]:
     if ref_prefix:
         schema_ref = {'$ref': ref_prefix + name}
     else:
@@ -823,16 +821,16 @@ def get_schema_ref(name: str, ref_prefix: Optional[str], ref_template: str, sche
     return {'allOf': [schema_ref]} if schema_overrides else schema_ref
 
 
-def field_singleton_schema(  # noqa: C901 (ignore complexity)
+def field_singleton_schema(
     field: ModelField,
     *,
     by_alias: bool,
-    model_name_map: Dict[TypeModelOrEnum, str],
+    model_name_map: dict[TypeModelOrEnum, str],
     ref_template: str,
     schema_overrides: bool = False,
-    ref_prefix: Optional[str] = None,
+    ref_prefix: str | None = None,
     known_models: TypeModelSet,
-) -> Tuple[Dict[str, Any], Dict[str, Any], Set[str]]:
+) -> tuple[dict[str, Any], dict[str, Any], set[str]]:
     """
     This function is indirectly used by ``field_schema()``, you should probably be using that function.
 
@@ -840,8 +838,8 @@ def field_singleton_schema(  # noqa: C901 (ignore complexity)
     """
     from pydantic.v1.main import BaseModel
 
-    definitions: Dict[str, Any] = {}
-    nested_models: Set[str] = set()
+    definitions: dict[str, Any] = {}
+    nested_models: set[str] = set()
     field_type = field.type_
 
     # Recurse into this field if it contains sub_fields and is NOT a
@@ -864,7 +862,7 @@ def field_singleton_schema(  # noqa: C901 (ignore complexity)
         return {'type': 'null'}, definitions, nested_models
     if is_callable_type(field_type):
         raise SkipField(f'Callable {field.name} was excluded from schema since JSON schema has no equivalent type.')
-    f_schema: Dict[str, Any] = {}
+    f_schema: dict[str, Any] = {}
     if field.field_info is not None and field.field_info.const:
         f_schema['const'] = field.default
 
@@ -951,7 +949,7 @@ def field_singleton_schema(  # noqa: C901 (ignore complexity)
     raise ValueError(f'Value not declarable with JSON Schema, field: {field}')
 
 
-def multitypes_literal_field_for_schema(values: Tuple[Any, ...], field: ModelField) -> ModelField:
+def multitypes_literal_field_for_schema(values: tuple[Any, ...], field: ModelField) -> ModelField:
     """
     To support `Literal` with values of different types, we split it into multiple `Literal` with same type
     e.g. `Literal['qwe', 'asd', 1, 2]` becomes `Union[Literal['qwe', 'asd'], Literal[1, 2]]`
@@ -995,12 +993,12 @@ def encode_default(dft: Any) -> Any:
         return pydantic_encoder(dft)
 
 
-_map_types_constraint: Dict[Any, Callable[..., type]] = {int: conint, float: confloat, Decimal: condecimal}
+_map_types_constraint: dict[Any, Callable[..., type]] = {int: conint, float: confloat, Decimal: condecimal}
 
 
 def get_annotation_from_field_info(
     annotation: Any, field_info: FieldInfo, field_name: str, validate_assignment: bool = False
-) -> Type[Any]:
+) -> type[Any]:
     """
     Get an annotation with validation implemented for numbers and strings based on the field_info.
     :param annotation: an annotation from a field specification, as ``str``, ``ConstrainedStr``
@@ -1010,7 +1008,7 @@ def get_annotation_from_field_info(
     :return: the same ``annotation`` if unmodified or a new annotation with validation in place
     """
     constraints = field_info.get_constraints()
-    used_constraints: Set[str] = set()
+    used_constraints: set[str] = set()
     if constraints:
         annotation, used_constraints = get_annotation_with_constraints(annotation, field_info)
     if validate_assignment:
@@ -1027,7 +1025,7 @@ def get_annotation_from_field_info(
     return annotation
 
 
-def get_annotation_with_constraints(annotation: Any, field_info: FieldInfo) -> Tuple[Type[Any], Set[str]]:  # noqa: C901
+def get_annotation_with_constraints(annotation: Any, field_info: FieldInfo) -> tuple[type[Any], set[str]]:
     """
     Get an annotation with used constraints implemented for numbers and strings based on the field_info.
 
@@ -1035,9 +1033,9 @@ def get_annotation_with_constraints(annotation: Any, field_info: FieldInfo) -> T
     :param field_info: an instance of FieldInfo, possibly with declarations for validations and JSON Schema
     :return: the same ``annotation`` if unmodified or a new annotation along with the used constraints.
     """
-    used_constraints: Set[str] = set()
+    used_constraints: set[str] = set()
 
-    def go(type_: Any) -> Type[Any]:
+    def go(type_: Any) -> type[Any]:
         if (
             is_literal_type(type_)
             or isinstance(type_, ForwardRef)
@@ -1046,7 +1044,7 @@ def get_annotation_with_constraints(annotation: Any, field_info: FieldInfo) -> T
             return type_
         origin = get_origin(type_)
         if origin is not None:
-            args: Tuple[Any, ...] = get_args(type_)
+            args: tuple[Any, ...] = get_args(type_)
             if any(isinstance(a, ForwardRef) for a in args):
                 # forward refs cause infinite recursion below
                 return type_
@@ -1056,7 +1054,7 @@ def get_annotation_with_constraints(annotation: Any, field_info: FieldInfo) -> T
             if is_union(origin):
                 return Union[tuple(go(a) for a in args)]  # type: ignore
 
-            if issubclass(origin, List) and (
+            if issubclass(origin, list) and (
                 field_info.min_items is not None
                 or field_info.max_items is not None
                 or field_info.unique_items is not None
@@ -1069,35 +1067,35 @@ def get_annotation_with_constraints(annotation: Any, field_info: FieldInfo) -> T
                     unique_items=field_info.unique_items,
                 )
 
-            if issubclass(origin, Set) and (field_info.min_items is not None or field_info.max_items is not None):
+            if issubclass(origin, set) and (field_info.min_items is not None or field_info.max_items is not None):
                 used_constraints.update({'min_items', 'max_items'})
                 return conset(go(args[0]), min_items=field_info.min_items, max_items=field_info.max_items)
 
-            if issubclass(origin, FrozenSet) and (field_info.min_items is not None or field_info.max_items is not None):
+            if issubclass(origin, frozenset) and (field_info.min_items is not None or field_info.max_items is not None):
                 used_constraints.update({'min_items', 'max_items'})
                 return confrozenset(go(args[0]), min_items=field_info.min_items, max_items=field_info.max_items)
 
-            for t in (Tuple, List, Set, FrozenSet, Sequence):
+            for t in (tuple, list, set, frozenset, Sequence):
                 if issubclass(origin, t):  # type: ignore
                     return t[tuple(go(a) for a in args)]  # type: ignore
 
-            if issubclass(origin, Dict):
-                return Dict[args[0], go(args[1])]  # type: ignore
+            if issubclass(origin, dict):
+                return dict[args[0], go(args[1])]  # type: ignore
 
-        attrs: Optional[Tuple[str, ...]] = None
-        constraint_func: Optional[Callable[..., type]] = None
+        attrs: tuple[str, ...] | None = None
+        constraint_func: Callable[..., type] | None = None
         if isinstance(type_, type):
             if issubclass(type_, (SecretStr, SecretBytes)):
                 attrs = ('max_length', 'min_length')
 
-                def constraint_func(**kw: Any) -> Type[Any]:  # noqa: F811
+                def constraint_func(**kw: Any) -> type[Any]:
                     return type(type_.__name__, (type_,), kw)
 
             elif issubclass(type_, str) and not issubclass(type_, (EmailStr, AnyUrl)):
                 attrs = ('max_length', 'min_length', 'regex')
                 if issubclass(type_, StrictStr):
 
-                    def constraint_func(**kw: Any) -> Type[Any]:
+                    def constraint_func(**kw: Any) -> type[Any]:
                         return type(type_.__name__, (type_,), kw)
 
                 else:
@@ -1106,7 +1104,7 @@ def get_annotation_with_constraints(annotation: Any, field_info: FieldInfo) -> T
                 attrs = ('max_length', 'min_length', 'regex')
                 if issubclass(type_, StrictBytes):
 
-                    def constraint_func(**kw: Any) -> Type[Any]:
+                    def constraint_func(**kw: Any) -> type[Any]:
                         return type(type_.__name__, (type_,), kw)
 
                 else:

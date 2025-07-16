@@ -1,5 +1,6 @@
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager, contextmanager
-from typing import Any, AsyncIterator, Iterator
+from typing import Any
 
 import httpx
 

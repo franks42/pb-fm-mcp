@@ -3,19 +3,18 @@
 from __future__ import annotations as _annotations
 
 import re
-
-from typing_extensions import Literal, Self
+from typing import Literal, Self
 
 from ._migration import getattr_migration
 from .version import version_short
 
 __all__ = (
-    'PydanticUserError',
-    'PydanticUndefinedAnnotation',
-    'PydanticImportError',
-    'PydanticSchemaGenerationError',
-    'PydanticInvalidForJsonSchema',
     'PydanticErrorCodes',
+    'PydanticImportError',
+    'PydanticInvalidForJsonSchema',
+    'PydanticSchemaGenerationError',
+    'PydanticUndefinedAnnotation',
+    'PydanticUserError',
 )
 
 # We use this URL to allow for future flexibility about how we host the docs, while allowing for Pydantic

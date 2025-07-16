@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Type, TypeVar, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar, Union
 
 from typing_extensions import deprecated
 
@@ -15,9 +16,9 @@ if not TYPE_CHECKING:
     # and https://youtrack.jetbrains.com/issue/PY-51428
     DeprecationWarning = PydanticDeprecatedSince20
 
-__all__ = 'parse_obj_as', 'schema_of', 'schema_json_of'
+__all__ = 'parse_obj_as', 'schema_json_of', 'schema_of'
 
-NameFactory = Union[str, Callable[[Type[Any]], str]]
+NameFactory = Union[str, Callable[[type[Any]], str]]
 
 
 T = TypeVar('T')

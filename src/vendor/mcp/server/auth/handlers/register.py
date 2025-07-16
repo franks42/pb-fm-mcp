@@ -10,7 +10,11 @@ from starlette.responses import Response
 
 from mcp.server.auth.errors import stringify_pydantic_error
 from mcp.server.auth.json_response import PydanticJSONResponse
-from mcp.server.auth.provider import OAuthAuthorizationServerProvider, RegistrationError, RegistrationErrorCode
+from mcp.server.auth.provider import (
+    OAuthAuthorizationServerProvider,
+    RegistrationError,
+    RegistrationErrorCode,
+)
 from mcp.server.auth.settings import ClientRegistrationOptions
 from mcp.shared.auth import OAuthClientInformationFull, OAuthClientMetadata
 

@@ -3,21 +3,23 @@ from __future__ import annotations
 import functools
 import inspect
 import sys
-from collections.abc import Awaitable, Generator
+from collections.abc import Awaitable, Callable, Generator
 from contextlib import AbstractAsyncContextManager, contextmanager
-from typing import Any, Callable, Generic, Protocol, TypeVar, overload
+from typing import Any, Generic, Protocol, TypeVar, overload
 
 from starlette.types import Scope
 
 if sys.version_info >= (3, 10):  # pragma: no cover
     from typing import TypeGuard
 else:  # pragma: no cover
-    from typing_extensions import TypeGuard
+    from typing import TypeGuard
 
 has_exceptiongroups = True
 if sys.version_info < (3, 11):  # pragma: no cover
     try:
-        from exceptiongroup import BaseExceptionGroup  # type: ignore[unused-ignore,import-not-found]
+        from exceptiongroup import (
+            BaseExceptionGroup,  # type: ignore[unused-ignore,import-not-found]
+        )
     except ImportError:
         has_exceptiongroups = False
 

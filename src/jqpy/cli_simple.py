@@ -6,7 +6,6 @@ Simple jqpy CLI that matches jq behavior exactly.
 import argparse
 import json
 import sys
-from typing import Any
 
 from . import get_path
 
@@ -36,7 +35,7 @@ def main():
     if args.null_input:
         data = None
     elif args.argfile:
-        with open(args.argfile, 'r') as f:
+        with open(args.argfile) as f:
             content = f.read().strip()
             if args.slurp:
                 # Split by lines and parse each as JSON

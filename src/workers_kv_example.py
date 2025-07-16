@@ -1,16 +1,18 @@
 import json
-import time
 import sys
-from typing import Any, Dict, Optional
-from jqpath import getpath, setpath, delpath
+import time
+from typing import Any
+
+from jqpath import delpath, getpath, setpath
+
 
 # Mock Response class for type hints
 class Response:
     @staticmethod
-    def new(body: str, status: int = 200, headers: Optional[Dict[str, str]] = None) -> 'Response':
+    def new(body: str, status: int = 200, headers: dict[str, str] | None = None) -> 'Response':
         pass
 
-def create_worker_response(data: Any, success: bool = True, error: Optional[str] = None) -> str:
+def create_worker_response(data: Any, success: bool = True, error: str | None = None) -> str:
     """Create a standardized JSON response for Cloudflare Workers.
     
     Args:
@@ -69,13 +71,13 @@ async def example_worker_handler(request: Any, env: Any) -> Response:
         return Response.new(create_worker_response(
             None,
             success=False,
-            error=f"Invalid JSON data in KV store: {str(e)}"
+            error=f"Invalid JSON data in KV store: {e!s}"
         ), status=500)
     except Exception as e:
         return Response.new(create_worker_response(
             None,
             success=False,
-            error=f"Error reading from KV store: {str(e)}"
+            error=f"Error reading from KV store: {e!s}"
         ), status=500)
 
     # Get query parameters
@@ -141,7 +143,7 @@ async def example_worker_handler(request: Any, env: Any) -> Response:
         
     except Exception as e:
         # Log the full error for debugging
-        print(f"Error processing request: {str(e)}", file=sys.stderr)
+        print(f"Error processing request: {e!s}", file=sys.stderr)
         
         # Return user-friendly error
         return Response.new(

@@ -1,5 +1,6 @@
 import warnings
 from abc import ABCMeta
+from collections.abc import Callable, Mapping
 from copy import deepcopy
 from enum import Enum
 from functools import partial
@@ -9,24 +10,22 @@ from typing import (
     TYPE_CHECKING,
     AbstractSet,
     Any,
-    Callable,
     ClassVar,
-    Dict,
-    List,
-    Mapping,
     Optional,
-    Tuple,
-    Type,
     TypeVar,
     Union,
     cast,
+    dataclass_transform,
     no_type_check,
     overload,
 )
 
-from typing_extensions import dataclass_transform
-
-from pydantic.v1.class_validators import ValidatorGroup, extract_root_validators, extract_validators, inherit_validators
+from pydantic.v1.class_validators import (
+    ValidatorGroup,
+    extract_root_validators,
+    extract_validators,
+    inherit_validators,
+)
 from pydantic.v1.config import BaseConfig, Extra, inherit_config, prepare_config
 from pydantic.v1.error_wrappers import ErrorWrapper, ValidationError
 from pydantic.v1.errors import ConfigError, DictError, ExtraError, MissingError
@@ -94,12 +93,12 @@ __all__ = 'BaseModel', 'create_model', 'validate_model'
 _T = TypeVar('_T')
 
 
-def validate_custom_root_type(fields: Dict[str, ModelField]) -> None:
+def validate_custom_root_type(fields: dict[str, ModelField]) -> None:
     if len(fields) > 1:
         raise ValueError(f'{ROOT_KEY} cannot be mixed with other fields')
 
 
-def generate_hash_function(frozen: bool) -> Optional[Callable[[Any], int]]:
+def generate_hash_function(frozen: bool) -> Callable[[Any], int] | None:
     def hash_function(self_: Any) -> int:
         return hash(self_.__class__) + hash(tuple(self_.__dict__.values()))
 
@@ -107,9 +106,9 @@ def generate_hash_function(frozen: bool) -> Optional[Callable[[Any], int]]:
 
 
 # If a field is of type `Callable`, its default value should be a function and cannot to ignored.
-ANNOTATED_FIELD_UNTOUCHED_TYPES: Tuple[Any, ...] = (property, type, classmethod, staticmethod)
+ANNOTATED_FIELD_UNTOUCHED_TYPES: tuple[Any, ...] = (property, type, classmethod, staticmethod)
 # When creating a `BaseModel` instance, we bypass all the methods, properties... added to the model
-UNTOUCHED_TYPES: Tuple[Any, ...] = (FunctionType,) + ANNOTATED_FIELD_UNTOUCHED_TYPES
+UNTOUCHED_TYPES: tuple[Any, ...] = (FunctionType,) + ANNOTATED_FIELD_UNTOUCHED_TYPES
 # Note `ModelMetaclass` refers to `BaseModel`, but is also used to *create* `BaseModel`, so we need to add this extra
 # (somewhat hacky) boolean to keep track of whether we've created the `BaseModel` class yet, and therefore whether it's
 # safe to refer to it. If it *hasn't* been created, we assume that the `__new__` call we're in the middle of is for
@@ -119,19 +118,19 @@ _is_base_model_class_defined = False
 
 @dataclass_transform(kw_only_default=True, field_specifiers=(Field,))
 class ModelMetaclass(ABCMeta):
-    @no_type_check  # noqa C901
-    def __new__(mcs, name, bases, namespace, **kwargs):  # noqa C901
-        fields: Dict[str, ModelField] = {}
+    @no_type_check
+    def __new__(mcs, name, bases, namespace, **kwargs):
+        fields: dict[str, ModelField] = {}
         config = BaseConfig
-        validators: 'ValidatorListDict' = {}
+        validators: ValidatorListDict = {}
 
         pre_root_validators, post_root_validators = [], []
-        private_attributes: Dict[str, ModelPrivateAttr] = {}
-        base_private_attributes: Dict[str, ModelPrivateAttr] = {}
+        private_attributes: dict[str, ModelPrivateAttr] = {}
+        base_private_attributes: dict[str, ModelPrivateAttr] = {}
         slots: SetStr = namespace.get('__slots__', ())
         slots = {slots} if isinstance(slots, str) else set(slots)
         class_vars: SetStr = set()
-        hash_func: Optional[Callable[[Any], int]] = None
+        hash_func: Callable[[Any], int] | None = None
 
         for base in reversed(bases):
             if _is_base_model_class_defined and issubclass(base, BaseModel) and base != BaseModel:
@@ -190,7 +189,7 @@ class ModelMetaclass(ABCMeta):
                         is_untouched(value)
                         and ann_type != PyObject
                         and not any(
-                            lenient_issubclass(get_origin(allowed_type), Type) for allowed_type in allowed_types
+                            lenient_issubclass(get_origin(allowed_type), type) for allowed_type in allowed_types
                         )
                     ):
                         continue
@@ -310,18 +309,18 @@ object_setattr = object.__setattr__
 class BaseModel(Representation, metaclass=ModelMetaclass):
     if TYPE_CHECKING:
         # populated by the metaclass, defined here to help IDEs only
-        __fields__: ClassVar[Dict[str, ModelField]] = {}
-        __include_fields__: ClassVar[Optional[Mapping[str, Any]]] = None
-        __exclude_fields__: ClassVar[Optional[Mapping[str, Any]]] = None
-        __validators__: ClassVar[Dict[str, AnyCallable]] = {}
-        __pre_root_validators__: ClassVar[List[AnyCallable]]
-        __post_root_validators__: ClassVar[List[Tuple[bool, AnyCallable]]]
-        __config__: ClassVar[Type[BaseConfig]] = BaseConfig
+        __fields__: ClassVar[dict[str, ModelField]] = {}
+        __include_fields__: ClassVar[Mapping[str, Any] | None] = None
+        __exclude_fields__: ClassVar[Mapping[str, Any] | None] = None
+        __validators__: ClassVar[dict[str, AnyCallable]] = {}
+        __pre_root_validators__: ClassVar[list[AnyCallable]]
+        __post_root_validators__: ClassVar[list[tuple[bool, AnyCallable]]]
+        __config__: ClassVar[type[BaseConfig]] = BaseConfig
         __json_encoder__: ClassVar[Callable[[Any], Any]] = lambda x: x
         __schema_cache__: ClassVar['DictAny'] = {}
         __custom_root_type__: ClassVar[bool] = False
         __signature__: ClassVar['Signature']
-        __private_attributes__: ClassVar[Dict[str, ModelPrivateAttr]]
+        __private_attributes__: ClassVar[dict[str, ModelPrivateAttr]]
         __class_vars__: ClassVar[SetStr]
         __fields_set__: ClassVar[SetStr] = set()
 
@@ -349,7 +348,7 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
         __pydantic_self__._init_private_attributes()
 
     @no_type_check
-    def __setattr__(self, name, value):  # noqa: C901 (ignore complexity)
+    def __setattr__(self, name, value):
         if name in self.__private_attributes__ or name in DUNDER_ATTRIBUTES:
             return object_setattr(self, name, value)
 
@@ -427,10 +426,10 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
     def dict(
         self,
         *,
-        include: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
-        exclude: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
+        include: Union['AbstractSetIntStr', 'MappingIntStrAny'] | None = None,
+        exclude: Union['AbstractSetIntStr', 'MappingIntStrAny'] | None = None,
         by_alias: bool = False,
-        skip_defaults: Optional[bool] = None,
+        skip_defaults: bool | None = None,
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
         exclude_none: bool = False,
@@ -461,14 +460,14 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
     def json(
         self,
         *,
-        include: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
-        exclude: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
+        include: Union['AbstractSetIntStr', 'MappingIntStrAny'] | None = None,
+        exclude: Union['AbstractSetIntStr', 'MappingIntStrAny'] | None = None,
         by_alias: bool = False,
-        skip_defaults: Optional[bool] = None,
+        skip_defaults: bool | None = None,
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
         exclude_none: bool = False,
-        encoder: Optional[Callable[[Any], Any]] = None,
+        encoder: Callable[[Any], Any] | None = None,
         models_as_dict: bool = True,
         **dumps_kwargs: Any,
     ) -> str:
@@ -506,8 +505,8 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
     @classmethod
     def _enforce_dict_if_root(cls, obj: Any) -> Any:
         if cls.__custom_root_type__ and (
-            not (isinstance(obj, dict) and obj.keys() == {ROOT_KEY})
-            and not (isinstance(obj, BaseModel) and obj.__fields__.keys() == {ROOT_KEY})
+            (not (isinstance(obj, dict) and obj.keys() == {ROOT_KEY})
+            and not (isinstance(obj, BaseModel) and obj.__fields__.keys() == {ROOT_KEY}))
             or cls.__fields__[ROOT_KEY].shape in MAPPING_LIKE_SHAPES
         ):
             return {ROOT_KEY: obj}
@@ -515,7 +514,7 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
             return obj
 
     @classmethod
-    def parse_obj(cls: Type['Model'], obj: Any) -> 'Model':
+    def parse_obj(cls: type['Model'], obj: Any) -> 'Model':
         obj = cls._enforce_dict_if_root(obj)
         if not isinstance(obj, dict):
             try:
@@ -527,7 +526,7 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
 
     @classmethod
     def parse_raw(
-        cls: Type['Model'],
+        cls: type['Model'],
         b: StrBytes,
         *,
         content_type: str = None,
@@ -550,8 +549,8 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
 
     @classmethod
     def parse_file(
-        cls: Type['Model'],
-        path: Union[str, Path],
+        cls: type['Model'],
+        path: str | Path,
         *,
         content_type: str = None,
         encoding: str = 'utf8',
@@ -569,7 +568,7 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
         return cls.parse_obj(obj)
 
     @classmethod
-    def from_orm(cls: Type['Model'], obj: Any) -> 'Model':
+    def from_orm(cls: type['Model'], obj: Any) -> 'Model':
         if not cls.__config__.orm_mode:
             raise ConfigError('You must have the config attribute orm_mode=True to use from_orm')
         obj = {ROOT_KEY: obj} if cls.__custom_root_type__ else cls._decompose_class(obj)
@@ -583,14 +582,14 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
         return m
 
     @classmethod
-    def construct(cls: Type['Model'], _fields_set: Optional['SetStr'] = None, **values: Any) -> 'Model':
+    def construct(cls: type['Model'], _fields_set: Optional['SetStr'] = None, **values: Any) -> 'Model':
         """
         Creates a new model setting __dict__ and __fields_set__ from trusted or pre-validated data.
         Default values are respected, but no other validation is performed.
         Behaves as if `Config.extra = 'allow'` was set since it adds all passed values
         """
         m = cls.__new__(cls)
-        fields_values: Dict[str, Any] = {}
+        fields_values: dict[str, Any] = {}
         for name, field in cls.__fields__.items():
             if field.alt_alias and field.alias in values:
                 fields_values[name] = values[field.alias]
@@ -627,8 +626,8 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
     def copy(
         self: 'Model',
         *,
-        include: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
-        exclude: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
+        include: Union['AbstractSetIntStr', 'MappingIntStrAny'] | None = None,
+        exclude: Union['AbstractSetIntStr', 'MappingIntStrAny'] | None = None,
         update: Optional['DictStrAny'] = None,
         deep: bool = False,
     ) -> 'Model':
@@ -680,11 +679,11 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
         yield cls.validate
 
     @classmethod
-    def validate(cls: Type['Model'], value: Any) -> 'Model':
+    def validate(cls: type['Model'], value: Any) -> 'Model':
         if isinstance(value, cls):
             copy_on_model_validation = cls.__config__.copy_on_model_validation
             # whether to deep or shallow copy the model on validation, None means do not copy
-            deep_copy: Optional[bool] = None
+            deep_copy: bool | None = None
             if copy_on_model_validation not in {'deep', 'shallow', 'none'}:
                 # Warn about deprecated behavior
                 warnings.warn(
@@ -719,7 +718,7 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
             return cls(**value_as_dict)
 
     @classmethod
-    def _decompose_class(cls: Type['Model'], obj: Any) -> GetterDict:
+    def _decompose_class(cls: type['Model'], obj: Any) -> GetterDict:
         if isinstance(obj, GetterDict):
             return obj
         return cls.__config__.getter_dict(obj)
@@ -731,8 +730,8 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
         v: Any,
         to_dict: bool,
         by_alias: bool,
-        include: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']],
-        exclude: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']],
+        include: Union['AbstractSetIntStr', 'MappingIntStrAny'] | None,
+        exclude: Union['AbstractSetIntStr', 'MappingIntStrAny'] | None,
         exclude_unset: bool,
         exclude_defaults: bool,
         exclude_none: bool,
@@ -823,8 +822,8 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
         self,
         to_dict: bool = False,
         by_alias: bool = False,
-        include: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
-        exclude: Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']] = None,
+        include: Union['AbstractSetIntStr', 'MappingIntStrAny'] | None = None,
+        exclude: Union['AbstractSetIntStr', 'MappingIntStrAny'] | None = None,
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
         exclude_none: bool = False,
@@ -881,7 +880,7 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
         exclude: Optional['MappingIntStrAny'],
         exclude_unset: bool,
         update: Optional['DictStrAny'] = None,
-    ) -> Optional[AbstractSet[str]]:
+    ) -> AbstractSet[str] | None:
         if include is None and exclude is None and exclude_unset is False:
             return None
 
@@ -923,13 +922,13 @@ _is_base_model_class_defined = True
 def create_model(
     __model_name: str,
     *,
-    __config__: Optional[Type[BaseConfig]] = None,
+    __config__: type[BaseConfig] | None = None,
     __base__: None = None,
     __module__: str = __name__,
-    __validators__: Dict[str, 'AnyClassMethod'] = None,
-    __cls_kwargs__: Dict[str, Any] = None,
+    __validators__: dict[str, 'AnyClassMethod'] = None,
+    __cls_kwargs__: dict[str, Any] = None,
     **field_definitions: Any,
-) -> Type['BaseModel']:
+) -> type['BaseModel']:
     ...
 
 
@@ -937,27 +936,27 @@ def create_model(
 def create_model(
     __model_name: str,
     *,
-    __config__: Optional[Type[BaseConfig]] = None,
-    __base__: Union[Type['Model'], Tuple[Type['Model'], ...]],
+    __config__: type[BaseConfig] | None = None,
+    __base__: type['Model'] | tuple[type['Model'], ...],
     __module__: str = __name__,
-    __validators__: Dict[str, 'AnyClassMethod'] = None,
-    __cls_kwargs__: Dict[str, Any] = None,
+    __validators__: dict[str, 'AnyClassMethod'] = None,
+    __cls_kwargs__: dict[str, Any] = None,
     **field_definitions: Any,
-) -> Type['Model']:
+) -> type['Model']:
     ...
 
 
 def create_model(
     __model_name: str,
     *,
-    __config__: Optional[Type[BaseConfig]] = None,
-    __base__: Union[None, Type['Model'], Tuple[Type['Model'], ...]] = None,
+    __config__: type[BaseConfig] | None = None,
+    __base__: None | type['Model'] | tuple[type['Model'], ...] = None,
     __module__: str = __name__,
-    __validators__: Dict[str, 'AnyClassMethod'] = None,
-    __cls_kwargs__: Dict[str, Any] = None,
-    __slots__: Optional[Tuple[str, ...]] = None,
+    __validators__: dict[str, 'AnyClassMethod'] = None,
+    __cls_kwargs__: dict[str, Any] = None,
+    __slots__: tuple[str, ...] | None = None,
     **field_definitions: Any,
-) -> Type['Model']:
+) -> type['Model']:
     """
     Dynamically create a model.
     :param __model_name: name of the created model
@@ -984,7 +983,7 @@ def create_model(
         if not isinstance(__base__, tuple):
             __base__ = (__base__,)
     else:
-        __base__ = (cast(Type['Model'], BaseModel),)
+        __base__ = (cast(type['Model'], BaseModel),)
 
     __cls_kwargs__ = __cls_kwargs__ or {}
 
@@ -1010,7 +1009,7 @@ def create_model(
             annotations[f_name] = f_annotation
         fields[f_name] = f_value
 
-    namespace: 'DictStrAny' = {'__annotations__': annotations, '__module__': __module__}
+    namespace: DictStrAny = {'__annotations__': annotations, '__module__': __module__}
     if __validators__:
         namespace.update(__validators__)
     namespace.update(fields)
@@ -1027,9 +1026,9 @@ def create_model(
 _missing = object()
 
 
-def validate_model(  # noqa: C901 (ignore complexity)
-    model: Type[BaseModel], input_data: 'DictStrAny', cls: 'ModelOrDc' = None
-) -> Tuple['DictStrAny', 'SetStr', Optional[ValidationError]]:
+def validate_model(
+    model: type[BaseModel], input_data: 'DictStrAny', cls: 'ModelOrDc' = None
+) -> tuple['DictStrAny', 'SetStr', ValidationError | None]:
     """
     validate data against a model.
     """

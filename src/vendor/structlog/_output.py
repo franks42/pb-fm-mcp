@@ -12,11 +12,9 @@ from __future__ import annotations
 import copy
 import sys
 import threading
-
 from pickle import PicklingError
 from sys import stderr, stdout
 from typing import IO, Any, BinaryIO, TextIO
-
 
 WRITE_LOCKS: dict[IO[Any], threading.Lock] = {}
 

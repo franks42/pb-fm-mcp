@@ -1,28 +1,26 @@
 import math
 import re
 from collections import OrderedDict, deque
+from collections.abc import Callable, Generator, Hashable
 from collections.abc import Hashable as CollectionsHashable
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal, DecimalException
 from enum import Enum, IntEnum
-from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network
+from ipaddress import (
+    IPv4Address,
+    IPv4Interface,
+    IPv4Network,
+    IPv6Address,
+    IPv6Interface,
+    IPv6Network,
+)
 from pathlib import Path
+from re import Pattern
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Deque,
-    Dict,
     ForwardRef,
-    FrozenSet,
-    Generator,
-    Hashable,
-    List,
     NamedTuple,
-    Pattern,
-    Set,
-    Tuple,
-    Type,
     TypeVar,
     Union,
 )
@@ -45,7 +43,9 @@ from pydantic.v1.typing import (
 from pydantic.v1.utils import almost_equal_floats, lenient_issubclass, sequence_like
 
 if TYPE_CHECKING:
-    from typing_extensions import Literal, TypedDict
+    from typing import Literal
+
+    from typing_extensions import TypedDict
 
     from pydantic.v1.config import BaseConfig
     from pydantic.v1.fields import ModelField
@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     StrBytes = Union[str, bytes]
 
 
-def str_validator(v: Any) -> Union[str]:
+def str_validator(v: Any) -> str:
     if isinstance(v, str):
         if isinstance(v, Enum):
             return v.value
@@ -72,13 +72,13 @@ def str_validator(v: Any) -> Union[str]:
         raise errors.StrError()
 
 
-def strict_str_validator(v: Any) -> Union[str]:
+def strict_str_validator(v: Any) -> str:
     if isinstance(v, str) and not isinstance(v, Enum):
         return v
     raise errors.StrError()
 
 
-def bytes_validator(v: Any) -> Union[bytes]:
+def bytes_validator(v: Any) -> bytes:
     if isinstance(v, bytes):
         return v
     elif isinstance(v, bytearray):
@@ -91,7 +91,7 @@ def bytes_validator(v: Any) -> Union[bytes]:
         raise errors.BytesError()
 
 
-def strict_bytes_validator(v: Any) -> Union[bytes]:
+def strict_bytes_validator(v: Any) -> bytes:
     if isinstance(v, bytes):
         return v
     elif isinstance(v, bytearray):
@@ -249,7 +249,7 @@ def ordered_dict_validator(v: Any) -> 'AnyOrderedDict':
         raise errors.DictError()
 
 
-def dict_validator(v: Any) -> Dict[Any, Any]:
+def dict_validator(v: Any) -> dict[Any, Any]:
     if isinstance(v, dict):
         return v
 
@@ -259,7 +259,7 @@ def dict_validator(v: Any) -> Dict[Any, Any]:
         raise errors.DictError()
 
 
-def list_validator(v: Any) -> List[Any]:
+def list_validator(v: Any) -> list[Any]:
     if isinstance(v, list):
         return v
     elif sequence_like(v):
@@ -268,7 +268,7 @@ def list_validator(v: Any) -> List[Any]:
         raise errors.ListError()
 
 
-def tuple_validator(v: Any) -> Tuple[Any, ...]:
+def tuple_validator(v: Any) -> tuple[Any, ...]:
     if isinstance(v, tuple):
         return v
     elif sequence_like(v):
@@ -277,7 +277,7 @@ def tuple_validator(v: Any) -> Tuple[Any, ...]:
         raise errors.TupleError()
 
 
-def set_validator(v: Any) -> Set[Any]:
+def set_validator(v: Any) -> set[Any]:
     if isinstance(v, set):
         return v
     elif sequence_like(v):
@@ -286,7 +286,7 @@ def set_validator(v: Any) -> Set[Any]:
         raise errors.SetError()
 
 
-def frozenset_validator(v: Any) -> FrozenSet[Any]:
+def frozenset_validator(v: Any) -> frozenset[Any]:
     if isinstance(v, frozenset):
         return v
     elif sequence_like(v):
@@ -295,7 +295,7 @@ def frozenset_validator(v: Any) -> FrozenSet[Any]:
         raise errors.FrozenSetError()
 
 
-def deque_validator(v: Any) -> Deque[Any]:
+def deque_validator(v: Any) -> deque[Any]:
     if isinstance(v, deque):
         return v
     elif sequence_like(v):
@@ -547,7 +547,7 @@ def validate_json(v: Any, config: 'BaseConfig') -> Any:
 T = TypeVar('T')
 
 
-def make_arbitrary_type_validator(type_: Type[T]) -> Callable[[T], T]:
+def make_arbitrary_type_validator(type_: type[T]) -> Callable[[T], T]:
     def arbitrary_type_validator(v: Any) -> T:
         if isinstance(v, type_):
             return v
@@ -556,8 +556,8 @@ def make_arbitrary_type_validator(type_: Type[T]) -> Callable[[T], T]:
     return arbitrary_type_validator
 
 
-def make_class_validator(type_: Type[T]) -> Callable[[Any], Type[T]]:
-    def class_validator(v: Any) -> Type[T]:
+def make_class_validator(type_: type[T]) -> Callable[[Any], type[T]]:
+    def class_validator(v: Any) -> type[T]:
         if lenient_issubclass(v, type_):
             return v
         raise errors.SubclassError(expected_class=type_)
@@ -565,7 +565,7 @@ def make_class_validator(type_: Type[T]) -> Callable[[Any], Type[T]]:
     return class_validator
 
 
-def any_class_validator(v: Any) -> Type[T]:
+def any_class_validator(v: Any) -> type[T]:
     if isinstance(v, type):
         return v
     raise errors.ClassError()
@@ -593,8 +593,8 @@ NamedTupleT = TypeVar('NamedTupleT', bound=NamedTuple)
 
 
 def make_namedtuple_validator(
-    namedtuple_cls: Type[NamedTupleT], config: Type['BaseConfig']
-) -> Callable[[Tuple[Any, ...]], NamedTupleT]:
+    namedtuple_cls: type[NamedTupleT], config: type['BaseConfig']
+) -> Callable[[tuple[Any, ...]], NamedTupleT]:
     from pydantic.v1.annotated_types import create_model_from_namedtuple
 
     NamedTupleModel = create_model_from_namedtuple(
@@ -604,22 +604,22 @@ def make_namedtuple_validator(
     )
     namedtuple_cls.__pydantic_model__ = NamedTupleModel  # type: ignore[attr-defined]
 
-    def namedtuple_validator(values: Tuple[Any, ...]) -> NamedTupleT:
+    def namedtuple_validator(values: tuple[Any, ...]) -> NamedTupleT:
         annotations = NamedTupleModel.__annotations__
 
         if len(values) > len(annotations):
             raise errors.ListMaxLengthError(limit_value=len(annotations))
 
-        dict_values: Dict[str, Any] = dict(zip(annotations, values))
-        validated_dict_values: Dict[str, Any] = dict(NamedTupleModel(**dict_values))
+        dict_values: dict[str, Any] = dict(zip(annotations, values, strict=False))
+        validated_dict_values: dict[str, Any] = dict(NamedTupleModel(**dict_values))
         return namedtuple_cls(**validated_dict_values)
 
     return namedtuple_validator
 
 
 def make_typeddict_validator(
-    typeddict_cls: Type['TypedDict'], config: Type['BaseConfig']  # type: ignore[valid-type]
-) -> Callable[[Any], Dict[str, Any]]:
+    typeddict_cls: type['TypedDict'], config: type['BaseConfig']  # type: ignore[valid-type]
+) -> Callable[[Any], dict[str, Any]]:
     from pydantic.v1.annotated_types import create_model_from_typeddict
 
     TypedDictModel = create_model_from_typeddict(
@@ -629,7 +629,7 @@ def make_typeddict_validator(
     )
     typeddict_cls.__pydantic_model__ = TypedDictModel  # type: ignore[attr-defined]
 
-    def typeddict_validator(values: 'TypedDict') -> Dict[str, Any]:  # type: ignore[valid-type]
+    def typeddict_validator(values: 'TypedDict') -> dict[str, Any]:  # type: ignore[valid-type]
         return TypedDictModel.parse_obj(values).dict(exclude_unset=True)
 
     return typeddict_validator
@@ -641,13 +641,13 @@ class IfConfig:
         self.config_attr_names = config_attr_names
         self.ignored_value = ignored_value
 
-    def check(self, config: Type['BaseConfig']) -> bool:
+    def check(self, config: type['BaseConfig']) -> bool:
         return any(getattr(config, name) not in {None, self.ignored_value} for name in self.config_attr_names)
 
 
 # order is important here, for example: bool is a subclass of int so has to come first, datetime before date same,
 # IPv4Interface before IPv4Address, etc
-_VALIDATORS: List[Tuple[Type[Any], List[Any]]] = [
+_VALIDATORS: list[tuple[type[Any], list[Any]]] = [
     (IntEnum, [int_validator, enum_member_validator]),
     (Enum, [enum_member_validator]),
     (
@@ -696,8 +696,8 @@ _VALIDATORS: List[Tuple[Type[Any], List[Any]]] = [
 ]
 
 
-def find_validators(  # noqa: C901 (ignore complexity)
-    type_: Type[Any], config: Type['BaseConfig']
+def find_validators(
+    type_: type[Any], config: type['BaseConfig']
 ) -> Generator[AnyCallable, None, None]:
     from pydantic.v1.dataclasses import is_builtin_dataclass, make_dataclass_validator
 

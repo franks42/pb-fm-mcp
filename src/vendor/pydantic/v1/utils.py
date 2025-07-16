@@ -2,31 +2,19 @@ import keyword
 import warnings
 import weakref
 from collections import OrderedDict, defaultdict, deque
+from collections.abc import Callable, Collection, Generator, Iterable, Iterator, Mapping
 from copy import deepcopy
 from itertools import islice, zip_longest
 from types import BuiltinFunctionType, CodeType, FunctionType, GeneratorType, LambdaType, ModuleType
 from typing import (
     TYPE_CHECKING,
     AbstractSet,
+    Annotated,
     Any,
-    Callable,
-    Collection,
-    Dict,
-    Generator,
-    Iterable,
-    Iterator,
-    List,
-    Mapping,
     NoReturn,
-    Optional,
-    Set,
-    Tuple,
-    Type,
     TypeVar,
     Union,
 )
-
-from typing_extensions import Annotated
 
 from pydantic.v1.errors import ConfigError
 from pydantic.v1.typing import (
@@ -49,42 +37,48 @@ if TYPE_CHECKING:
     from pydantic.v1.dataclasses import Dataclass
     from pydantic.v1.fields import ModelField
     from pydantic.v1.main import BaseModel
-    from pydantic.v1.typing import AbstractSetIntStr, DictIntStrAny, IntStr, MappingIntStrAny, ReprArgs
+    from pydantic.v1.typing import (
+        AbstractSetIntStr,
+        DictIntStrAny,
+        IntStr,
+        MappingIntStrAny,
+        ReprArgs,
+    )
 
-    RichReprResult = Iterable[Union[Any, Tuple[Any], Tuple[str, Any], Tuple[str, Any, Any]]]
+    RichReprResult = Iterable[Any | tuple[Any] | tuple[str, Any] | tuple[str, Any, Any]]
 
 __all__ = (
-    'import_string',
-    'sequence_like',
-    'validate_field_name',
-    'lenient_isinstance',
-    'lenient_issubclass',
-    'in_ipython',
-    'is_valid_identifier',
-    'deep_update',
-    'update_not_none',
-    'almost_equal_floats',
-    'get_model',
-    'to_camel',
-    'to_lower_camel',
-    'is_valid_field',
-    'smart_deepcopy',
+    'DUNDER_ATTRIBUTES',
+    'ROOT_KEY',
+    'ClassAttribute',
+    'GetterDict',
     'PyObjectStr',
     'Representation',
-    'GetterDict',
     'ValueItems',
-    'version_info',  # required here to match behaviour in v1.3
-    'ClassAttribute',
-    'path_type',
-    'ROOT_KEY',
-    'get_unique_discriminator_alias',
+    'almost_equal_floats',
+    'deep_update',
     'get_discriminator_alias_and_values',
-    'DUNDER_ATTRIBUTES',
+    'get_model',
+    'get_unique_discriminator_alias',
+    'import_string',
+    'in_ipython',
+    'is_valid_field',
+    'is_valid_identifier',
+    'lenient_isinstance',
+    'lenient_issubclass',
+    'path_type',
+    'sequence_like',
+    'smart_deepcopy',
+    'to_camel',
+    'to_lower_camel',
+    'update_not_none',
+    'validate_field_name',
+    'version_info',  # required here to match behaviour in v1.3
 )
 
 ROOT_KEY = '__root__'
 # these are types that are returned unchanged by deepcopy
-IMMUTABLE_NON_COLLECTIONS_TYPES: Set[Type[Any]] = {
+IMMUTABLE_NON_COLLECTIONS_TYPES: set[type[Any]] = {
     int,
     float,
     complex,
@@ -107,7 +101,7 @@ IMMUTABLE_NON_COLLECTIONS_TYPES: Set[Type[Any]] = {
 }
 
 # these are types that if empty, might be copied with simple copy() instead of deepcopy()
-BUILTIN_COLLECTIONS: Set[Type[Any]] = {
+BUILTIN_COLLECTIONS: set[type[Any]] = {
     list,
     set,
     tuple,
@@ -138,7 +132,7 @@ def import_string(dotted_path: str) -> Any:
         raise ImportError(f'Module "{module_path}" does not define a "{class_name}" attribute') from e
 
 
-def truncate(v: Union[str], *, max_len: int = 80) -> str:
+def truncate(v: str, *, max_len: int = 80) -> str:
     """
     Truncate a value and add a unicode ellipsis (three dots) to the end if it was too long
     """
@@ -159,7 +153,7 @@ def sequence_like(v: Any) -> bool:
     return isinstance(v, (list, tuple, set, frozenset, GeneratorType, deque))
 
 
-def validate_field_name(bases: List[Type['BaseModel']], field_name: str) -> None:
+def validate_field_name(bases: list[type['BaseModel']], field_name: str) -> None:
     """
     Ensure that the field's name does not shadow an existing attribute of the model.
     """
@@ -171,14 +165,14 @@ def validate_field_name(bases: List[Type['BaseModel']], field_name: str) -> None
             )
 
 
-def lenient_isinstance(o: Any, class_or_tuple: Union[Type[Any], Tuple[Type[Any], ...], None]) -> bool:
+def lenient_isinstance(o: Any, class_or_tuple: type[Any] | tuple[type[Any], ...] | None) -> bool:
     try:
         return isinstance(o, class_or_tuple)  # type: ignore[arg-type]
     except TypeError:
         return False
 
 
-def lenient_issubclass(cls: Any, class_or_tuple: Union[Type[Any], Tuple[Type[Any], ...], None]) -> bool:
+def lenient_issubclass(cls: Any, class_or_tuple: type[Any] | tuple[type[Any], ...] | None) -> bool:
     try:
         return isinstance(cls, type) and issubclass(cls, class_or_tuple)  # type: ignore[arg-type]
     except TypeError:
@@ -211,7 +205,7 @@ def is_valid_identifier(identifier: str) -> bool:
 KeyType = TypeVar('KeyType')
 
 
-def deep_update(mapping: Dict[KeyType, Any], *updating_mappings: Dict[KeyType, Any]) -> Dict[KeyType, Any]:
+def deep_update(mapping: dict[KeyType, Any], *updating_mappings: dict[KeyType, Any]) -> dict[KeyType, Any]:
     updated_mapping = mapping.copy()
     for updating_mapping in updating_mappings:
         for k, v in updating_mapping.items():
@@ -222,7 +216,7 @@ def deep_update(mapping: Dict[KeyType, Any], *updating_mappings: Dict[KeyType, A
     return updated_mapping
 
 
-def update_not_none(mapping: Dict[Any, Any], **update: Any) -> None:
+def update_not_none(mapping: dict[Any, Any], **update: Any) -> None:
     mapping.update({k: v for k, v in update.items() if v is not None})
 
 
@@ -234,7 +228,7 @@ def almost_equal_floats(value_1: float, value_2: float, *, delta: float = 1e-8) 
 
 
 def generate_model_signature(
-    init: Callable[..., None], fields: Dict[str, 'ModelField'], config: Type['BaseConfig']
+    init: Callable[..., None], fields: dict[str, 'ModelField'], config: type['BaseConfig']
 ) -> 'Signature':
     """
     Generate signature for model based on its fields
@@ -244,7 +238,7 @@ def generate_model_signature(
     from pydantic.v1.config import Extra
 
     present_params = signature(init).parameters.values()
-    merged_params: Dict[str, Parameter] = {}
+    merged_params: dict[str, Parameter] = {}
     var_kw = None
     use_var_kw = False
 
@@ -298,7 +292,7 @@ def generate_model_signature(
     return Signature(parameters=list(merged_params.values()), return_annotation=None)
 
 
-def get_model(obj: Union[Type['BaseModel'], Type['Dataclass']]) -> Type['BaseModel']:
+def get_model(obj: type['BaseModel'] | type['Dataclass']) -> type['BaseModel']:
     from pydantic.v1.main import BaseModel
 
     try:
@@ -326,17 +320,17 @@ T = TypeVar('T')
 
 
 def unique_list(
-    input_list: Union[List[T], Tuple[T, ...]],
+    input_list: list[T] | tuple[T, ...],
     *,
     name_factory: Callable[[T], str] = str,
-) -> List[T]:
+) -> list[T]:
     """
     Make a list unique while maintaining order.
     We update the list if another one with the same name is set
     (e.g. root validator overridden in subclass)
     """
-    result: List[T] = []
-    result_names: List[str] = []
+    result: list[T] = []
+    result_names: list[str] = []
     for v in input_list:
         v_name = name_factory(v)
         if v_name not in result_names:
@@ -366,7 +360,7 @@ class Representation:
     of objects.
     """
 
-    __slots__: Tuple[str, ...] = tuple()
+    __slots__: tuple[str, ...] = tuple()
 
     def __repr_args__(self) -> 'ReprArgs':
         """
@@ -439,23 +433,23 @@ class GetterDict(Representation):
     def get(self, key: Any, default: Any = None) -> Any:
         return getattr(self._obj, key, default)
 
-    def extra_keys(self) -> Set[Any]:
+    def extra_keys(self) -> set[Any]:
         """
         We don't want to get any other attributes of obj if the model didn't explicitly ask for them
         """
         return set()
 
-    def keys(self) -> List[Any]:
+    def keys(self) -> list[Any]:
         """
         Keys of the pseudo dictionary, uses a list not set so order information can be maintained like python
         dictionaries.
         """
         return list(self)
 
-    def values(self) -> List[Any]:
+    def values(self) -> list[Any]:
         return [self[k] for k in self]
 
-    def items(self) -> Iterator[Tuple[str, Any]]:
+    def items(self) -> Iterator[tuple[str, Any]]:
         for k in self:
             yield k, self.get(k)
 
@@ -493,7 +487,7 @@ class ValueItems(Representation):
         if isinstance(value, (list, tuple)):
             items = self._normalize_indexes(items, len(value))
 
-        self._items: 'MappingIntStrAny' = items
+        self._items: MappingIntStrAny = items
 
     def is_excluded(self, item: Any) -> bool:
         """
@@ -511,7 +505,7 @@ class ValueItems(Representation):
         """
         return item in self._items
 
-    def for_element(self, e: 'IntStr') -> Optional[Union['AbstractSetIntStr', 'MappingIntStrAny']]:
+    def for_element(self, e: 'IntStr') -> Union['AbstractSetIntStr', 'MappingIntStrAny'] | None:
         """
         :param e: key or index of element on value
         :return: raw values for element if self._items is dict and contain needed element
@@ -531,7 +525,7 @@ class ValueItems(Representation):
         {0: True, 1: True, 2: True, 3: True}
         """
 
-        normalized_items: 'DictIntStrAny' = {}
+        normalized_items: DictIntStrAny = {}
         all_items = None
         for i, v in items.items():
             if not (isinstance(v, Mapping) or isinstance(v, AbstractSet) or self.is_true(v)):
@@ -590,7 +584,7 @@ class ValueItems(Representation):
         else:
             merge_keys = list(base) + [k for k in override if k not in base]
 
-        merged: 'DictIntStrAny' = {}
+        merged: DictIntStrAny = {}
         for k in merge_keys:
             merged_item = cls.merge(base.get(k), override.get(k), intersect=intersect)
             if merged_item is not None:
@@ -640,7 +634,7 @@ class ClassAttribute:
         self.name = name
         self.value = value
 
-    def __get__(self, instance: Any, owner: Type[Any]) -> None:
+    def __get__(self, instance: Any, owner: type[Any]) -> None:
         if instance is None:
             return self.value
         raise AttributeError(f'{self.name!r} attribute of {owner.__name__!r} is class-only')
@@ -754,7 +748,7 @@ def get_unique_discriminator_alias(all_aliases: Collection[str], discriminator_k
     return unique_aliases.pop()
 
 
-def get_discriminator_alias_and_values(tp: Any, discriminator_key: str) -> Tuple[str, Tuple[str, ...]]:
+def get_discriminator_alias_and_values(tp: Any, discriminator_key: str) -> tuple[str, tuple[str, ...]]:
     """
     Get alias and all valid values in the `Literal` type of the discriminator field
     `tp` can be a `BaseModel` class or directly an `Annotated` `Union` of many.
@@ -796,9 +790,9 @@ def get_discriminator_alias_and_values(tp: Any, discriminator_key: str) -> Tuple
 
 
 def _get_union_alias_and_all_values(
-    union_type: Type[Any], discriminator_key: str
-) -> Tuple[str, Tuple[Tuple[str, ...], ...]]:
+    union_type: type[Any], discriminator_key: str
+) -> tuple[str, tuple[tuple[str, ...], ...]]:
     zipped_aliases_values = [get_discriminator_alias_and_values(t, discriminator_key) for t in get_args(union_type)]
     # unzip: [('alias_a',('v1', 'v2)), ('alias_b', ('v3',))] => [('alias_a', 'alias_b'), (('v1', 'v2'), ('v3',))]
-    all_aliases, all_values = zip(*zipped_aliases_values)
+    all_aliases, all_values = zip(*zipped_aliases_values, strict=False)
     return get_unique_discriminator_alias(all_aliases, discriminator_key), all_values

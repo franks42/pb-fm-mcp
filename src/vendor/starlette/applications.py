@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import sys
 import warnings
-from collections.abc import Awaitable, Mapping, Sequence
-from typing import Any, Callable, TypeVar
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from typing import Any, TypeVar
 
 if sys.version_info >= (3, 10):  # pragma: no cover
     from typing import ParamSpec

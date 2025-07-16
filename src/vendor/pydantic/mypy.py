@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable, Iterator
 from configparser import ConfigParser
-from typing import Any, Callable, Iterator
+from typing import Any
 
 from mypy.errorcodes import ErrorCode
 from mypy.expandtype import expand_type, expand_type_by_instance
@@ -184,10 +185,10 @@ class PydanticPluginConfig:
     """
 
     __slots__ = (
+        'debug_dataclass_transform',
         'init_forbid_extra',
         'init_typed',
         'warn_required_dynamic_aliases',
-        'debug_dataclass_transform',
     )
     init_forbid_extra: bool
     init_typed: bool
@@ -493,7 +494,7 @@ class PydanticModelTransformer:
                     # TODO: Only do this if the first argument of the decorated function is `cls`
                     sym.node.func.is_class = True
 
-    def collect_config(self) -> ModelConfigData:  # noqa: C901 (ignore complexity)
+    def collect_config(self) -> ModelConfigData:
         """Collects the values of the config attributes that are used by the plugin, accounting for parent classes."""
         cls = self._cls
         config = ModelConfigData()
@@ -520,7 +521,7 @@ class PydanticModelTransformer:
                     continue
 
                 if isinstance(stmt.rvalue, CallExpr):  # calls to `dict` or `ConfigDict`
-                    for arg_name, arg in zip(stmt.rvalue.arg_names, stmt.rvalue.args):
+                    for arg_name, arg in zip(stmt.rvalue.arg_names, stmt.rvalue.args, strict=False):
                         if arg_name is None:
                             continue
                         config.update(self.get_config_update(arg_name, arg, lax_extra=True))
@@ -651,7 +652,7 @@ class PydanticModelTransformer:
             elif isinstance(stmt, IfStmt):
                 yield from self._get_assignment_statements_from_if_statement(stmt)
 
-    def collect_field_or_class_var_from_stmt(  # noqa C901
+    def collect_field_or_class_var_from_stmt(
         self, stmt: AssignmentStmt, model_config: ModelConfigData, class_vars: dict[str, PydanticModelClassVar]
     ) -> PydanticModelField | PydanticModelClassVar | None:
         """Get pydantic model field from statement.
@@ -983,7 +984,7 @@ class PydanticModelTransformer:
             # * there is a positional argument that is not `...`
             # * there is a keyword argument named "default" that is not `...`
             # * there is a "default_factory" that is not `None`
-            for arg, name in zip(expr.args, expr.arg_names):
+            for arg, name in zip(expr.args, expr.arg_names, strict=False):
                 # If name is None, then this arg is the default because it is the only positional argument.
                 if name is None or name == 'default':
                     return arg.__class__ is not EllipsisExpr
@@ -998,7 +999,7 @@ class PydanticModelTransformer:
         """Returns a the `strict` value of a field if defined, otherwise `None`."""
         expr = stmt.rvalue
         if isinstance(expr, CallExpr) and isinstance(expr.callee, RefExpr) and expr.callee.fullname == FIELD_FULLNAME:
-            for arg, name in zip(expr.args, expr.arg_names):
+            for arg, name in zip(expr.args, expr.arg_names, strict=False):
                 if name != 'strict':
                     continue
                 if isinstance(arg, NameExpr):

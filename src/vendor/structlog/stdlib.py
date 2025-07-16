@@ -17,15 +17,14 @@ import functools
 import logging
 import sys
 import warnings
-
+from collections.abc import Callable, Collection, Iterable, Sequence
 from functools import partial
-from typing import Any, Callable, Collection, Dict, Iterable, Sequence, cast
-
+from typing import Any, cast
 
 if sys.version_info >= (3, 11):
     from typing import Self
 else:
-    from typing_extensions import Self
+    from typing import Self
 
 
 from . import _config
@@ -43,7 +42,6 @@ from .typing import (
     ProcessorReturnValue,
     WrappedLogger,
 )
-
 
 __all__ = [
     "BoundLogger",
@@ -1115,7 +1113,7 @@ class ProcessorFormatter(logging.Formatter):
             # We need to copy because it's possible that the same record gets
             # processed by multiple logging formatters. LogRecord.getMessage
             # would transform our dict into a str.
-            ed = cast(Dict[str, Any], record.msg).copy()
+            ed = cast(dict[str, Any], record.msg).copy()
             ed["_record"] = record
             ed["_from_structlog"] = True
         else:

@@ -4,7 +4,8 @@ import html
 import inspect
 import sys
 import traceback
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from starlette._utils import is_async_callable
 from starlette.concurrency import run_in_threadpool

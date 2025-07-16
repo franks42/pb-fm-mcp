@@ -27,8 +27,9 @@ import datetime
 import ipaddress
 import json
 import math
+from collections.abc import Callable
 from fractions import Fraction
-from typing import Callable, Dict, Type, Union, cast, overload
+from typing import cast, overload
 
 import hypothesis.strategies as st
 
@@ -178,11 +179,11 @@ st.register_type_strategy(pydantic.PastDate, st.dates(max_value=datetime.date.to
 # For these ones, we actually want to inspect the type in order to work out a
 # satisfying strategy.  First up, the machinery for tracking resolver functions:
 
-RESOLVERS: Dict[type, Callable[[type], st.SearchStrategy]] = {}  # type: ignore[type-arg]
+RESOLVERS: dict[type, Callable[[type], st.SearchStrategy]] = {}  # type: ignore[type-arg]
 
 
 @overload
-def _registered(typ: Type[pydantic.types.T]) -> Type[pydantic.types.T]:
+def _registered(typ: type[pydantic.types.T]) -> type[pydantic.types.T]:
     pass
 
 
@@ -192,8 +193,8 @@ def _registered(typ: pydantic.types.ConstrainedNumberMeta) -> pydantic.types.Con
 
 
 def _registered(
-    typ: Union[Type[pydantic.types.T], pydantic.types.ConstrainedNumberMeta]
-) -> Union[Type[pydantic.types.T], pydantic.types.ConstrainedNumberMeta]:
+    typ: type[pydantic.types.T] | pydantic.types.ConstrainedNumberMeta
+) -> type[pydantic.types.T] | pydantic.types.ConstrainedNumberMeta:
     # This function replaces the version in `pydantic.types`, in order to
     # effect the registration of new constrained types so that Hypothesis
     # can generate valid examples.
@@ -206,7 +207,7 @@ def _registered(
 
 
 def resolves(
-    typ: Union[type, pydantic.types.ConstrainedNumberMeta]
+    typ: type | pydantic.types.ConstrainedNumberMeta
 ) -> Callable[[Callable[..., st.SearchStrategy]], Callable[..., st.SearchStrategy]]:  # type: ignore[type-arg]
     def inner(f):  # type: ignore
         assert f not in RESOLVERS

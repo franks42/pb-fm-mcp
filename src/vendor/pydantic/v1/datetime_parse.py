@@ -15,8 +15,8 @@ Changed to:
 * support parsing unix timestamps for dates and datetimes
 """
 import re
-from datetime import date, datetime, time, timedelta, timezone
-from typing import Dict, Optional, Type, Union
+from datetime import UTC, date, datetime, time, timedelta, timezone
+from typing import Union
 
 from pydantic.v1 import errors
 
@@ -63,7 +63,7 @@ MAX_NUMBER = int(3e20)
 StrBytesIntFloat = Union[str, bytes, int, float]
 
 
-def get_numeric(value: StrBytesIntFloat, native_expected_type: str) -> Union[None, int, float]:
+def get_numeric(value: StrBytesIntFloat, native_expected_type: str) -> None | int | float:
     if isinstance(value, (int, float)):
         return value
     try:
@@ -74,7 +74,7 @@ def get_numeric(value: StrBytesIntFloat, native_expected_type: str) -> Union[Non
         raise TypeError(f'invalid type; expected {native_expected_type}, string, bytes, int or float')
 
 
-def from_unix_seconds(seconds: Union[int, float]) -> datetime:
+def from_unix_seconds(seconds: int | float) -> datetime:
     if seconds > MAX_NUMBER:
         return datetime.max
     elif seconds < -MAX_NUMBER:
@@ -83,12 +83,12 @@ def from_unix_seconds(seconds: Union[int, float]) -> datetime:
     while abs(seconds) > MS_WATERSHED:
         seconds /= 1000
     dt = EPOCH + timedelta(seconds=seconds)
-    return dt.replace(tzinfo=timezone.utc)
+    return dt.replace(tzinfo=UTC)
 
 
-def _parse_timezone(value: Optional[str], error: Type[Exception]) -> Union[None, int, timezone]:
+def _parse_timezone(value: str | None, error: type[Exception]) -> None | int | timezone:
     if value == 'Z':
-        return timezone.utc
+        return UTC
     elif value is not None:
         offset_mins = int(value[-2:]) if len(value) > 3 else 0
         offset = 60 * int(value[1:3]) + offset_mins
@@ -102,7 +102,7 @@ def _parse_timezone(value: Optional[str], error: Type[Exception]) -> Union[None,
         return None
 
 
-def parse_date(value: Union[date, StrBytesIntFloat]) -> date:
+def parse_date(value: date | StrBytesIntFloat) -> date:
     """
     Parse a date/int/float/string and return a datetime.date.
 
@@ -134,7 +134,7 @@ def parse_date(value: Union[date, StrBytesIntFloat]) -> date:
         raise errors.DateError()
 
 
-def parse_time(value: Union[time, StrBytesIntFloat]) -> time:
+def parse_time(value: time | StrBytesIntFloat) -> time:
     """
     Parse a time/string and return a datetime.time.
 
@@ -163,7 +163,7 @@ def parse_time(value: Union[time, StrBytesIntFloat]) -> time:
         kw['microsecond'] = kw['microsecond'].ljust(6, '0')
 
     tzinfo = _parse_timezone(kw.pop('tzinfo'), errors.TimeError)
-    kw_: Dict[str, Union[None, int, timezone]] = {k: int(v) for k, v in kw.items() if v is not None}
+    kw_: dict[str, None | int | timezone] = {k: int(v) for k, v in kw.items() if v is not None}
     kw_['tzinfo'] = tzinfo
 
     try:
@@ -172,7 +172,7 @@ def parse_time(value: Union[time, StrBytesIntFloat]) -> time:
         raise errors.TimeError()
 
 
-def parse_datetime(value: Union[datetime, StrBytesIntFloat]) -> datetime:
+def parse_datetime(value: datetime | StrBytesIntFloat) -> datetime:
     """
     Parse a datetime/int/float/string and return a datetime.datetime.
 
@@ -201,7 +201,7 @@ def parse_datetime(value: Union[datetime, StrBytesIntFloat]) -> datetime:
         kw['microsecond'] = kw['microsecond'].ljust(6, '0')
 
     tzinfo = _parse_timezone(kw.pop('tzinfo'), errors.DateTimeError)
-    kw_: Dict[str, Union[None, int, timezone]] = {k: int(v) for k, v in kw.items() if v is not None}
+    kw_: dict[str, None | int | timezone] = {k: int(v) for k, v in kw.items() if v is not None}
     kw_['tzinfo'] = tzinfo
 
     try:

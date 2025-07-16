@@ -1,6 +1,15 @@
 from __future__ import annotations
 
-from collections.abc import ItemsView, Iterable, Iterator, KeysView, Mapping, MutableMapping, Sequence, ValuesView
+from collections.abc import (
+    ItemsView,
+    Iterable,
+    Iterator,
+    KeysView,
+    Mapping,
+    MutableMapping,
+    Sequence,
+    ValuesView,
+)
 from shlex import shlex
 from typing import (
     Any,
@@ -172,7 +181,7 @@ class URL:
         url = str(self)
         if self.password:
             url = str(self.replace(password="********"))
-        return f"{self.__class__.__name__}({repr(url)})"
+        return f"{self.__class__.__name__}({url!r})"
 
 
 class URLPath(str):

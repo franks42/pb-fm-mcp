@@ -41,9 +41,9 @@ T = typing.TypeVar("T", bound="JavascriptFetchTransport")
 A = typing.TypeVar("A", bound="AsyncJavascriptFetchTransport")
 
 SOCKET_OPTION = typing.Union[
-    typing.Tuple[int, int, int],
-    typing.Tuple[int, int, typing.Union[bytes, bytearray]],
-    typing.Tuple[int, int, None, int],
+    tuple[int, int, int],
+    tuple[int, int, bytes | bytearray],
+    tuple[int, int, None, int],
 ]
 
 __all__ = ["AsyncJavascriptFetchTransport", "JavascriptFetchTransport"]

@@ -1,13 +1,11 @@
-import utils
+
 # import hastra
 import sys
+from datetime import UTC, datetime
 
-from datetime import datetime, timezone
-
-import asyncio
-from hastra_types import JSONType
+import utils
 from base64expand import base64expand
-
+from hastra_types import JSONType
 
 sys.path.insert(0, "/session/metadata/vendor")
 sys.path.insert(0, "/session/metadata")
@@ -21,18 +19,18 @@ def datetime_to_ms(dt):
     """Convert datetime to milliseconds since epoch"""
     if dt.tzinfo is None:
         # Assume UTC if no timezone specified
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return int(dt.timestamp() * 1000)
 
 
-def ms_to_datetime(ms_timestamp, tz=timezone.utc):
+def ms_to_datetime(ms_timestamp, tz=UTC):
     """Convert milliseconds since epoch to datetime"""
     return datetime.fromtimestamp(ms_timestamp / 1000, tz=tz)
 
 
 def current_ms():
     """Get current time in milliseconds since epoch"""
-    return int(datetime.now(timezone.utc).timestamp() * 1000)
+    return int(datetime.now(UTC).timestamp() * 1000)
 
 ###
 
@@ -56,9 +54,10 @@ def setup_server():
     # Hastra and Figure Market mcp tool functions
     #########################################################################
 
-    import hastra
+
     import httpx
-    from typing import Tuple, Any, Dict, List, Union
+
+    import hastra
 
     ###
     # helper function to standardize async http-get of json return

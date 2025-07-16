@@ -8,9 +8,23 @@ variants, if they exists and are different.
 """
 
 import sys
-from typing import Any, Final, ForwardRef, NewType, TypeVar
+from typing import (
+    Any,
+    Final,
+    ForwardRef,
+    NewType,
+    ParamSpecArgs,
+    ParamSpecKwargs,
+    TypeAliasType,
+    TypeVar,
+)
 
-from typing_extensions import ParamSpec, ParamSpecArgs, ParamSpecKwargs, TypeAliasType, TypeIs, TypeVarTuple, deprecated
+from typing_extensions import (
+    ParamSpec,
+    TypeIs,
+    TypeVarTuple,
+    deprecated,
+)
 
 __all__ = [
     'DEPRECATED_ALIASES',

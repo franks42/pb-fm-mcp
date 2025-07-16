@@ -12,6 +12,7 @@ import re
 import sys
 import typing
 import warnings
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from copy import copy, deepcopy
 from decimal import Decimal
@@ -19,24 +20,29 @@ from enum import Enum
 from fractions import Fraction
 from functools import partial
 from inspect import Parameter, _ParameterKind, signature
-from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network
+from ipaddress import (
+    IPv4Address,
+    IPv4Interface,
+    IPv4Network,
+    IPv6Address,
+    IPv6Interface,
+    IPv6Network,
+)
 from itertools import chain
 from operator import attrgetter
 from types import FunctionType, LambdaType, MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Dict,
     Final,
     ForwardRef,
-    Iterable,
-    Iterator,
-    Mapping,
-    Type,
+    Literal,
+    TypeAliasType,
     TypeVar,
     Union,
     cast,
+    get_args,
+    get_origin,
     overload,
 )
 from uuid import UUID
@@ -53,17 +59,29 @@ from pydantic_core import (
     core_schema,
     to_jsonable_python,
 )
-from typing_extensions import Literal, TypeAliasType, TypedDict, get_args, get_origin, is_typeddict
+from typing_extensions import TypedDict, is_typeddict
 
 from ..aliases import AliasChoices, AliasGenerator, AliasPath
 from ..annotated_handlers import GetCoreSchemaHandler, GetJsonSchemaHandler
 from ..config import ConfigDict, JsonDict, JsonEncoder, JsonSchemaExtraCallable
 from ..errors import PydanticSchemaGenerationError, PydanticUndefinedAnnotation, PydanticUserError
-from ..functional_validators import AfterValidator, BeforeValidator, FieldValidatorModes, PlainValidator, WrapValidator
+from ..functional_validators import (
+    AfterValidator,
+    BeforeValidator,
+    FieldValidatorModes,
+    PlainValidator,
+    WrapValidator,
+)
 from ..json_schema import JsonSchemaValue
 from ..version import version_short
 from ..warnings import PydanticDeprecatedSince20
-from . import _core_utils, _decorators, _discriminated_union, _known_annotated_metadata, _typing_extra
+from . import (
+    _core_utils,
+    _decorators,
+    _discriminated_union,
+    _known_annotated_metadata,
+    _typing_extra,
+)
 from ._config import ConfigWrapper, ConfigWrapperStack
 from ._core_metadata import update_core_metadata
 from ._core_utils import (
@@ -93,7 +111,12 @@ from ._decorators import (
 from ._docs_extraction import extract_docstrings_from_cls
 from ._fields import collect_dataclass_fields, takes_validated_data_argument
 from ._forward_ref import PydanticRecursiveRef
-from ._generics import get_standard_typevars_map, has_instance_in_type, recursively_defined_type_refs, replace_types
+from ._generics import (
+    get_standard_typevars_map,
+    has_instance_in_type,
+    recursively_defined_type_refs,
+    replace_types,
+)
 from ._import_utils import import_cached_base_model, import_cached_field_info
 from ._mock_val_ser import MockCoreSchema
 from ._namespace_utils import NamespacesTuple, NsResolver
@@ -120,11 +143,11 @@ AnyFieldDecorator = Union[
 ModifyCoreSchemaWrapHandler = GetCoreSchemaHandler
 GetCoreSchemaFunction = Callable[[Any, ModifyCoreSchemaWrapHandler], core_schema.CoreSchema]
 
-TUPLE_TYPES: list[type] = [tuple, typing.Tuple]
-LIST_TYPES: list[type] = [list, typing.List, collections.abc.MutableSequence]
-SET_TYPES: list[type] = [set, typing.Set, collections.abc.MutableSet]
-FROZEN_SET_TYPES: list[type] = [frozenset, typing.FrozenSet, collections.abc.Set]
-DICT_TYPES: list[type] = [dict, typing.Dict]
+TUPLE_TYPES: list[type] = [tuple, tuple]
+LIST_TYPES: list[type] = [list, list, collections.abc.MutableSequence]
+SET_TYPES: list[type] = [set, set, collections.abc.MutableSet]
+FROZEN_SET_TYPES: list[type] = [frozenset, frozenset, collections.abc.Set]
+DICT_TYPES: list[type] = [dict, dict]
 IP_TYPES: list[type] = [IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network]
 SEQUENCE_TYPES: list[type] = [typing.Sequence, collections.abc.Sequence]
 PATH_TYPES: list[type] = [
@@ -142,12 +165,12 @@ MAPPING_TYPES = [
     collections.abc.MutableMapping,
     collections.OrderedDict,
     typing_extensions.OrderedDict,
-    typing.DefaultDict,
+    collections.defaultdict,
     collections.defaultdict,
     collections.Counter,
     typing.Counter,
 ]
-DEQUE_TYPES: list[type] = [collections.deque, typing.Deque]
+DEQUE_TYPES: list[type] = [collections.deque, collections.deque]
 
 # Note: This does not play very well with type checkers. For example,
 # `a: LambdaType = lambda x: x` will raise a type error by Pyright.
@@ -269,7 +292,7 @@ def _extract_json_schema_info_from_field_info(
     return (json_schema_updates or None, info.json_schema_extra)
 
 
-JsonEncoders = Dict[Type[Any], JsonEncoder]
+JsonEncoders = dict[type[Any], JsonEncoder]
 
 
 def _add_custom_serialization_from_json_encoders(
@@ -322,9 +345,9 @@ class GenerateSchema:
         '_config_wrapper_stack',
         '_ns_resolver',
         '_typevars_map',
+        'defs',
         'field_name_stack',
         'model_type_stack',
-        'defs',
     )
 
     def __init__(
@@ -658,7 +681,7 @@ class GenerateSchema:
                                     *self._types_namespace,
                                 )
                             tp = get_origin(extras_annotation)
-                            if tp not in (Dict, dict):
+                            if tp not in (dict, dict):
                                 raise PydanticSchemaGenerationError(
                                     'The type annotation for `__pydantic_extra__` must be `Dict[str, ...]`'
                                 )
@@ -883,7 +906,7 @@ class GenerateSchema:
 
         return self.match_type(obj)
 
-    def match_type(self, obj: Any) -> core_schema.CoreSchema:  # noqa: C901
+    def match_type(self, obj: Any) -> core_schema.CoreSchema:
         """Main mapping of types to schemas.
 
         The general structure is a series of if statements starting with the simple cases
@@ -994,7 +1017,7 @@ class GenerateSchema:
             return self._arbitrary_type_schema(obj)
         return self._unknown_type_schema(obj)
 
-    def _match_generic_type(self, obj: Any, origin: Any) -> CoreSchema:  # noqa: C901
+    def _match_generic_type(self, obj: Any, origin: Any) -> CoreSchema:
         # Need to handle generic dataclasses before looking for the schema properties because attribute accesses
         # on _GenericAlias delegate to the origin type, so lose the information about the concrete parametrization
         # As a result, currently, there is no way to cache the schema for generic dataclasses. This may be possible
@@ -1024,7 +1047,7 @@ class GenerateSchema:
             return self._dict_schema(*self._get_first_two_args_or_any(obj))
         elif is_typeddict(origin):
             return self._typed_dict_schema(obj, origin)
-        elif origin in (typing.Type, type):
+        elif origin in (type, type):
             return self._subclass_schema(obj)
         elif origin in SEQUENCE_TYPES:
             return self._sequence_schema(self._get_first_arg_or_any(obj))
@@ -1497,7 +1520,7 @@ class GenerateSchema:
                 raise PydanticUndefinedAnnotation.from_name_error(e) from e
             if not annotations:
                 # annotations is empty, happens if namedtuple_cls defined via collections.namedtuple(...)
-                annotations: dict[str, Any] = {k: Any for k in namedtuple_cls._fields}
+                annotations: dict[str, Any] = dict.fromkeys(namedtuple_cls._fields, Any)
 
             if typevars_map:
                 annotations = {
@@ -1616,7 +1639,7 @@ class GenerateSchema:
     def _union_is_subclass_schema(self, union_type: Any) -> core_schema.CoreSchema:
         """Generate schema for `Type[Union[X, ...]]`."""
         args = self._get_args_resolving_forward_refs(union_type, required=True)
-        return core_schema.union_schema([self.generate_schema(typing.Type[args]) for args in args])
+        return core_schema.union_schema([self.generate_schema(type[args]) for args in args])
 
     def _subclass_schema(self, type_: Any) -> core_schema.CoreSchema:
         """Generate schema for a Type, e.g. `Type[int]`."""
@@ -1628,7 +1651,7 @@ class GenerateSchema:
         if _typing_extra.is_any(type_param):
             return self._type_schema()
         elif _typing_extra.is_type_alias_type(type_param):
-            return self.generate_schema(typing.Type[type_param.__value__])
+            return self.generate_schema(type[type_param.__value__])
         elif isinstance(type_param, typing.TypeVar):
             if type_param.__bound__:
                 if _typing_extra.origin_is_union(get_origin(type_param.__bound__)):
@@ -1636,7 +1659,7 @@ class GenerateSchema:
                 return core_schema.is_subclass_schema(type_param.__bound__)
             elif type_param.__constraints__:
                 return core_schema.union_schema(
-                    [self.generate_schema(typing.Type[c]) for c in type_param.__constraints__]
+                    [self.generate_schema(type[c]) for c in type_param.__constraints__]
                 )
             else:
                 return self._type_schema()
@@ -2082,7 +2105,7 @@ class GenerateSchema:
         ref = schema.get('ref', None)
         if ref is not None:
             schema = schema.copy()
-            new_ref = ref + f'_{repr(metadata)}'
+            new_ref = ref + f'_{metadata!r}'
             if new_ref in self.defs.definitions:
                 return self.defs.definitions[new_ref]
             schema['ref'] = new_ref  # type: ignore
@@ -2090,7 +2113,7 @@ class GenerateSchema:
             ref = schema['schema_ref']
             if ref in self.defs.definitions:
                 schema = self.defs.definitions[ref].copy()
-                new_ref = ref + f'_{repr(metadata)}'
+                new_ref = ref + f'_{metadata!r}'
                 if new_ref in self.defs.definitions:
                     return self.defs.definitions[new_ref]
                 schema['ref'] = new_ref  # type: ignore

@@ -6,7 +6,7 @@ structured path components that can be used to traverse nested data structures.
 """
 
 from enum import Enum, auto
-from typing import List, NamedTuple, Union, Optional
+from typing import NamedTuple
 
 
 class PathComponentType(Enum):
@@ -20,8 +20,8 @@ class PathComponentType(Enum):
 class PathComponent(NamedTuple):
     """A single component in a path expression."""
     type: PathComponentType
-    value: Union[str, int, None]
-    raw_value: Optional[str] = None  # Store the original string representation for keys
+    value: str | int | None
+    raw_value: str | None = None  # Store the original string representation for keys
 
     def __str__(self) -> str:
         if self.type == PathComponentType.KEY:
@@ -33,7 +33,7 @@ class PathComponent(NamedTuple):
         return ""
 
 
-def parse_path(path: str) -> List[PathComponent]:
+def parse_path(path: str) -> list[PathComponent]:
     """
     Parse a jq-style path expression into a list of path components.
 
@@ -49,7 +49,7 @@ def parse_path(path: str) -> List[PathComponent]:
     if not path:
         return []
 
-    components: List[PathComponent] = []
+    components: list[PathComponent] = []
     i = 0
     n = len(path)
     

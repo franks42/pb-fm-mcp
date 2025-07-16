@@ -6,7 +6,7 @@ import dataclasses
 import typing
 import warnings
 from functools import partial, wraps
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TypeGuard
 
 from pydantic_core import (
     ArgsKwargs,
@@ -14,7 +14,6 @@ from pydantic_core import (
     SchemaValidator,
     core_schema,
 )
-from typing_extensions import TypeGuard
 
 from ..errors import PydanticUndefinedAnnotation
 from ..plugin._schema_validator import PluggableSchemaValidator, create_schema_validator

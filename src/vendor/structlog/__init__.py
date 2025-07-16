@@ -41,7 +41,6 @@ from structlog._output import (
 from structlog.exceptions import DropEvent
 from structlog.testing import ReturnLogger, ReturnLoggerFactory
 
-
 try:
     from structlog import twisted
 except ImportError:
@@ -93,7 +92,6 @@ __all__ = [
 
 def __getattr__(name: str) -> str:
     import warnings
-
     from importlib.metadata import metadata, version
 
     dunder_to_metadata = {

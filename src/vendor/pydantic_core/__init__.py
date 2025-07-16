@@ -30,7 +30,7 @@ from ._pydantic_core import (
 from .core_schema import CoreConfig, CoreSchema, CoreSchemaType, ErrorType
 
 if _sys.version_info < (3, 11):
-    from typing_extensions import NotRequired as _NotRequired
+    from typing import NotRequired as _NotRequired
 else:
     from typing import NotRequired as _NotRequired
 
@@ -40,31 +40,31 @@ else:
     from typing import TypedDict as _TypedDict
 
 __all__ = [
-    '__version__',
+    'ArgsKwargs',
     'CoreConfig',
     'CoreSchema',
     'CoreSchemaType',
-    'SchemaValidator',
-    'SchemaSerializer',
-    'Some',
-    'Url',
-    'MultiHostUrl',
-    'ArgsKwargs',
-    'PydanticUndefined',
-    'PydanticUndefinedType',
-    'SchemaError',
     'ErrorDetails',
     'InitErrorDetails',
-    'ValidationError',
+    'MultiHostUrl',
     'PydanticCustomError',
     'PydanticKnownError',
     'PydanticOmit',
-    'PydanticUseDefault',
     'PydanticSerializationError',
     'PydanticSerializationUnexpectedValue',
+    'PydanticUndefined',
+    'PydanticUndefinedType',
+    'PydanticUseDefault',
+    'SchemaError',
+    'SchemaSerializer',
+    'SchemaValidator',
+    'Some',
     'TzInfo',
-    'to_json',
+    'Url',
+    'ValidationError',
+    '__version__',
     'from_json',
+    'to_json',
     'to_jsonable_python',
     'validate_core_schema',
 ]

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable
 from inspect import Parameter, Signature, signature
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from pydantic_core import PydanticUndefined
 
@@ -77,7 +78,7 @@ def _process_param_defaults(param: Parameter) -> Parameter:
     return param
 
 
-def _generate_signature_parameters(  # noqa: C901 (ignore complexity, could use a refactor)
+def _generate_signature_parameters(
     init: Callable[..., None],
     fields: dict[str, FieldInfo],
     populate_by_name: bool,

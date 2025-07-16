@@ -17,7 +17,9 @@ from .lowlevel import RunVar
 if sys.version_info >= (3, 11):
     from typing import TypeVarTuple, Unpack
 else:
-    from typing_extensions import TypeVarTuple, Unpack
+    from typing import Unpack
+
+    from typing_extensions import TypeVarTuple
 
 UNBOUND: Final = 2  # I have no clue how this works, but it was used in the stdlib
 FMT_UNPICKLED: Final = 0

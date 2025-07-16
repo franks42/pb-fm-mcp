@@ -2,7 +2,7 @@ from __future__ import annotations as _annotations
 
 from collections.abc import Iterator, Mapping
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from .env import EnvSettingsSource
 
@@ -33,7 +33,7 @@ def import_gcp_secret_manager() -> None:
         ) from e
 
 
-class GoogleSecretManagerMapping(Mapping[str, Optional[str]]):
+class GoogleSecretManagerMapping(Mapping[str, str | None]):
     _loaded_secrets: dict[str, str | None]
     _secret_client: SecretManagerServiceClient
 
@@ -131,11 +131,11 @@ class GoogleSecretManagerSettingsSource(EnvSettingsSource):
             env_parse_enums=env_parse_enums,
         )
 
-    def _load_env_vars(self) -> Mapping[str, Optional[str]]:
+    def _load_env_vars(self) -> Mapping[str, str | None]:
         return GoogleSecretManagerMapping(self._secret_client, project_id=self._project_id)
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}(project_id={self._project_id!r}, env_nested_delimiter={self.env_nested_delimiter!r})'
 
 
-__all__ = ['GoogleSecretManagerSettingsSource', 'GoogleSecretManagerMapping']
+__all__ = ['GoogleSecretManagerMapping', 'GoogleSecretManagerSettingsSource']

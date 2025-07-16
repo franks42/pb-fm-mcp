@@ -17,7 +17,12 @@ from urllib.parse import urlencode, urljoin
 import anyio
 import httpx
 
-from mcp.shared.auth import OAuthClientInformationFull, OAuthClientMetadata, OAuthMetadata, OAuthToken
+from mcp.shared.auth import (
+    OAuthClientInformationFull,
+    OAuthClientMetadata,
+    OAuthMetadata,
+    OAuthToken,
+)
 from mcp.types import LATEST_PROTOCOL_VERSION
 
 logger = logging.getLogger(__name__)

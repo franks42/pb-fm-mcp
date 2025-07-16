@@ -1,9 +1,9 @@
-import asyncio
 import copy
 import json
-import httpx
-import sys
 from decimal import Decimal
+
+import httpx
+
 from hastra_types import JSONType
 
 
@@ -31,9 +31,7 @@ def parse_amount(val: object) -> int | Decimal:
     # fallback: try Decimal
     return Decimal(str(val))
 
-from datetime import datetime, timezone
-from typing import Tuple, Any, Dict, List, Union
-
+from datetime import UTC, datetime
 
 #########################################################################################
 ## helper functions
@@ -43,20 +41,21 @@ def datetime_to_ms(dt):
     """Convert datetime to milliseconds since epoch"""
     if dt.tzinfo is None:
         # Assume UTC if no timezone specified
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return int(dt.timestamp() * 1000)
 
-def ms_to_datetime(ms_timestamp, tz=timezone.utc):
+def ms_to_datetime(ms_timestamp, tz=UTC):
     """Convert milliseconds since epoch to datetime"""
     return datetime.fromtimestamp(ms_timestamp / 1000, tz=tz)
 
 def current_ms():
     """Get current time in milliseconds since epoch"""
-    return int(datetime.now(timezone.utc).timestamp() * 1000)
+    return int(datetime.now(UTC).timestamp() * 1000)
 
 
 
 from typing import TypedDict
+
 
 class AmountDenomT(TypedDict):
     amount: int | Decimal

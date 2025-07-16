@@ -9,18 +9,33 @@ import typing
 import warnings
 import weakref
 from abc import ABCMeta
-from functools import lru_cache, partial
+from collections.abc import Callable
+from functools import cache, partial
 from types import FunctionType
-from typing import Any, Callable, Generic, Literal, NoReturn, cast
+from typing import (
+    Any,
+    Generic,
+    Literal,
+    NoReturn,
+    TypeAliasType,
+    cast,
+    dataclass_transform,
+    get_args,
+)
 
 from pydantic_core import PydanticUndefined, SchemaSerializer
-from typing_extensions import TypeAliasType, dataclass_transform, deprecated, get_args
+from typing_extensions import deprecated
 
 from ..errors import PydanticUndefinedAnnotation, PydanticUserError
 from ..plugin._schema_validator import create_schema_validator
 from ..warnings import GenericBeforeBaseModelWarning, PydanticDeprecatedSince20
 from ._config import ConfigWrapper
-from ._decorators import DecoratorInfos, PydanticDescriptorProxy, get_attribute_from_bases, unwrap_wrapped_function
+from ._decorators import (
+    DecoratorInfos,
+    PydanticDescriptorProxy,
+    get_attribute_from_bases,
+    unwrap_wrapped_function,
+)
 from ._fields import collect_model_fields, is_valid_field_name, is_valid_privateattr_name
 from ._generate_schema import GenerateSchema
 from ._generics import PydanticGenericMetadata, get_model_typevars_map
@@ -354,7 +369,7 @@ def get_model_post_init(namespace: dict[str, Any], bases: tuple[type[Any], ...])
         return model_post_init
 
 
-def inspect_namespace(  # noqa C901
+def inspect_namespace(
     namespace: dict[str, Any],
     ignored_types: tuple[type[Any], ...],
     base_class_vars: set[str],
@@ -772,7 +787,7 @@ def unpack_lenient_weakvaluedict(d: dict[str, Any] | None) -> dict[str, Any] | N
     return result
 
 
-@lru_cache(maxsize=None)
+@cache
 def default_ignored_types() -> tuple[type[Any], ...]:
     from ..fields import ComputedFieldInfo
 

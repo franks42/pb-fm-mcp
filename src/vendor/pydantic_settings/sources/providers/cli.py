@@ -16,7 +16,7 @@ from argparse import (
     _SubParsersAction,
 )
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from enum import Enum
 from textwrap import dedent
 from types import SimpleNamespace
@@ -24,13 +24,12 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    Callable,
     Generic,
     NoReturn,
-    Optional,
     TypeVar,
-    Union,
     cast,
+    get_args,
+    get_origin,
     overload,
 )
 
@@ -41,13 +40,19 @@ from pydantic._internal._utils import is_model_class
 from pydantic.dataclasses import is_pydantic_dataclass
 from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
-from typing_extensions import get_args, get_origin
 from typing_inspection import typing_objects
 from typing_inspection.introspection import is_union_origin
 
 from ...exceptions import SettingsError
 from ...utils import _lenient_issubclass, _WithArgsTypes
-from ..types import NoDecode, _CliExplicitFlag, _CliImplicitFlag, _CliPositionalArg, _CliSubCommand, _CliUnknownArgs
+from ..types import (
+    NoDecode,
+    _CliExplicitFlag,
+    _CliImplicitFlag,
+    _CliPositionalArg,
+    _CliSubCommand,
+    _CliUnknownArgs,
+)
 from ..utils import (
     _annotation_contains_types,
     _annotation_enum_val_to_name,
@@ -79,7 +84,7 @@ class CliMutuallyExclusiveGroup(BaseModel):
 
 
 T = TypeVar('T')
-CliSubCommand = Annotated[Union[T, None], _CliSubCommand]
+CliSubCommand = Annotated[T | None, _CliSubCommand]
 CliPositionalArg = Annotated[T, _CliPositionalArg]
 _CliBoolFlag = TypeVar('_CliBoolFlag', bound=bool)
 CliImplicitFlag = Annotated[_CliBoolFlag, _CliImplicitFlag]
@@ -378,7 +383,7 @@ class CliSettingsSource(EnvSettingsSource, Generic[T]):
 
     def _get_merge_parsed_list_types(
         self, parsed_list: list[str], field_name: str
-    ) -> tuple[Optional[type], Optional[type]]:
+    ) -> tuple[type | None, type | None]:
         merge_type = self._cli_dict_args.get(field_name, list)
         if (
             merge_type is list

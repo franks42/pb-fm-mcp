@@ -3,12 +3,12 @@
 from __future__ import annotations as _annotations
 
 import sys
+from collections.abc import Iterable
 from dataclasses import is_dataclass
 from types import FrameType
 from typing import (
     Any,
     Generic,
-    Iterable,
     Literal,
     TypeVar,
     cast,
@@ -22,7 +22,15 @@ from typing_extensions import ParamSpec, is_typeddict
 from pydantic.errors import PydanticUserError
 from pydantic.main import BaseModel, IncEx
 
-from ._internal import _config, _generate_schema, _mock_val_ser, _namespace_utils, _repr, _typing_extra, _utils
+from ._internal import (
+    _config,
+    _generate_schema,
+    _mock_val_ser,
+    _namespace_utils,
+    _repr,
+    _typing_extra,
+    _utils,
+)
 from .config import ConfigDict
 from .errors import PydanticUndefinedAnnotation
 from .json_schema import (

@@ -1,6 +1,9 @@
 from IPython.core.magic import Magics, line_magic, magics_class  # type: ignore
-from IPython.core.magic_arguments import (argument, magic_arguments,  # type: ignore
-                                          parse_argstring)  # type: ignore
+from IPython.core.magic_arguments import (  # type: ignore
+    argument,
+    magic_arguments,
+    parse_argstring,  # type: ignore
+)
 
 from .main import find_dotenv, load_dotenv
 
@@ -26,7 +29,7 @@ class IPythonDotEnv(Magics):
         dotenv_path = args.dotenv_path
         try:
             dotenv_path = find_dotenv(dotenv_path, True, True)
-        except IOError:
+        except OSError:
             print("cannot find .env file")
             return
 

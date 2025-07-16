@@ -1,6 +1,7 @@
 from __future__ import annotations as _annotations
 
-from typing import TYPE_CHECKING, Any, Hashable, Sequence
+from collections.abc import Hashable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from pydantic_core import CoreSchema, core_schema
 
@@ -314,7 +315,7 @@ class _ApplyInferredDiscriminator:
             and (self.discriminator in inner_discriminator or [self.discriminator] in inner_discriminator)
         )
 
-    def _infer_discriminator_values_for_choice(  # noqa C901
+    def _infer_discriminator_values_for_choice(
         self, choice: core_schema.CoreSchema, source_name: str | None
     ) -> list[str | int]:
         """This function recurses over `choice`, extracting all discriminator values that should map to this choice.

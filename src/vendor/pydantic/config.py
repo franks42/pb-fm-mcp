@@ -2,10 +2,11 @@
 
 from __future__ import annotations as _annotations
 
+from collections.abc import Callable
 from re import Pattern
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, Union
 
-from typing_extensions import Literal, TypeAlias, TypedDict
+from typing_extensions import TypedDict
 
 from ._migration import getattr_migration
 from .aliases import AliasGenerator
@@ -18,15 +19,12 @@ if TYPE_CHECKING:
 __all__ = ('ConfigDict', 'with_config')
 
 
-JsonValue: TypeAlias = Union[int, float, str, bool, None, List['JsonValue'], 'JsonDict']
-JsonDict: TypeAlias = Dict[str, JsonValue]
+JsonValue: TypeAlias = Union[int, float, str, bool, None, list['JsonValue'], 'JsonDict']
+JsonDict: TypeAlias = dict[str, JsonValue]
 
 JsonEncoder = Callable[[Any], Any]
 
-JsonSchemaExtraCallable: TypeAlias = Union[
-    Callable[[JsonDict], None],
-    Callable[[JsonDict, Type[Any]], None],
-]
+JsonSchemaExtraCallable: TypeAlias = Callable[[JsonDict], None] | Callable[[JsonDict, type[Any]], None]
 
 ExtraValues = Literal['allow', 'ignore', 'forbid']
 

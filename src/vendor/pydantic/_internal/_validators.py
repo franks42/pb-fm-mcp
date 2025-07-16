@@ -8,10 +8,18 @@ from __future__ import annotations as _annotations
 import math
 import re
 import typing
+from collections.abc import Callable
 from decimal import Decimal
 from fractions import Fraction
-from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network
-from typing import Any, Callable, Union
+from ipaddress import (
+    IPv4Address,
+    IPv4Interface,
+    IPv4Network,
+    IPv6Address,
+    IPv6Interface,
+    IPv6Network,
+)
+from typing import Any, Union
 
 from pydantic_core import PydanticCustomError, core_schema
 from pydantic_core._pydantic_core import PydanticKnownError

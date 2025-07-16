@@ -53,7 +53,6 @@ from typing import (
     IO,
     TYPE_CHECKING,
     Any,
-    Optional,
     TypeVar,
     cast,
 )
@@ -119,9 +118,10 @@ else:
     import enum
     import signal
     from asyncio import coroutines, events, exceptions, tasks
+    from typing import Unpack
 
     from exceptiongroup import BaseExceptionGroup
-    from typing_extensions import TypeVarTuple, Unpack
+    from typing_extensions import TypeVarTuple
 
     class _State(enum.Enum):
         CREATED = "created"
@@ -669,7 +669,7 @@ class TaskState:
     itself because there are no guarantees about its implementation.
     """
 
-    __slots__ = "parent_id", "cancel_scope", "__weakref__"
+    __slots__ = "__weakref__", "cancel_scope", "parent_id"
 
     def __init__(self, parent_id: int | None, cancel_scope: CancelScope | None):
         self.parent_id = parent_id
@@ -909,7 +909,7 @@ class TaskGroup(abc.TaskGroup):
 # Threads
 #
 
-_Retval_Queue_Type = tuple[Optional[T_Retval], Optional[BaseException]]
+_Retval_Queue_Type = tuple[T_Retval | None, BaseException | None]
 
 
 class WorkerThread(Thread):

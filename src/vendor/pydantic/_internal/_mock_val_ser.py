@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator, Mapping, TypeVar, Union
+from collections.abc import Callable, Iterator, Mapping
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from pydantic_core import CoreSchema, SchemaSerializer, SchemaValidator
-from typing_extensions import Literal
 
 from ..errors import PydanticErrorCodes, PydanticUserError
 from ..plugin._schema_validator import PluggableSchemaValidator
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ..type_adapter import TypeAdapter
 
 
-ValSer = TypeVar('ValSer', bound=Union[SchemaValidator, PluggableSchemaValidator, SchemaSerializer])
+ValSer = TypeVar('ValSer', bound=SchemaValidator | PluggableSchemaValidator | SchemaSerializer)
 T = TypeVar('T')
 
 
@@ -23,7 +23,7 @@ class MockCoreSchema(Mapping[str, Any]):
     rebuild the thing it's mocking when one of its methods is accessed and raises an error if that fails.
     """
 
-    __slots__ = '_error_message', '_code', '_attempt_rebuild', '_built_memo'
+    __slots__ = '_attempt_rebuild', '_built_memo', '_code', '_error_message'
 
     def __init__(
         self,
@@ -73,7 +73,7 @@ class MockValSer(Generic[ValSer]):
     rebuild the thing it's mocking when one of its methods is accessed and raises an error if that fails.
     """
 
-    __slots__ = '_error_message', '_code', '_val_or_ser', '_attempt_rebuild'
+    __slots__ = '_attempt_rebuild', '_code', '_error_message', '_val_or_ser'
 
     def __init__(
         self,

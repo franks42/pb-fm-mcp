@@ -4,10 +4,11 @@ import sys
 import types
 import typing
 from collections import ChainMap
+from collections.abc import Iterator, Mapping, MutableMapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from types import prepare_class
-from typing import TYPE_CHECKING, Any, Iterator, Mapping, MutableMapping, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from weakref import WeakValueDictionary
 
 import typing_extensions
@@ -23,7 +24,7 @@ if sys.version_info >= (3, 10):
 if TYPE_CHECKING:
     from ..main import BaseModel
 
-GenericTypesCacheKey = Tuple[Any, Any, Tuple[Any, ...]]
+GenericTypesCacheKey = tuple[Any, Any, tuple[Any, ...]]
 
 # Note: We want to remove LimitedDict, but to do this, we'd need to improve the handling of generics caching.
 #   Right now, to handle recursive generics, we some types must remain cached for brief periods without references.
@@ -231,7 +232,7 @@ def get_standard_typevars_map(cls: Any) -> dict[TypeVar, Any] | None:
     # So it is safe to access cls.__args__ and origin.__parameters__
     args: tuple[Any, ...] = cls.__args__  # type: ignore
     parameters: tuple[TypeVar, ...] = origin.__parameters__
-    return dict(zip(parameters, args))
+    return dict(zip(parameters, args, strict=False))
 
 
 def get_model_typevars_map(cls: type[BaseModel]) -> dict[TypeVar, Any] | None:
@@ -246,7 +247,7 @@ def get_model_typevars_map(cls: type[BaseModel]) -> dict[TypeVar, Any] | None:
     generic_metadata = cls.__pydantic_generic_metadata__
     origin = generic_metadata['origin']
     args = generic_metadata['args']
-    return dict(zip(iter_contained_typevars(origin), args))
+    return dict(zip(iter_contained_typevars(origin), args, strict=False))
 
 
 def replace_types(type_: Any, type_map: Mapping[Any, Any] | None) -> Any:

@@ -1,11 +1,12 @@
 import math
 import sys
-from datetime import date, datetime, timedelta, timezone
+from collections.abc import Iterable, Iterator
+from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Any, Dict, Iterable, Iterator, List, NamedTuple, Set, Tuple
+from typing import Any, NamedTuple
 
 if sys.version_info < (3, 9):
-    from typing_extensions import Annotated
+    from typing import Annotated
 else:
     from typing import Annotated
 
@@ -83,32 +84,32 @@ def cases() -> Iterable[Case]:
 
     yield Case(Annotated[str, at.MinLen(3)], ('123', '1234', 'x' * 10), ('', '1', '12'))
     yield Case(Annotated[str, at.Len(3)], ('123', '1234', 'x' * 10), ('', '1', '12'))
-    yield Case(Annotated[List[int], at.MinLen(3)], ([1, 2, 3], [1, 2, 3, 4], [1] * 10), ([], [1], [1, 2]))
-    yield Case(Annotated[List[int], at.Len(3)], ([1, 2, 3], [1, 2, 3, 4], [1] * 10), ([], [1], [1, 2]))
+    yield Case(Annotated[list[int], at.MinLen(3)], ([1, 2, 3], [1, 2, 3, 4], [1] * 10), ([], [1], [1, 2]))
+    yield Case(Annotated[list[int], at.Len(3)], ([1, 2, 3], [1, 2, 3, 4], [1] * 10), ([], [1], [1, 2]))
 
     yield Case(Annotated[str, at.MaxLen(4)], ('', '1234'), ('12345', 'x' * 10))
     yield Case(Annotated[str, at.Len(0, 4)], ('', '1234'), ('12345', 'x' * 10))
-    yield Case(Annotated[List[str], at.MaxLen(4)], ([], ['a', 'bcdef'], ['a', 'b', 'c']), (['a'] * 5, ['b'] * 10))
-    yield Case(Annotated[List[str], at.Len(0, 4)], ([], ['a', 'bcdef'], ['a', 'b', 'c']), (['a'] * 5, ['b'] * 10))
+    yield Case(Annotated[list[str], at.MaxLen(4)], ([], ['a', 'bcdef'], ['a', 'b', 'c']), (['a'] * 5, ['b'] * 10))
+    yield Case(Annotated[list[str], at.Len(0, 4)], ([], ['a', 'bcdef'], ['a', 'b', 'c']), (['a'] * 5, ['b'] * 10))
 
     yield Case(Annotated[str, at.Len(3, 5)], ('123', '12345'), ('', '1', '12', '123456', 'x' * 10))
     yield Case(Annotated[str, at.Len(3, 3)], ('123',), ('12', '1234'))
 
-    yield Case(Annotated[Dict[int, int], at.Len(2, 3)], [{1: 1, 2: 2}], [{}, {1: 1}, {1: 1, 2: 2, 3: 3, 4: 4}])
-    yield Case(Annotated[Set[int], at.Len(2, 3)], ({1, 2}, {1, 2, 3}), (set(), {1}, {1, 2, 3, 4}))
-    yield Case(Annotated[Tuple[int, ...], at.Len(2, 3)], ((1, 2), (1, 2, 3)), ((), (1,), (1, 2, 3, 4)))
+    yield Case(Annotated[dict[int, int], at.Len(2, 3)], [{1: 1, 2: 2}], [{}, {1: 1}, {1: 1, 2: 2, 3: 3, 4: 4}])
+    yield Case(Annotated[set[int], at.Len(2, 3)], ({1, 2}, {1, 2, 3}), (set(), {1}, {1, 2, 3, 4}))
+    yield Case(Annotated[tuple[int, ...], at.Len(2, 3)], ((1, 2), (1, 2, 3)), ((), (1,), (1, 2, 3, 4)))
 
     # Timezone
 
     yield Case(
-        Annotated[datetime, at.Timezone(None)], [datetime(2000, 1, 1)], [datetime(2000, 1, 1, tzinfo=timezone.utc)]
+        Annotated[datetime, at.Timezone(None)], [datetime(2000, 1, 1)], [datetime(2000, 1, 1, tzinfo=UTC)]
     )
     yield Case(
-        Annotated[datetime, at.Timezone(...)], [datetime(2000, 1, 1, tzinfo=timezone.utc)], [datetime(2000, 1, 1)]
+        Annotated[datetime, at.Timezone(...)], [datetime(2000, 1, 1, tzinfo=UTC)], [datetime(2000, 1, 1)]
     )
     yield Case(
-        Annotated[datetime, at.Timezone(timezone.utc)],
-        [datetime(2000, 1, 1, tzinfo=timezone.utc)],
+        Annotated[datetime, at.Timezone(UTC)],
+        [datetime(2000, 1, 1, tzinfo=UTC)],
         [datetime(2000, 1, 1), datetime(2000, 1, 1, tzinfo=timezone(timedelta(hours=6)))],
     )
     yield Case(

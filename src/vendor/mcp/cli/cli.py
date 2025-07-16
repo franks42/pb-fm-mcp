@@ -326,7 +326,7 @@ def run(
     Note: This command runs the server directly. You are responsible for ensuring
     all dependencies are available.\n
     For dependency management, use `mcp install` or `mcp dev` instead.
-    """  # noqa: E501
+    """
     file, server_object = _parse_file_path(file_spec)
 
     logger.debug(

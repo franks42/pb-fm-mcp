@@ -5,20 +5,20 @@ Plugin interface for Pydantic plugins, and related types.
 
 from __future__ import annotations
 
-from typing import Any, Callable, NamedTuple
+from collections.abc import Callable
+from typing import Any, Literal, NamedTuple, Protocol, TypeAlias
 
 from pydantic_core import CoreConfig, CoreSchema, ValidationError
-from typing_extensions import Literal, Protocol, TypeAlias
 
 __all__ = (
-    'PydanticPluginProtocol',
     'BaseValidateHandlerProtocol',
-    'ValidatePythonHandlerProtocol',
-    'ValidateJsonHandlerProtocol',
-    'ValidateStringsHandlerProtocol',
     'NewSchemaReturns',
-    'SchemaTypePath',
+    'PydanticPluginProtocol',
     'SchemaKind',
+    'SchemaTypePath',
+    'ValidateJsonHandlerProtocol',
+    'ValidatePythonHandlerProtocol',
+    'ValidateStringsHandlerProtocol',
 )
 
 NewSchemaReturns: TypeAlias = 'tuple[ValidatePythonHandlerProtocol | None, ValidateJsonHandlerProtocol | None, ValidateStringsHandlerProtocol | None]'

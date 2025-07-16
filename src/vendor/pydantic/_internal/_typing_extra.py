@@ -8,11 +8,12 @@ import sys
 import types
 import typing
 import warnings
-from functools import lru_cache, partial
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from functools import cache, partial
+from typing import TYPE_CHECKING, Any, get_args, get_origin
 
 import typing_extensions
-from typing_extensions import TypeIs, deprecated, get_args, get_origin
+from typing_extensions import TypeIs, deprecated
 
 from ._namespace_utils import GlobalsNamespace, MappingNamespace, NsResolver, get_module_ns_of
 
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
 # See https://typing-extensions.readthedocs.io/en/latest/#runtime-use-of-types:
 
 
-@lru_cache(maxsize=None)
+@cache
 def _get_typing_objects_by_name_of(name: str) -> tuple[Any, ...]:
     """Get the member named `name` from both `typing` and `typing-extensions` (if it exists)."""
     result = tuple(getattr(module, name) for module in (typing, typing_extensions) if hasattr(module, name))
@@ -252,7 +253,7 @@ def is_classvar_annotation(tp: Any, /) -> bool:
     required because class variables are inspected before fields are collected, so we try to be
     as accurate as possible.
     """
-    if is_classvar(tp) or (anntp := annotated_type(tp)) is not None and is_classvar(anntp):
+    if is_classvar(tp) or ((anntp := annotated_type(tp)) is not None and is_classvar(anntp)):
         return True
 
     str_ann: str | None = None
@@ -673,10 +674,10 @@ def is_backport_fixable_error(e: TypeError) -> bool:
     msg = str(e)
 
     return (
-        sys.version_info < (3, 10)
-        and msg.startswith('unsupported operand type(s) for |: ')
-        or sys.version_info < (3, 9)
-        and "' object is not subscriptable" in msg
+        (sys.version_info < (3, 10)
+        and msg.startswith('unsupported operand type(s) for |: '))
+        or (sys.version_info < (3, 9)
+        and "' object is not subscriptable" in msg)
     )
 
 
@@ -767,7 +768,7 @@ else:
     """
 
     @typing.no_type_check
-    def get_type_hints(  # noqa: C901
+    def get_type_hints(
         obj: Any,
         globalns: dict[str, Any] | None = None,
         localns: dict[str, Any] | None = None,

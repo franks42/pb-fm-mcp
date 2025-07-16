@@ -17,12 +17,11 @@ from __future__ import annotations
 import os
 import os.path
 import sys
-
+from collections.abc import Iterable, Sequence
 from dataclasses import asdict, dataclass, field
 from traceback import walk_tb
 from types import ModuleType, TracebackType
-from typing import Any, Iterable, Sequence, Tuple, Union
-
+from typing import Any, Union
 
 try:
     import rich
@@ -31,7 +30,6 @@ except ImportError:
     rich = None  # type: ignore[assignment]
 
 from .typing import ExcInfo
-
 
 __all__ = [
     "ExceptionDictTransformer",
@@ -50,7 +48,7 @@ LOCALS_MAX_LENGTH = 10
 LOCALS_MAX_STRING = 80
 MAX_FRAMES = 50
 
-OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
+OptExcInfo = Union[ExcInfo, tuple[None, None, None]]
 
 
 @dataclass
@@ -113,7 +111,7 @@ def safe_str(_object: Any) -> str:
     """Don't allow exceptions from __str__ to propagate."""
     try:
         return str(_object)
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         return f"<str-error {str(error)!r}>"
 
 
@@ -173,7 +171,7 @@ def to_repr(
                 if max_string is not None and len(obj_repr) > max_string:
                     truncated = len(obj_repr) - max_string
                     obj_repr = f"{obj_repr[:max_string]!r}+{truncated}"
-        except Exception as error:  # noqa: BLE001
+        except Exception as error:
             obj_repr = f"<repr-error {str(error)!r}>"
 
     return obj_repr
@@ -251,7 +249,7 @@ def extract(
         )
 
         if sys.version_info >= (3, 11):
-            if isinstance(exc_value, (BaseExceptionGroup, ExceptionGroup)):  # noqa: F821
+            if isinstance(exc_value, (BaseExceptionGroup, ExceptionGroup)):
                 stack.is_group = True
                 for exception in exc_value.exceptions:
                     stack.exceptions.append(
@@ -300,7 +298,7 @@ def extract(
                 filename = os.path.abspath(filename)
             # Rich has this, but we are not rich and like to keep all frames:
             # if frame_summary.f_locals.get("_rich_traceback_omit", False):
-            #     continue  # noqa: ERA001
+            #     continue
 
             frame = Frame(
                 filename=filename or "?",

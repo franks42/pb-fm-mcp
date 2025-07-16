@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from pydantic._internal._dataclasses import PydanticDataclass
     from pydantic.main import BaseModel
 
-    PydanticModel = TypeVar('PydanticModel', bound=Union[PydanticDataclass, BaseModel])
+    PydanticModel = TypeVar('PydanticModel', bound=PydanticDataclass | BaseModel)
 else:
     PydanticModel = Any
 
@@ -31,8 +31,8 @@ class ForceDecode:
     pass
 
 
-DotenvType = Union[Path, str, Sequence[Union[Path, str]]]
-PathType = Union[Path, str, Sequence[Union[Path, str]]]
+DotenvType = Union[Path, str, Sequence[Path | str]]
+PathType = Union[Path, str, Sequence[Path | str]]
 DEFAULT_PATH: PathType = Path('')
 
 # This is used as default value for `_env_file` in the `BaseSettings` class and

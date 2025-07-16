@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import os
 from collections import defaultdict
-from typing import Any, Callable, Hashable, TypeVar, Union
+from collections.abc import Callable, Hashable
+from typing import Any, TypeGuard, TypeVar, Union, get_args, get_origin
 
 from pydantic_core import CoreSchema, core_schema
 from pydantic_core import validate_core_schema as _validate_core_schema
-from typing_extensions import TypeGuard, get_args, get_origin
 
 from ..errors import PydanticUserError
 from . import _repr
@@ -439,7 +439,7 @@ def walk_core_schema(schema: core_schema.CoreSchema, f: Walk, *, copy: bool = Tr
     return f(schema.copy() if copy else schema, _dispatch if copy else _dispatch_no_copy)
 
 
-def simplify_schema_references(schema: core_schema.CoreSchema) -> core_schema.CoreSchema:  # noqa: C901
+def simplify_schema_references(schema: core_schema.CoreSchema) -> core_schema.CoreSchema:
     definitions: dict[str, core_schema.CoreSchema] = {}
     ref_counts: dict[str, int] = defaultdict(int)
     involved_in_recursion: dict[str, bool] = {}

@@ -8,15 +8,15 @@ from typing import Any
 from pydantic_core import PydanticOmit, core_schema
 
 SEQUENCE_ORIGIN_MAP: dict[Any, Any] = {
-    typing.Deque: collections.deque,
+    collections.deque: collections.deque,
     collections.deque: collections.deque,
     list: list,
-    typing.List: list,
+    list: list,
     set: set,
     typing.AbstractSet: set,
-    typing.Set: set,
+    set: set,
     frozenset: frozenset,
-    typing.FrozenSet: frozenset,
+    frozenset: frozenset,
     typing.Sequence: list,
     typing.MutableSequence: list,
     typing.MutableSet: set,

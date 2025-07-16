@@ -14,18 +14,15 @@ from __future__ import annotations
 import shutil
 import sys
 import warnings
-
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from io import StringIO
 from types import ModuleType
 from typing import (
     Any,
-    Callable,
     Literal,
     Protocol,
-    Sequence,
     TextIO,
-    Type,
     Union,
     cast,
 )
@@ -33,7 +30,6 @@ from typing import (
 from ._frames import _format_exception
 from .processors import _figure_out_exc_info
 from .typing import EventDict, ExceptionRenderer, ExcInfo, WrappedLogger
-
 
 try:
     import colorama
@@ -47,7 +43,6 @@ except ImportError:
 
 try:
     import rich
-
     from rich.console import Console
     from rich.traceback import Traceback
 except ImportError:
@@ -126,7 +121,7 @@ class _Styles(Protocol):
     kv_value: str
 
 
-Styles = Union[_Styles, Type[_Styles]]
+Styles = Union[_Styles, type[_Styles]]
 
 
 class _ColorfulStyles:
@@ -543,7 +538,7 @@ class ConsoleRenderer:
     .. versionadded:: 24.2.0 *pad_level*
     """
 
-    def __init__(  # noqa: PLR0912, PLR0915
+    def __init__(
         self,
         pad_event: int = _EVENT_WIDTH,
         colors: bool = _has_colors,

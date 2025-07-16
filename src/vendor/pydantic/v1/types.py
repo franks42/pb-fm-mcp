@@ -2,24 +2,18 @@ import abc
 import math
 import re
 import warnings
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from enum import Enum
 from pathlib import Path
+from re import Pattern
 from types import new_class
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
-    Dict,
-    FrozenSet,
-    List,
     Optional,
-    Pattern,
-    Set,
-    Tuple,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -56,58 +50,58 @@ from pydantic.v1.validators import (
 )
 
 __all__ = [
-    'NoneStr',
-    'NoneBytes',
-    'StrBytes',
-    'NoneStrBytes',
-    'StrictStr',
-    'ConstrainedBytes',
-    'conbytes',
-    'ConstrainedList',
-    'conlist',
-    'ConstrainedSet',
-    'conset',
-    'ConstrainedFrozenSet',
-    'confrozenset',
-    'ConstrainedStr',
-    'constr',
-    'PyObject',
-    'ConstrainedInt',
-    'conint',
-    'PositiveInt',
-    'NegativeInt',
-    'NonNegativeInt',
-    'NonPositiveInt',
-    'ConstrainedFloat',
-    'confloat',
-    'PositiveFloat',
-    'NegativeFloat',
-    'NonNegativeFloat',
-    'NonPositiveFloat',
-    'FiniteFloat',
-    'ConstrainedDecimal',
-    'condecimal',
     'UUID1',
     'UUID3',
     'UUID4',
     'UUID5',
-    'FilePath',
+    'ByteSize',
+    'ConstrainedBytes',
+    'ConstrainedDate',
+    'ConstrainedDecimal',
+    'ConstrainedFloat',
+    'ConstrainedFrozenSet',
+    'ConstrainedInt',
+    'ConstrainedList',
+    'ConstrainedSet',
+    'ConstrainedStr',
     'DirectoryPath',
+    'FilePath',
+    'FiniteFloat',
+    'FutureDate',
     'Json',
     'JsonWrapper',
+    'NegativeFloat',
+    'NegativeInt',
+    'NonNegativeFloat',
+    'NonNegativeInt',
+    'NonPositiveFloat',
+    'NonPositiveInt',
+    'NoneBytes',
+    'NoneStr',
+    'NoneStrBytes',
+    'PastDate',
+    'PaymentCardNumber',
+    'PositiveFloat',
+    'PositiveInt',
+    'PyObject',
+    'SecretBytes',
     'SecretField',
     'SecretStr',
-    'SecretBytes',
+    'StrBytes',
     'StrictBool',
     'StrictBytes',
-    'StrictInt',
     'StrictFloat',
-    'PaymentCardNumber',
-    'ByteSize',
-    'PastDate',
-    'FutureDate',
-    'ConstrainedDate',
+    'StrictInt',
+    'StrictStr',
+    'conbytes',
     'condate',
+    'condecimal',
+    'confloat',
+    'confrozenset',
+    'conint',
+    'conlist',
+    'conset',
+    'constr',
 ]
 
 NoneStr = Optional[str]
@@ -121,20 +115,20 @@ OptionalDate = Optional[date]
 StrIntFloat = Union[str, int, float]
 
 if TYPE_CHECKING:
-    from typing_extensions import Annotated
+    from typing import Annotated
 
     from pydantic.v1.dataclasses import Dataclass
     from pydantic.v1.main import BaseModel
     from pydantic.v1.typing import CallableGenerator
 
-    ModelOrDc = Type[Union[BaseModel, Dataclass]]
+    ModelOrDc = type[BaseModel | Dataclass]
 
 T = TypeVar('T')
 _DEFINED_TYPES: 'WeakSet[type]' = WeakSet()
 
 
 @overload
-def _registered(typ: Type[T]) -> Type[T]:
+def _registered(typ: type[T]) -> type[T]:
     pass
 
 
@@ -143,7 +137,7 @@ def _registered(typ: 'ConstrainedNumberMeta') -> 'ConstrainedNumberMeta':
     pass
 
 
-def _registered(typ: Union[Type[T], 'ConstrainedNumberMeta']) -> Union[Type[T], 'ConstrainedNumberMeta']:
+def _registered(typ: Union[type[T], 'ConstrainedNumberMeta']) -> Union[type[T], 'ConstrainedNumberMeta']:
     # In order to generate valid examples of constrained types, Hypothesis needs
     # to inspect the type object - so we keep a weakref to each contype object
     # until it can be registered.  When (or if) our Hypothesis plugin is loaded,
@@ -155,7 +149,7 @@ def _registered(typ: Union[Type[T], 'ConstrainedNumberMeta']) -> Union[Type[T], 
 
 
 class ConstrainedNumberMeta(type):
-    def __new__(cls, name: str, bases: Any, dct: Dict[str, Any]) -> 'ConstrainedInt':  # type: ignore
+    def __new__(cls, name: str, bases: Any, dct: dict[str, Any]) -> 'ConstrainedInt':  # type: ignore
         new_cls = cast('ConstrainedInt', type.__new__(cls, name, bases, dct))
 
         if new_cls.gt is not None and new_cls.ge is not None:
@@ -178,7 +172,7 @@ else:
         """
 
         @classmethod
-        def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+        def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
             field_schema.update(type='boolean')
 
         @classmethod
@@ -208,7 +202,7 @@ class ConstrainedInt(int, metaclass=ConstrainedNumberMeta):
     multiple_of: OptionalInt = None
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         update_not_none(
             field_schema,
             exclusiveMinimum=cls.gt,
@@ -228,12 +222,12 @@ class ConstrainedInt(int, metaclass=ConstrainedNumberMeta):
 def conint(
     *,
     strict: bool = False,
-    gt: Optional[int] = None,
-    ge: Optional[int] = None,
-    lt: Optional[int] = None,
-    le: Optional[int] = None,
-    multiple_of: Optional[int] = None,
-) -> Type[int]:
+    gt: int | None = None,
+    ge: int | None = None,
+    lt: int | None = None,
+    le: int | None = None,
+    multiple_of: int | None = None,
+) -> type[int]:
     # use kwargs then define conf in a dict to aid with IDE type hinting
     namespace = dict(strict=strict, gt=gt, ge=ge, lt=lt, le=le, multiple_of=multiple_of)
     return type('ConstrainedIntValue', (ConstrainedInt,), namespace)
@@ -273,10 +267,10 @@ class ConstrainedFloat(float, metaclass=ConstrainedNumberMeta):
     lt: OptionalIntFloat = None
     le: OptionalIntFloat = None
     multiple_of: OptionalIntFloat = None
-    allow_inf_nan: Optional[bool] = None
+    allow_inf_nan: bool | None = None
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         update_not_none(
             field_schema,
             exclusiveMinimum=cls.gt,
@@ -311,8 +305,8 @@ def confloat(
     lt: float = None,
     le: float = None,
     multiple_of: float = None,
-    allow_inf_nan: Optional[bool] = None,
-) -> Type[float]:
+    allow_inf_nan: bool | None = None,
+) -> type[float]:
     # use kwargs then define conf in a dict to aid with IDE type hinting
     namespace = dict(strict=strict, gt=gt, ge=ge, lt=lt, le=le, multiple_of=multiple_of, allow_inf_nan=allow_inf_nan)
     return type('ConstrainedFloatValue', (ConstrainedFloat,), namespace)
@@ -358,7 +352,7 @@ class ConstrainedBytes(bytes):
     strict: bool = False
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         update_not_none(field_schema, minLength=cls.min_length, maxLength=cls.max_length)
 
     @classmethod
@@ -375,10 +369,10 @@ def conbytes(
     strip_whitespace: bool = False,
     to_upper: bool = False,
     to_lower: bool = False,
-    min_length: Optional[int] = None,
-    max_length: Optional[int] = None,
+    min_length: int | None = None,
+    max_length: int | None = None,
     strict: bool = False,
-) -> Type[bytes]:
+) -> type[bytes]:
     # use kwargs then define conf in a dict to aid with IDE type hinting
     namespace = dict(
         strip_whitespace=strip_whitespace,
@@ -409,11 +403,11 @@ class ConstrainedStr(str):
     min_length: OptionalInt = None
     max_length: OptionalInt = None
     curtail_length: OptionalInt = None
-    regex: Optional[Union[str, Pattern[str]]] = None
+    regex: str | Pattern[str] | None = None
     strict = False
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         update_not_none(
             field_schema,
             minLength=cls.min_length,
@@ -431,7 +425,7 @@ class ConstrainedStr(str):
         yield cls.validate
 
     @classmethod
-    def validate(cls, value: Union[str]) -> Union[str]:
+    def validate(cls, value: str) -> str:
         if cls.curtail_length and len(value) > cls.curtail_length:
             value = value[: cls.curtail_length]
 
@@ -442,7 +436,7 @@ class ConstrainedStr(str):
         return value
 
     @staticmethod
-    def _get_pattern(regex: Union[str, Pattern[str]]) -> str:
+    def _get_pattern(regex: str | Pattern[str]) -> str:
         return regex if isinstance(regex, str) else regex.pattern
 
 
@@ -452,11 +446,11 @@ def constr(
     to_upper: bool = False,
     to_lower: bool = False,
     strict: bool = False,
-    min_length: Optional[int] = None,
-    max_length: Optional[int] = None,
-    curtail_length: Optional[int] = None,
-    regex: Optional[str] = None,
-) -> Type[str]:
+    min_length: int | None = None,
+    max_length: int | None = None,
+    curtail_length: int | None = None,
+    regex: str | None = None,
+) -> type[str]:
     # use kwargs then define conf in a dict to aid with IDE type hinting
     namespace = dict(
         strip_whitespace=strip_whitespace,
@@ -486,22 +480,22 @@ else:
 class ConstrainedSet(set):  # type: ignore
     # Needed for pydantic to detect that this is a set
     __origin__ = set
-    __args__: Set[Type[T]]  # type: ignore
+    __args__: set[type[T]]  # type: ignore
 
-    min_items: Optional[int] = None
-    max_items: Optional[int] = None
-    item_type: Type[T]  # type: ignore
+    min_items: int | None = None
+    max_items: int | None = None
+    item_type: type[T]  # type: ignore
 
     @classmethod
     def __get_validators__(cls) -> 'CallableGenerator':
         yield cls.set_length_validator
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         update_not_none(field_schema, minItems=cls.min_items, maxItems=cls.max_items)
 
     @classmethod
-    def set_length_validator(cls, v: 'Optional[Set[T]]') -> 'Optional[Set[T]]':
+    def set_length_validator(cls, v: 'set[T] | None') -> 'set[T] | None':
         if v is None:
             return None
 
@@ -517,7 +511,7 @@ class ConstrainedSet(set):  # type: ignore
         return v
 
 
-def conset(item_type: Type[T], *, min_items: Optional[int] = None, max_items: Optional[int] = None) -> Type[Set[T]]:
+def conset(item_type: type[T], *, min_items: int | None = None, max_items: int | None = None) -> type[set[T]]:
     # __args__ is needed to conform to typing generics api
     namespace = {'min_items': min_items, 'max_items': max_items, 'item_type': item_type, '__args__': [item_type]}
     # We use new_class to be able to deal with Generic types
@@ -528,22 +522,22 @@ def conset(item_type: Type[T], *, min_items: Optional[int] = None, max_items: Op
 class ConstrainedFrozenSet(frozenset):  # type: ignore
     # Needed for pydantic to detect that this is a set
     __origin__ = frozenset
-    __args__: FrozenSet[Type[T]]  # type: ignore
+    __args__: frozenset[type[T]]  # type: ignore
 
-    min_items: Optional[int] = None
-    max_items: Optional[int] = None
-    item_type: Type[T]  # type: ignore
+    min_items: int | None = None
+    max_items: int | None = None
+    item_type: type[T]  # type: ignore
 
     @classmethod
     def __get_validators__(cls) -> 'CallableGenerator':
         yield cls.frozenset_length_validator
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         update_not_none(field_schema, minItems=cls.min_items, maxItems=cls.max_items)
 
     @classmethod
-    def frozenset_length_validator(cls, v: 'Optional[FrozenSet[T]]') -> 'Optional[FrozenSet[T]]':
+    def frozenset_length_validator(cls, v: 'frozenset[T] | None') -> 'frozenset[T] | None':
         if v is None:
             return None
 
@@ -560,8 +554,8 @@ class ConstrainedFrozenSet(frozenset):  # type: ignore
 
 
 def confrozenset(
-    item_type: Type[T], *, min_items: Optional[int] = None, max_items: Optional[int] = None
-) -> Type[FrozenSet[T]]:
+    item_type: type[T], *, min_items: int | None = None, max_items: int | None = None
+) -> type[frozenset[T]]:
     # __args__ is needed to conform to typing generics api
     namespace = {'min_items': min_items, 'max_items': max_items, 'item_type': item_type, '__args__': [item_type]}
     # We use new_class to be able to deal with Generic types
@@ -575,12 +569,12 @@ def confrozenset(
 class ConstrainedList(list):  # type: ignore
     # Needed for pydantic to detect that this is a list
     __origin__ = list
-    __args__: Tuple[Type[T], ...]  # type: ignore
+    __args__: tuple[type[T], ...]  # type: ignore
 
-    min_items: Optional[int] = None
-    max_items: Optional[int] = None
-    unique_items: Optional[bool] = None
-    item_type: Type[T]  # type: ignore
+    min_items: int | None = None
+    max_items: int | None = None
+    unique_items: bool | None = None
+    item_type: type[T]  # type: ignore
 
     @classmethod
     def __get_validators__(cls) -> 'CallableGenerator':
@@ -589,11 +583,11 @@ class ConstrainedList(list):  # type: ignore
             yield cls.unique_items_validator
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         update_not_none(field_schema, minItems=cls.min_items, maxItems=cls.max_items, uniqueItems=cls.unique_items)
 
     @classmethod
-    def list_length_validator(cls, v: 'Optional[List[T]]') -> 'Optional[List[T]]':
+    def list_length_validator(cls, v: 'list[T] | None') -> 'list[T] | None':
         if v is None:
             return None
 
@@ -609,7 +603,7 @@ class ConstrainedList(list):  # type: ignore
         return v
 
     @classmethod
-    def unique_items_validator(cls, v: 'Optional[List[T]]') -> 'Optional[List[T]]':
+    def unique_items_validator(cls, v: 'list[T] | None') -> 'list[T] | None':
         if v is None:
             return None
 
@@ -621,8 +615,8 @@ class ConstrainedList(list):  # type: ignore
 
 
 def conlist(
-    item_type: Type[T], *, min_items: Optional[int] = None, max_items: Optional[int] = None, unique_items: bool = None
-) -> Type[List[T]]:
+    item_type: type[T], *, min_items: int | None = None, max_items: int | None = None, unique_items: bool = None
+) -> type[list[T]]:
     # __args__ is needed to conform to typing generics api
     namespace = dict(
         min_items=min_items, max_items=max_items, unique_items=unique_items, item_type=item_type, __args__=(item_type,)
@@ -674,7 +668,7 @@ class ConstrainedDecimal(Decimal, metaclass=ConstrainedNumberMeta):
     multiple_of: OptionalIntFloatDecimal = None
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         update_not_none(
             field_schema,
             exclusiveMinimum=cls.gt,
@@ -738,10 +732,10 @@ def condecimal(
     ge: Decimal = None,
     lt: Decimal = None,
     le: Decimal = None,
-    max_digits: Optional[int] = None,
-    decimal_places: Optional[int] = None,
+    max_digits: int | None = None,
+    decimal_places: int | None = None,
     multiple_of: Decimal = None,
-) -> Type[Decimal]:
+) -> type[Decimal]:
     # use kwargs then define conf in a dict to aid with IDE type hinting
     namespace = dict(
         gt=gt, ge=ge, lt=lt, le=le, max_digits=max_digits, decimal_places=decimal_places, multiple_of=multiple_of
@@ -762,7 +756,7 @@ else:
         _required_version = 1
 
         @classmethod
-        def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+        def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
             field_schema.update(type='string', format=f'uuid{cls._required_version}')
 
     class UUID3(UUID1):
@@ -784,7 +778,7 @@ else:
 
     class FilePath(Path):
         @classmethod
-        def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+        def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
             field_schema.update(format='file-path')
 
         @classmethod
@@ -802,7 +796,7 @@ else:
 
     class DirectoryPath(Path):
         @classmethod
-        def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+        def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
             field_schema.update(format='directory-path')
 
         @classmethod
@@ -827,7 +821,7 @@ class JsonWrapper:
 
 
 class JsonMeta(type):
-    def __getitem__(self, t: Type[Any]) -> Type[JsonWrapper]:
+    def __getitem__(self, t: type[Any]) -> type[JsonWrapper]:
         if t is Any:
             return Json  # allow Json[Any] to replecate plain Json
         return _registered(type('JsonWrapperValue', (JsonWrapper,), {'inner_type': t}))
@@ -840,7 +834,7 @@ else:
 
     class Json(metaclass=JsonMeta):
         @classmethod
-        def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+        def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
             field_schema.update(type='string', format='json-string')
 
 
@@ -877,7 +871,7 @@ class SecretStr(SecretField):
     max_length: OptionalInt = None
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         update_not_none(
             field_schema,
             type='string',
@@ -921,7 +915,7 @@ class SecretBytes(SecretField):
     max_length: OptionalInt = None
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         update_not_none(
             field_schema,
             type='string',
@@ -1039,7 +1033,7 @@ class PaymentCardNumber(str):
         Validate length based on BIN for major brands:
         https://en.wikipedia.org/wiki/Payment_card_number#Issuer_identification_number_(IIN)
         """
-        required_length: Union[None, int, str] = None
+        required_length: None | int | str = None
         if card_number.brand in PaymentCardBrand.mastercard:
             required_length = 16
             valid = len(card_number) == required_length
@@ -1184,7 +1178,7 @@ class ConstrainedDate(date, metaclass=ConstrainedNumberMeta):
     le: OptionalDate = None
 
     @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+    def __modify_schema__(cls, field_schema: dict[str, Any]) -> None:
         update_not_none(field_schema, exclusiveMinimum=cls.gt, exclusiveMaximum=cls.lt, minimum=cls.ge, maximum=cls.le)
 
     @classmethod
@@ -1199,7 +1193,7 @@ def condate(
     ge: date = None,
     lt: date = None,
     le: date = None,
-) -> Type[date]:
+) -> type[date]:
     # use kwargs then define conf in a dict to aid with IDE type hinting
     namespace = dict(gt=gt, ge=ge, lt=lt, le=le)
     return type('ConstrainedDateValue', (ConstrainedDate,), namespace)

@@ -10,18 +10,17 @@ Logger wrapper and helper class.
 from __future__ import annotations
 
 import sys
-
-from typing import Any, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 from structlog.exceptions import DropEvent
 
 from .typing import BindableLogger, Context, Processor, WrappedLogger
 
-
 if sys.version_info >= (3, 11):
     from typing import Self
 else:
-    from typing_extensions import Self
+    from typing import Self
 
 
 class BoundLoggerBase:

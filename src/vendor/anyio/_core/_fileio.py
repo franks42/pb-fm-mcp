@@ -291,7 +291,7 @@ class Path:
     * :meth:`~pathlib.Path.rglob`
     """
 
-    __slots__ = "_path", "__weakref__"
+    __slots__ = "__weakref__", "_path"
 
     __weakref__: Any
 

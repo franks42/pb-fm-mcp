@@ -1,4 +1,3 @@
-from typing import List, Optional
 
 from ._models import ServerSentEvent
 
@@ -6,11 +5,11 @@ from ._models import ServerSentEvent
 class SSEDecoder:
     def __init__(self) -> None:
         self._event = ""
-        self._data: List[str] = []
+        self._data: list[str] = []
         self._last_event_id = ""
-        self._retry: Optional[int] = None
+        self._retry: int | None = None
 
-    def decode(self, line: str) -> Optional[ServerSentEvent]:
+    def decode(self, line: str) -> ServerSentEvent | None:
         # See: https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation  # noqa: E501
 
         if not line:

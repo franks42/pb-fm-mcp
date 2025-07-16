@@ -1,14 +1,14 @@
 import json
-from typing import Any, Optional
+from typing import Any
 
 
 class ServerSentEvent:
     def __init__(
         self,
-        event: Optional[str] = None,
-        data: Optional[str] = None,
-        id: Optional[str] = None,
-        retry: Optional[int] = None,
+        event: str | None = None,
+        data: str | None = None,
+        id: str | None = None,
+        retry: int | None = None,
     ) -> None:
         if not event:
             event = "message"
@@ -37,7 +37,7 @@ class ServerSentEvent:
         return self._id
 
     @property
-    def retry(self) -> Optional[int]:
+    def retry(self) -> int | None:
         return self._retry
 
     def json(self) -> Any:

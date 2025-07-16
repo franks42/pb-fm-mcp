@@ -199,7 +199,7 @@ def parse_path(path: str) -> list[PathComponent]:
             continue
             
         # Handle core jq functions
-        jq_functions = ['keys', 'length', 'type']
+        jq_functions = ['keys', 'length', 'type', 'paths']
         if part in jq_functions:
             logger.debug(f"Core jq function: {part}")
             components.append(PathComponent(
@@ -228,6 +228,17 @@ def parse_path(path: str) -> list[PathComponent]:
             components.append(PathComponent(
                 type=PathComponentType.FUNCTION,
                 value=f"map:{expr}",
+                raw_value=part
+            ))
+            continue
+            
+        if part.startswith('paths(') and part.endswith(')'):
+            # Extract the type filter
+            type_filter = part[6:-1]  # Remove 'paths(' and ')'
+            logger.debug(f"Function call: paths with type filter: {type_filter}")
+            components.append(PathComponent(
+                type=PathComponentType.FUNCTION,
+                value=f"paths({type_filter})",
                 raw_value=part
             ))
             continue
@@ -272,7 +283,7 @@ def parse_path(path: str) -> list[PathComponent]:
                     
                     if key_part:
                         # Check if key_part is a core jq function
-                        if key_part in ['keys', 'length', 'type']:
+                        if key_part in ['keys', 'length', 'type', 'paths']:
                             components.append(PathComponent(
                                 type=PathComponentType.FUNCTION,
                                 value=key_part,

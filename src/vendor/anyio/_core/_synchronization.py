@@ -711,7 +711,7 @@ class ResourceGuard:
     .. versionadded:: 4.1
     """
 
-    __slots__ = "action", "_guarded"
+    __slots__ = "_guarded", "action"
 
     def __init__(self, action: str = "using"):
         self.action: str = action

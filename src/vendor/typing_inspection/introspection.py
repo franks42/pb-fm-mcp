@@ -7,9 +7,7 @@ import types
 from collections.abc import Generator
 from dataclasses import InitVar
 from enum import Enum, IntEnum, auto
-from typing import Any, Literal, NamedTuple, cast
-
-from typing_extensions import TypeAlias, assert_never, get_args, get_origin
+from typing import Any, Literal, NamedTuple, TypeAlias, assert_never, cast, get_args, get_origin
 
 from . import typing_objects
 
@@ -384,7 +382,7 @@ class InspectedAnnotation(NamedTuple):
     """The annotated metadata."""
 
 
-def inspect_annotation(  # noqa: PLR0915
+def inspect_annotation(
     annotation: Any,
     /,
     *,

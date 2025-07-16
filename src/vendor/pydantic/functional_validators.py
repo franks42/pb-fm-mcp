@@ -4,20 +4,31 @@ from __future__ import annotations as _annotations
 
 import dataclasses
 import sys
+from collections.abc import Callable
 from functools import partialmethod
 from types import FunctionType
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    Literal,
+    Self,
+    TypeAlias,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 from pydantic_core import PydanticUndefined, core_schema
 from pydantic_core import core_schema as _core_schema
-from typing_extensions import Annotated, Literal, Self, TypeAlias
 
 from ._internal import _decorators, _generics, _internal_dataclass
 from .annotated_handlers import GetCoreSchemaHandler
 from .errors import PydanticUserError
 
 if sys.version_info < (3, 11):
-    from typing_extensions import Protocol
+    from typing import Protocol
 else:
     from typing import Protocol
 
@@ -360,13 +371,13 @@ if TYPE_CHECKING:
         _core_schema.NoInfoWrapValidatorFunction,
     ]
 
-    _PartialClsOrStaticMethod: TypeAlias = Union[classmethod[Any, Any, Any], staticmethod[Any, Any], partialmethod[Any]]
+    _PartialClsOrStaticMethod: TypeAlias = classmethod[Any, Any, Any] | staticmethod[Any, Any] | partialmethod[Any]
 
     _V2BeforeAfterOrPlainValidatorType = TypeVar(
         '_V2BeforeAfterOrPlainValidatorType',
-        bound=Union[_V2Validator, _PartialClsOrStaticMethod],
+        bound=_V2Validator | _PartialClsOrStaticMethod,
     )
-    _V2WrapValidatorType = TypeVar('_V2WrapValidatorType', bound=Union[_V2WrapValidator, _PartialClsOrStaticMethod])
+    _V2WrapValidatorType = TypeVar('_V2WrapValidatorType', bound=_V2WrapValidator | _PartialClsOrStaticMethod)
 
 FieldValidatorModes: TypeAlias = Literal['before', 'after', 'wrap', 'plain']
 
@@ -520,7 +531,7 @@ _ModelTypeCo = TypeVar('_ModelTypeCo', covariant=True)
 class ModelWrapValidatorHandler(_core_schema.ValidatorFunctionWrapHandler, Protocol[_ModelTypeCo]):
     """`@model_validator` decorated function handler argument type. This is used when `mode='wrap'`."""
 
-    def __call__(  # noqa: D102
+    def __call__(
         self,
         value: Any,
         outer_location: str | int | None = None,
@@ -534,7 +545,7 @@ class ModelWrapValidatorWithoutInfo(Protocol[_ModelType]):
     This is used when `mode='wrap'` and the function does not have info argument.
     """
 
-    def __call__(  # noqa: D102
+    def __call__(
         self,
         cls: type[_ModelType],
         # this can be a dict, a model instance
@@ -549,7 +560,7 @@ class ModelWrapValidatorWithoutInfo(Protocol[_ModelType]):
 class ModelWrapValidator(Protocol[_ModelType]):
     """A `@model_validator` decorated function signature. This is used when `mode='wrap'`."""
 
-    def __call__(  # noqa: D102
+    def __call__(
         self,
         cls: type[_ModelType],
         # this can be a dict, a model instance
@@ -567,7 +578,7 @@ class FreeModelBeforeValidatorWithoutInfo(Protocol):
     This is used when `mode='before'` and the function does not have info argument.
     """
 
-    def __call__(  # noqa: D102
+    def __call__(
         self,
         # this can be a dict, a model instance
         # or anything else that gets passed to validate_python
@@ -582,7 +593,7 @@ class ModelBeforeValidatorWithoutInfo(Protocol):
     This is used when `mode='before'` and the function does not have info argument.
     """
 
-    def __call__(  # noqa: D102
+    def __call__(
         self,
         cls: Any,
         # this can be a dict, a model instance
@@ -596,7 +607,7 @@ class ModelBeforeValidatorWithoutInfo(Protocol):
 class FreeModelBeforeValidator(Protocol):
     """A `@model_validator` decorated function signature. This is used when `mode='before'`."""
 
-    def __call__(  # noqa: D102
+    def __call__(
         self,
         # this can be a dict, a model instance
         # or anything else that gets passed to validate_python
@@ -610,7 +621,7 @@ class FreeModelBeforeValidator(Protocol):
 class ModelBeforeValidator(Protocol):
     """A `@model_validator` decorated function signature. This is used when `mode='before'`."""
 
-    def __call__(  # noqa: D102
+    def __call__(
         self,
         cls: Any,
         # this can be a dict, a model instance

@@ -489,6 +489,17 @@ def _handle_jq_function(data: Any, function_spec: str) -> Any:
         else:
             return "unknown"
     
+    elif function_spec == 'paths' or function_spec.startswith('paths('):
+        # Handle paths() function with optional type filtering
+        type_filter = None
+        if function_spec.startswith('paths(') and function_spec.endswith(')'):
+            # Extract type filter from paths(type)
+            type_arg = function_spec[6:-1].strip()  # Remove 'paths(' and ')'
+            if type_arg:
+                type_filter = type_arg
+        
+        return _get_all_paths(data, type_filter)
+    
     # Handle functions with arguments
     elif function_spec.startswith('has:'):
         key_or_index = function_spec[4:]  # Remove 'has:' prefix
@@ -558,3 +569,68 @@ def _handle_jq_function(data: Any, function_spec: str) -> Any:
     
     else:
         raise ValueError(f"Unsupported jq function: {function_spec}")
+
+
+def _get_all_paths(data: Any, type_filter: str | None = None) -> list[list]:
+    """Get all paths in a data structure, optionally filtered by type.
+    
+    Args:
+        data: The data structure to traverse
+        type_filter: Optional type filter ('objects', 'arrays', 'scalars', or None for all)
+        
+    Returns:
+        List of paths (each path is a list of keys/indices)
+    """
+    paths = []
+    
+    def _traverse_for_paths(obj: Any, current_path: list = None) -> None:
+        if current_path is None:
+            current_path = []
+        
+        # Determine the type of the current object
+        obj_type = _get_jq_type(obj)
+        
+        # Check if we should include this path based on type filter
+        should_include = False
+        if type_filter is None:
+            # No filter - include all non-root paths
+            should_include = len(current_path) > 0
+        elif type_filter == 'objects':
+            should_include = obj_type == 'object' and len(current_path) > 0
+        elif type_filter == 'arrays':
+            should_include = obj_type == 'array' and len(current_path) > 0
+        elif type_filter == 'scalars':
+            should_include = obj_type in ('string', 'number', 'boolean', 'null') and len(current_path) > 0
+        
+        # Add path if it matches the filter
+        if should_include:
+            paths.append(current_path[:])  # Copy the path
+        
+        # Recursively traverse children
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                _traverse_for_paths(value, current_path + [key])
+        elif isinstance(obj, list):
+            for idx, value in enumerate(obj):
+                _traverse_for_paths(value, current_path + [idx])
+    
+    _traverse_for_paths(data)
+    return paths
+
+
+def _get_jq_type(obj: Any) -> str:
+    """Get the jq type name for an object."""
+    if isinstance(obj, dict):
+        return "object"
+    elif isinstance(obj, list):
+        return "array"
+    elif isinstance(obj, str):
+        return "string"
+    elif isinstance(obj, bool):
+        return "boolean"
+    elif isinstance(obj, (int, float)):
+        return "number"
+    elif obj is None:
+        return "null"
+    else:
+        return "unknown"

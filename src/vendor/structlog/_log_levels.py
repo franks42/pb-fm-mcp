@@ -13,7 +13,6 @@ from typing import Any
 
 from .typing import EventDict
 
-
 # Adapted from the stdlib
 CRITICAL = 50
 FATAL = CRITICAL

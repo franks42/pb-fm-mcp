@@ -1,7 +1,6 @@
-from contextvars import ContextVar
-from typing import Optional
 import sys
 import threading
+from contextvars import ContextVar
 
 current_async_library_cvar = ContextVar(
     "current_async_library_cvar", default=None

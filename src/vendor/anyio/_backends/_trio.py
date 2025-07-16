@@ -92,8 +92,10 @@ else:
 if sys.version_info >= (3, 11):
     from typing import TypeVarTuple, Unpack
 else:
+    from typing import Unpack
+
     from exceptiongroup import BaseExceptionGroup
-    from typing_extensions import TypeVarTuple, Unpack
+    from typing_extensions import TypeVarTuple
 
 T = TypeVar("T")
 T_Retval = TypeVar("T_Retval")

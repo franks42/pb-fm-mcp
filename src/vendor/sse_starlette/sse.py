@@ -1,14 +1,8 @@
 import logging
-from datetime import datetime, timezone
+from collections.abc import AsyncIterable, Awaitable, Callable, Coroutine, Iterator, Mapping
+from datetime import UTC, datetime
 from typing import (
     Any,
-    AsyncIterable,
-    Awaitable,
-    Callable,
-    Coroutine,
-    Iterator,
-    Mapping,
-    Optional,
     Union,
 )
 
@@ -17,10 +11,9 @@ from starlette.background import BackgroundTask
 from starlette.concurrency import iterate_in_threadpool
 from starlette.datastructures import MutableHeaders
 from starlette.responses import Response
-from starlette.types import Receive, Scope, Send, Message
+from starlette.types import Message, Receive, Scope, Send
 
 from sse_starlette.event import ServerSentEvent, ensure_bytes
-
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +26,7 @@ class AppStatus:
     """Helper to capture a shutdown signal from Uvicorn so we can gracefully terminate SSE streams."""
 
     should_exit = False
-    should_exit_event: Union[anyio.Event, None] = None
+    should_exit_event: anyio.Event | None = None
     original_handler = None
 
     @staticmethod
@@ -74,19 +67,15 @@ class EventSourceResponse(Response):
         self,
         content: ContentStream,
         status_code: int = 200,
-        headers: Optional[Mapping[str, str]] = None,
+        headers: Mapping[str, str] | None = None,
         media_type: str = "text/event-stream",
-        background: Optional[BackgroundTask] = None,
-        ping: Optional[int] = None,
-        sep: Optional[str] = None,
-        ping_message_factory: Optional[Callable[[], ServerSentEvent]] = None,
-        data_sender_callable: Optional[
-            Callable[[], Coroutine[None, None, None]]
-        ] = None,
-        send_timeout: Optional[float] = None,
-        client_close_handler_callable: Optional[
-            Callable[[Message], Awaitable[None]]
-        ] = None,
+        background: BackgroundTask | None = None,
+        ping: int | None = None,
+        sep: str | None = None,
+        ping_message_factory: Callable[[], ServerSentEvent] | None = None,
+        data_sender_callable: Callable[[], Coroutine[None, None, None]] | None = None,
+        send_timeout: float | None = None,
+        client_close_handler_callable: Callable[[Message], Awaitable[None]] | None = None,
     ) -> None:
         # Validate separator
         if sep not in (None, "\r\n", "\r", "\n"):
@@ -132,11 +121,11 @@ class EventSourceResponse(Response):
         self._send_lock = anyio.Lock()
 
     @property
-    def ping_interval(self) -> Union[int, float]:
+    def ping_interval(self) -> int | float:
         return self._ping_interval
 
     @ping_interval.setter
-    def ping_interval(self, value: Union[int, float]) -> None:
+    def ping_interval(self, value: int | float) -> None:
         if not isinstance(value, (int, float)):
             raise TypeError("ping interval must be int")
         if value < 0:
@@ -211,7 +200,7 @@ class EventSourceResponse(Response):
                 self.ping_message_factory()
                 if self.ping_message_factory
                 else ServerSentEvent(
-                    comment=f"ping - {datetime.now(timezone.utc)}", sep=self.sep
+                    comment=f"ping - {datetime.now(UTC)}", sep=self.sep
                 )
             )
             ping_bytes = ensure_bytes(sse_ping, self.sep)

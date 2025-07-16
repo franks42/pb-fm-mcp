@@ -13,14 +13,14 @@ See :doc:`testing`.
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator, NamedTuple, NoReturn
+from typing import Any, NamedTuple, NoReturn
 
 from ._config import configure, get_config
 from ._log_levels import map_method_name
 from .exceptions import DropEvent
 from .typing import EventDict, WrappedLogger
-
 
 __all__ = [
     "CapturedCall",

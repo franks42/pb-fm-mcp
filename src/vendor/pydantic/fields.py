@@ -6,19 +6,28 @@ import dataclasses
 import inspect
 import sys
 import typing
+from collections.abc import Callable
 from copy import copy
 from dataclasses import Field as DataclassField
 from functools import cached_property
-from typing import Any, Callable, ClassVar, TypeVar, cast, overload
+from typing import Any, ClassVar, Literal, TypeAlias, TypeVar, Unpack, cast, overload
 from warnings import warn
 
 import annotated_types
 import typing_extensions
 from pydantic_core import PydanticUndefined
-from typing_extensions import Literal, TypeAlias, Unpack, deprecated
+from typing_extensions import deprecated
 
 from . import types
-from ._internal import _decorators, _fields, _generics, _internal_dataclass, _repr, _typing_extra, _utils
+from ._internal import (
+    _decorators,
+    _fields,
+    _generics,
+    _internal_dataclass,
+    _repr,
+    _typing_extra,
+    _utils,
+)
 from ._internal._namespace_utils import GlobalsNamespace, MappingNamespace
 from .aliases import AliasChoices, AliasPath
 from .config import JsonDict
@@ -153,30 +162,30 @@ class FieldInfo(_repr.Representation):
     metadata: list[Any]
 
     __slots__ = (
-        'annotation',
-        'evaluated',
-        'default',
-        'default_factory',
+        '_attributes_set',
         'alias',
         'alias_priority',
-        'validation_alias',
-        'serialization_alias',
-        'title',
-        'field_title_generator',
+        'annotation',
+        'default',
+        'default_factory',
+        'deprecated',
         'description',
+        'discriminator',
+        'evaluated',
         'examples',
         'exclude',
-        'discriminator',
-        'deprecated',
-        'json_schema_extra',
+        'field_title_generator',
         'frozen',
-        'validate_default',
-        'repr',
         'init',
         'init_var',
+        'json_schema_extra',
         'kw_only',
         'metadata',
-        '_attributes_set',
+        'repr',
+        'serialization_alias',
+        'title',
+        'validate_default',
+        'validation_alias',
     )
 
     # used to convert kwargs to metadata/constraints,
@@ -897,7 +906,7 @@ def Field(  # No default set
     fail_fast: bool | None = _Unset,
     **extra: Unpack[_EmptyKwargs],
 ) -> Any: ...
-def Field(  # noqa: C901
+def Field(
     default: Any = PydanticUndefined,
     *,
     default_factory: Callable[[], Any] | Callable[[dict[str, Any]], Any] | None = _Unset,

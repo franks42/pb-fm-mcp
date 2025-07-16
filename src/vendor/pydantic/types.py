@@ -5,26 +5,23 @@ from __future__ import annotations as _annotations
 import base64
 import dataclasses as _dataclasses
 import re
+from collections.abc import Callable, Hashable, Iterator
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from pathlib import Path
+from re import Pattern
 from types import ModuleType
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
-    Callable,
     ClassVar,
-    Dict,
-    FrozenSet,
     Generic,
-    Hashable,
-    Iterator,
-    List,
-    Pattern,
-    Set,
+    Literal,
+    Protocol,
+    TypeAlias,
     TypeVar,
-    Union,
     cast,
     get_args,
     get_origin,
@@ -34,7 +31,7 @@ from uuid import UUID
 import annotated_types
 from annotated_types import BaseMetadata, MaxLen, MinLen
 from pydantic_core import CoreSchema, PydanticCustomError, SchemaSerializer, core_schema
-from typing_extensions import Annotated, Literal, Protocol, TypeAlias, TypeAliasType, deprecated
+from typing_extensions import deprecated
 
 from ._internal import _core_utils, _fields, _internal_dataclass, _typing_extra, _utils, _validators
 from ._migration import getattr_migration
@@ -44,67 +41,67 @@ from .json_schema import JsonSchemaValue
 from .warnings import PydanticDeprecatedSince20
 
 __all__ = (
-    'Strict',
-    'StrictStr',
-    'SocketPath',
-    'conbytes',
-    'conlist',
-    'conset',
-    'confrozenset',
-    'constr',
-    'ImportString',
-    'conint',
-    'PositiveInt',
-    'NegativeInt',
-    'NonNegativeInt',
-    'NonPositiveInt',
-    'confloat',
-    'PositiveFloat',
-    'NegativeFloat',
-    'NonNegativeFloat',
-    'NonPositiveFloat',
-    'FiniteFloat',
-    'condecimal',
     'UUID1',
     'UUID3',
     'UUID4',
     'UUID5',
-    'FilePath',
-    'DirectoryPath',
-    'NewPath',
-    'Json',
-    'Secret',
-    'SecretStr',
-    'SecretBytes',
-    'StrictBool',
-    'StrictBytes',
-    'StrictInt',
-    'StrictFloat',
-    'PaymentCardNumber',
-    'ByteSize',
-    'PastDate',
-    'FutureDate',
-    'PastDatetime',
-    'FutureDatetime',
-    'condate',
-    'AwareDatetime',
-    'NaiveDatetime',
     'AllowInfNan',
-    'EncoderProtocol',
-    'EncodedBytes',
-    'EncodedStr',
-    'Base64Encoder',
+    'AwareDatetime',
     'Base64Bytes',
+    'Base64Encoder',
     'Base64Str',
     'Base64UrlBytes',
     'Base64UrlStr',
+    'ByteSize',
+    'DirectoryPath',
+    'Discriminator',
+    'EncodedBytes',
+    'EncodedStr',
+    'EncoderProtocol',
+    'FailFast',
+    'FilePath',
+    'FiniteFloat',
+    'FutureDate',
+    'FutureDatetime',
     'GetPydanticSchema',
+    'ImportString',
+    'Json',
+    'JsonValue',
+    'NaiveDatetime',
+    'NegativeFloat',
+    'NegativeInt',
+    'NewPath',
+    'NonNegativeFloat',
+    'NonNegativeInt',
+    'NonPositiveFloat',
+    'NonPositiveInt',
+    'OnErrorOmit',
+    'PastDate',
+    'PastDatetime',
+    'PaymentCardNumber',
+    'PositiveFloat',
+    'PositiveInt',
+    'Secret',
+    'SecretBytes',
+    'SecretStr',
+    'SocketPath',
+    'Strict',
+    'StrictBool',
+    'StrictBytes',
+    'StrictFloat',
+    'StrictInt',
+    'StrictStr',
     'StringConstraints',
     'Tag',
-    'Discriminator',
-    'JsonValue',
-    'OnErrorOmit',
-    'FailFast',
+    'conbytes',
+    'condate',
+    'condecimal',
+    'confloat',
+    'confrozenset',
+    'conint',
+    'conlist',
+    'conset',
+    'constr',
 )
 
 
@@ -223,7 +220,7 @@ def conint(
         '''
     ```
 
-    """  # noqa: D212
+    """
     return Annotated[  # pyright: ignore[reportReturnType]
         int,
         Strict(strict) if strict is not None else None,
@@ -483,7 +480,7 @@ def confloat(
         ]
         '''
     ```
-    """  # noqa: D212
+    """
     return Annotated[  # pyright: ignore[reportReturnType]
         float,
         Strict(strict) if strict is not None else None,
@@ -808,7 +805,7 @@ def constr(
 
     Returns:
         The wrapped string type.
-    """  # noqa: D212
+    """
     return Annotated[  # pyright: ignore[reportReturnType]
         str,
         StringConstraints(
@@ -844,7 +841,7 @@ def conset(
     Returns:
         The wrapped set type.
     """
-    return Annotated[Set[item_type], annotated_types.Len(min_length or 0, max_length)]  # pyright: ignore[reportReturnType]
+    return Annotated[set[item_type], annotated_types.Len(min_length or 0, max_length)]  # pyright: ignore[reportReturnType]
 
 
 def confrozenset(
@@ -860,7 +857,7 @@ def confrozenset(
     Returns:
         The wrapped frozenset type.
     """
-    return Annotated[FrozenSet[item_type], annotated_types.Len(min_length or 0, max_length)]  # pyright: ignore[reportReturnType]
+    return Annotated[frozenset[item_type], annotated_types.Len(min_length or 0, max_length)]  # pyright: ignore[reportReturnType]
 
 
 AnyItemType = TypeVar('AnyItemType')
@@ -895,7 +892,7 @@ def conlist(
             ),
             code='removed-kwargs',
         )
-    return Annotated[List[item_type], annotated_types.Len(min_length or 0, max_length)]  # pyright: ignore[reportReturnType]
+    return Annotated[list[item_type], annotated_types.Len(min_length or 0, max_length)]  # pyright: ignore[reportReturnType]
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~ IMPORT STRING TYPE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1117,7 +1114,7 @@ def condecimal(
         ]
         '''
     ```
-    """  # noqa: D212
+    """
     return Annotated[  # pyright: ignore[reportReturnType]
         Decimal,
         Strict(strict) if strict is not None else None,
@@ -2624,7 +2621,7 @@ class EncodedStr:
         Returns:
             The encoded data.
         """
-        return self.encoder.encode(value.encode()).decode()  # noqa: UP008
+        return self.encoder.encode(value.encode()).decode()
 
     def __hash__(self) -> int:
         return hash(self.encoder)
@@ -3127,15 +3124,7 @@ class _AllowAnyJson:
 
 if TYPE_CHECKING:
     # This seems to only be necessary for mypy
-    JsonValue: TypeAlias = Union[
-        List['JsonValue'],
-        Dict[str, 'JsonValue'],
-        str,
-        bool,
-        int,
-        float,
-        None,
-    ]
+    JsonValue: TypeAlias = list['JsonValue'] | dict[str, 'JsonValue'] | str | bool | int | float | None
     """A `JsonValue` is used to represent a value that can be serialized to JSON.
 
     It may be one of:
@@ -3180,26 +3169,15 @@ if TYPE_CHECKING:
     """
 
 else:
-    JsonValue = TypeAliasType(
-        'JsonValue',
-        Annotated[
-            Union[
-                Annotated[List['JsonValue'], Tag('list')],
-                Annotated[Dict[str, 'JsonValue'], Tag('dict')],
-                Annotated[str, Tag('str')],
-                Annotated[bool, Tag('bool')],
-                Annotated[int, Tag('int')],
-                Annotated[float, Tag('float')],
-                Annotated[None, Tag('NoneType')],
-            ],
+    type JsonValue = Annotated[
+            Annotated[list['JsonValue'], Tag('list')] | Annotated[dict[str, 'JsonValue'], Tag('dict')] | Annotated[str, Tag('str')] | Annotated[bool, Tag('bool')] | Annotated[int, Tag('int')] | Annotated[float, Tag('float')] | Annotated[None, Tag('NoneType')],
             Discriminator(
                 _get_type_name,
                 custom_error_type='invalid-json-value',
                 custom_error_message='input was not a valid JSON value',
             ),
             _AllowAnyJson,
-        ],
-    )
+        ]
 
 
 class _OnErrorOmit:

@@ -13,8 +13,9 @@ import collections.abc
 import dataclasses
 import os
 import typing
+from collections.abc import Callable, Iterable
 from functools import partial
-from typing import Any, Callable, Iterable, Tuple, TypeVar, cast
+from typing import Any, TypeVar, cast, get_args, get_origin
 
 import typing_extensions
 from pydantic_core import (
@@ -22,7 +23,6 @@ from pydantic_core import (
     PydanticCustomError,
     core_schema,
 )
-from typing_extensions import get_args, get_origin
 
 from pydantic._internal._serializers import serialize_sequence_via_list
 from pydantic.errors import PydanticSchemaGenerationError
@@ -209,7 +209,7 @@ def deque_schema_prepare_pydantic_annotations(
     args = get_args(source_type)
 
     if not args:
-        args = typing.cast(Tuple[Any], (Any,))
+        args = typing.cast(tuple[Any], (Any,))
     elif len(args) != 1:
         raise ValueError('Expected deque to have exactly 1 generic parameter')
 
@@ -222,12 +222,12 @@ def deque_schema_prepare_pydantic_annotations(
 
 
 MAPPING_ORIGIN_MAP: dict[Any, Any] = {
-    typing.DefaultDict: collections.defaultdict,
+    collections.defaultdict: collections.defaultdict,
     collections.defaultdict: collections.defaultdict,
     collections.OrderedDict: collections.OrderedDict,
     typing_extensions.OrderedDict: collections.OrderedDict,
     dict: dict,
-    typing.Dict: dict,
+    dict: dict,
     collections.Counter: collections.Counter,
     typing.Counter: collections.Counter,
     # this doesn't handle subclasses of these
@@ -252,14 +252,14 @@ def defaultdict_validator(
 def get_defaultdict_default_default_factory(values_source_type: Any) -> Callable[[], Any]:
     def infer_default() -> Callable[[], Any]:
         allowed_default_types: dict[Any, Any] = {
-            typing.Tuple: tuple,
+            tuple: tuple,
             tuple: tuple,
             collections.abc.Sequence: tuple,
             collections.abc.MutableSequence: list,
-            typing.List: list,
+            list: list,
             list: list,
             typing.Sequence: list,
-            typing.Set: set,
+            set: set,
             set: set,
             typing.MutableSet: set,
             collections.abc.MutableSet: set,
@@ -381,7 +381,7 @@ def mapping_like_prepare_pydantic_annotations(
     args = get_args(source_type)
 
     if not args:
-        args = typing.cast(Tuple[Any, Any], (Any, Any))
+        args = typing.cast(tuple[Any, Any], (Any, Any))
     elif mapped_origin is collections.Counter:
         # a single generic
         if len(args) != 1:

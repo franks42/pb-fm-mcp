@@ -10,14 +10,13 @@ import keyword
 import typing
 import weakref
 from collections import OrderedDict, defaultdict, deque
+from collections.abc import Callable, Mapping
 from copy import deepcopy
 from functools import cached_property
 from inspect import Parameter
 from itertools import zip_longest
 from types import BuiltinFunctionType, CodeType, FunctionType, GeneratorType, LambdaType, ModuleType
-from typing import Any, Callable, Mapping, TypeVar
-
-from typing_extensions import TypeAlias, TypeGuard
+from typing import Any, TypeAlias, TypeGuard, TypeVar
 
 from . import _repr, _typing_extra
 from ._import_utils import import_cached_base_model

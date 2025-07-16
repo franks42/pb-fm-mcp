@@ -1,39 +1,38 @@
 import datetime
-from collections.abc import Mapping
-from typing import Any, Callable, Generic, Literal, TypeVar, final
+from collections.abc import Callable, Mapping
+from typing import Any, Generic, Literal, LiteralString, Self, TypeVar, final
 
 from _typeshed import SupportsAllComparisons
-from typing_extensions import LiteralString, Self, TypeAlias
 
 from pydantic_core import ErrorDetails, ErrorTypeInfo, InitErrorDetails, MultiHostHost
 from pydantic_core.core_schema import CoreConfig, CoreSchema, ErrorType
 
 __all__ = [
-    '__version__',
-    'build_profile',
-    'build_info',
-    '_recursion_limit',
     'ArgsKwargs',
-    'SchemaValidator',
-    'SchemaSerializer',
-    'Url',
     'MultiHostUrl',
-    'SchemaError',
-    'ValidationError',
     'PydanticCustomError',
     'PydanticKnownError',
     'PydanticOmit',
-    'PydanticUseDefault',
     'PydanticSerializationError',
     'PydanticSerializationUnexpectedValue',
     'PydanticUndefined',
     'PydanticUndefinedType',
+    'PydanticUseDefault',
+    'SchemaError',
+    'SchemaSerializer',
+    'SchemaValidator',
     'Some',
-    'to_json',
-    'from_json',
-    'to_jsonable_python',
-    'list_all_errors',
     'TzInfo',
+    'Url',
+    'ValidationError',
+    '__version__',
+    '_recursion_limit',
+    'build_info',
+    'build_profile',
+    'from_json',
+    'list_all_errors',
+    'to_json',
+    'to_jsonable_python',
     'validate_core_schema',
 ]
 __version__: str
@@ -43,7 +42,7 @@ _recursion_limit: int
 
 _T = TypeVar('_T', default=Any, covariant=True)
 
-_StringInput: TypeAlias = 'dict[str, _StringInput]'
+type _StringInput = 'dict[str, _StringInput]'
 
 @final
 class Some(Generic[_T]):
@@ -258,7 +257,7 @@ class SchemaValidator:
 
 # In reality, `bool` should be replaced by `Literal[True]` but mypy fails to correctly apply bidirectional type inference
 # (e.g. when using `{'a': {'b': True}}`).
-_IncEx: TypeAlias = set[int] | set[str] | Mapping[int, _IncEx | bool] | Mapping[str, _IncEx | bool]
+type _IncEx = set[int] | set[str] | Mapping[int, _IncEx | bool] | Mapping[str, _IncEx | bool]
 
 @final
 class SchemaSerializer:

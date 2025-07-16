@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Generator
+from collections.abc import Callable, Generator, Iterator, Mapping
 from contextlib import contextmanager
 from functools import cached_property
-from typing import Any, Callable, Iterator, Mapping, NamedTuple, TypeVar
+from typing import Any, NamedTuple, TypeAlias, TypeAliasType, TypeVar
 
-from typing_extensions import ParamSpec, TypeAlias, TypeAliasType, TypeVarTuple
+from typing_extensions import ParamSpec, TypeVarTuple
 
 GlobalsNamespace: TypeAlias = 'dict[str, Any]'
 """A global namespace.

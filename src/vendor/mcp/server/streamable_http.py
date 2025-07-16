@@ -321,7 +321,7 @@ class StreamableHTTPServerTransport:
             try:
                 raw_message = json.loads(body)
             except json.JSONDecodeError as e:
-                response = self._create_error_response(f"Parse error: {str(e)}", HTTPStatus.BAD_REQUEST, PARSE_ERROR)
+                response = self._create_error_response(f"Parse error: {e!s}", HTTPStatus.BAD_REQUEST, PARSE_ERROR)
                 await response(scope, receive, send)
                 return
 
@@ -329,7 +329,7 @@ class StreamableHTTPServerTransport:
                 message = JSONRPCMessage.model_validate(raw_message)
             except ValidationError as e:
                 response = self._create_error_response(
-                    f"Validation error: {str(e)}",
+                    f"Validation error: {e!s}",
                     HTTPStatus.BAD_REQUEST,
                     INVALID_PARAMS,
                 )
@@ -415,7 +415,7 @@ class StreamableHTTPServerTransport:
                 except Exception as e:
                     logger.exception(f"Error processing JSON response: {e}")
                     response = self._create_error_response(
-                        f"Error processing request: {str(e)}",
+                        f"Error processing request: {e!s}",
                         HTTPStatus.INTERNAL_SERVER_ERROR,
                         INTERNAL_ERROR,
                     )
@@ -747,7 +747,7 @@ class StreamableHTTPServerTransport:
         except Exception as e:
             logger.exception(f"Error replaying events: {e}")
             response = self._create_error_response(
-                f"Error replaying events: {str(e)}",
+                f"Error replaying events: {e!s}",
                 HTTPStatus.INTERNAL_SERVER_ERROR,
                 INTERNAL_ERROR,
             )
