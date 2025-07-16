@@ -124,6 +124,67 @@ def process_path_expression(path_expr: str) -> list[PathComponent]:
     except Exception as e:
         raise JQPYError(f"jq: error: {e!s}")
 
+def process_input_streaming(
+    data: Any,
+    path_expr: str = ".",
+    default: str | None = None,
+    raw_output: bool = False,
+    compact: bool = False,
+    join_output: bool = False,
+    join_string: str | None = None,
+    exit_status: bool = False,
+    tab: bool = False,
+    slurp: bool = False,
+    args: argparse.Namespace | None = None
+):
+    """Process input data with the given path expression and yield individual results."""
+    try:
+        # Handle empty input
+        if data is None:
+            if default is not None:
+                yield default
+                return
+            if not exit_status:
+                return
+            raise JQPYError("No input provided")
+
+        # Handle root selector
+        if path_expr == "." and not slurp:
+            yield data
+            return
+        
+        try:
+            path_components = process_path_expression(path_expr)
+            # Use iterator directly - no list conversion!
+            results_iterator = get_path(data, path_components, only_first_path_match=False)
+            
+            has_results = False
+            for result in results_iterator:
+                has_results = True
+                yield result
+            
+            # Handle empty results
+            if not has_results:
+                if default is not None:
+                    yield default
+                elif exit_status:
+                    raise JQPYError("No results found")
+                    
+        except Exception as e:
+            if exit_status:
+                raise JQPYError(f"jq: error: {e!s}")
+            raise JQPYError(f"jq: error: {e!s}")
+
+    except JQPYError:
+        if exit_status:
+            raise
+        raise
+    except Exception as e:
+        if exit_status:
+            raise JQPYError(f"jq: error: {e!s}")
+        raise JQPYError(f"jq: error: {e!s}")
+
+
 def process_input(
     data: Any,
     path_expr: str = ".",
@@ -138,79 +199,20 @@ def process_input(
     args: argparse.Namespace | None = None
 ) -> tuple[Any, bool]:
     """Process input data with the given path expression."""
-    try:
-        # Handle empty input
-        if data is None:
-            if default is not None:
-                return default, True
-            return None, not exit_status
-
-        # Handle root selector
-        if path_expr == "." and not slurp:
-            results = [data]
-        else:
-            try:
-                path_components = process_path_expression(path_expr)
-                results = list(get_path(data, path_components, only_first_path_match=False))
-            except Exception as e:
-                if exit_status:
-                    return None, False
-                raise JQPYError(f"jq: error: {e!s}")
-
-        # Handle empty results
-        if not results:
-            if default is not None:
-                return default, True
-            if exit_status:
-                return None, False
-            return [], True
-
-        # Handle raw output
-        if raw_output:
-            # Handle array splat output
-            if path_expr == '.[]':
-                return "\n".join(str(r) for r in results), True
-            
-            # Handle object construction
-            if path_expr.startswith('{') and path_expr.endswith('}'):  # {a: .a, b: .b}
-                # If we have multiple results, join them with newlines
-                if len(results) > 1:
-                    return "\n".join(json.dumps(r) for r in results), True
-                # If we have a single result, return it directly
-                if len(results) == 1:
-                    return json.dumps(results[0]), True
-                return "null", True
-            
-            # Handle single primitive value
-            if len(results) == 1 and isinstance(results[0], (str, int, float, bool)):
-                return str(results[0]), True
-            
-            # Join results with newlines
-            if join_string is not None:
-                return join_string.join(str(r) for r in results), True
-            
-            # Format each result individually
-            return "\n".join(str(r) if not isinstance(r, (dict, list)) else json.dumps(r) for r in results), True
-
-        # Handle join string
-        if join_string is not None and results:
-            return join_string.join(str(r) for r in results), True
-
-        # Return single result directly if it's a primitive type
-        if len(results) == 1 and not isinstance(results[0], (list, dict)):
-            return results[0], True
-
-        # Return results as is (will be JSON serialized by format_output)
-        return results[0] if len(results) == 1 else results, True
-
-    except JQPYError:
-        if exit_status:
-            return None, False
-        raise
-    except Exception as e:
-        if exit_status:
-            return None, False
-        raise JQPYError(f"jq: error: {e!s}")
+    # Use streaming version internally
+    results, success = process_input_streaming(
+        data, path_expr, default, raw_output, compact, join_output,
+        join_string, exit_status, tab, slurp, args
+    )
+    
+    if not success:
+        return None, False
+    
+    if not results:
+        return None, success
+    
+    # For legacy compatibility, return array format
+    return results[0] if len(results) == 1 else results, success
 
 def parse_arguments(args: Sequence[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
@@ -315,9 +317,10 @@ def main(args: Sequence[str] | None = None) -> int:
             if input_file and input_file != sys.stdin:
                 input_file.close()
         
-        # Process input
+        # Process input using streaming
         try:
-            result, success = process_input(
+            has_output = False
+            for result in process_input_streaming(
                 data,
                 parsed_args.filter,
                 raw_output=parsed_args.raw_output,
@@ -327,10 +330,9 @@ def main(args: Sequence[str] | None = None) -> int:
                 exit_status=parsed_args.exit_status,
                 slurp=parsed_args.slurp,
                 args=parsed_args
-            )
-            
-            # Handle output
-            if result is not None:
+            ):
+                has_output = True
+                # Format and output each result individually
                 output = format_output(
                     result,
                     compact=parsed_args.compact_output,
@@ -342,10 +344,9 @@ def main(args: Sequence[str] | None = None) -> int:
                 if output is not None:
                     print(output, end='' if parsed_args.join_output else '\n')
             
-            # If exit_status is True, return 0 for success, 1 for failure
-            # If exit_status is False, always return 0
-            if parsed_args.exit_status:
-                return 0 if success else 1
+            # If exit_status is True and no output, return 1 for failure
+            if parsed_args.exit_status and not has_output:
+                return 1
             return 0
             
         except JQPYError as e:
