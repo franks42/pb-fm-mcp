@@ -191,6 +191,7 @@ def set_path(
     has_wildcards = any(
         comp.type == PathComponentType.WILDCARD or 
         comp.type == PathComponentType.OPTIONAL_WILDCARD or
+        comp.type == PathComponentType.SLICE or
         (comp.type == PathComponentType.KEY and comp.value == '') or
         comp.value == '[]'
         for comp in path_components
@@ -299,6 +300,17 @@ def _set_single_path(
         while len(current) <= idx:
             current.append(None)
         current[idx] = value
+    elif final_component.type == PathComponentType.SLICE:
+        slice_obj = final_component.value
+        if not isinstance(current, list):
+            raise ValueError(f"Cannot set slice {slice_obj} on non-list type {type(current)}")
+        # Replace the slice with the new value
+        # If value is a list, replace the slice with its elements
+        # If value is not a list, replace the slice with a single-element list containing the value
+        if isinstance(value, list):
+            current[slice_obj] = value
+        else:
+            current[slice_obj] = [value]
     else:
         raise ValueError(f"Cannot set path with final component type {final_component.type}")
     
@@ -332,7 +344,22 @@ def _find_concrete_paths_for_setting(
     
     component, *remaining = path_components
     
-    if component.type == PathComponentType.WILDCARD or \
+    if component.type == PathComponentType.SLICE:
+        # Handle slice - for setting, we treat slice as a concrete path to the slice itself
+        # The slice will be handled in _set_single_path
+        if not remaining:
+            # This slice is the final component
+            yield current_path + [component]
+        else:
+            # Continue with the sliced data
+            if isinstance(data, list):
+                sliced_data = data[component.value]
+                yield from _find_concrete_paths_for_setting(
+                    sliced_data,
+                    remaining,
+                    current_path + [component]
+                )
+    elif component.type == PathComponentType.WILDCARD or \
        component.type == PathComponentType.OPTIONAL_WILDCARD or \
        (component.type == PathComponentType.KEY and component.value == '') or \
        component.value == '[]':
@@ -435,6 +462,7 @@ def delete_path(
     has_wildcards = any(
         comp.type == PathComponentType.WILDCARD or 
         comp.type == PathComponentType.OPTIONAL_WILDCARD or
+        comp.type == PathComponentType.SLICE or
         (comp.type == PathComponentType.KEY and comp.value == '') or
         comp.value == '[]'
         for comp in path_components

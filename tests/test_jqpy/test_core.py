@@ -1,7 +1,11 @@
 """Tests for the core jqpy functionality."""
 
-from src.jqpy import get_path, parse_path
 import pytest
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from src.jqpy import get_path, parse_path
 
 def test_basic_identity():
     """Test basic identity filter."""

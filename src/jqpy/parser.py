@@ -9,6 +9,7 @@ class PathComponentType(Enum):
     INDEX = "index"      # Array index access (e.g., [0] or [-1])
     WILDCARD = "wildcard"  # Wildcard access (e.g., .* or [*])
     SELECTOR = "selector"  # Filter selector (e.g., [?(@.active==True)])
+    SLICE = "slice"      # Array slice access (e.g., [1:3], [2:], [:5])
     OPTIONAL_KEY = "optional_key"  # Optional dictionary key access (e.g., .key?)
     OPTIONAL_INDEX = "optional_index"  # Optional array index access (e.g., [0]?)
     OPTIONAL_WILDCARD = "optional_wildcard"  # Optional wildcard access (e.g., []?)
@@ -18,7 +19,7 @@ class PathComponentType(Enum):
 class PathComponent:
     """A single component in a path."""
     type: PathComponentType
-    value: str | int  # The actual key or index
+    value: str | int | slice  # The actual key, index, or slice object
     raw_value: str  # Original string representation
 
 
@@ -265,6 +266,21 @@ def parse_path(path: str) -> list[PathComponent]:
                                 value='*',
                                 raw_value='[]' if bracket_content == '' else '*'
                             ))
+                    elif ':' in bracket_content:
+                        # Handle slice notation [start:end], [start:], [:end]
+                        slice_parts = bracket_content.split(':')
+                        if len(slice_parts) == 2:
+                            start_str, end_str = slice_parts
+                            start = None if start_str.strip() == '' else int(start_str.strip())
+                            end = None if end_str.strip() == '' else int(end_str.strip())
+                            slice_obj = slice(start, end)
+                            components.append(PathComponent(
+                                type=PathComponentType.SLICE,
+                                value=slice_obj,
+                                raw_value=bracket_content
+                            ))
+                        else:
+                            raise ValueError(f"Invalid slice syntax: {bracket_content}")
                     else:
                         try:
                             index = int(bracket_content)

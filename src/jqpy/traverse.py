@@ -269,6 +269,20 @@ def traverse(
             if -len(data) <= idx < len(data):
                 yield from traverse(data[idx], rest, current_path, max_depth, current_depth + 1)
     
+    # Handle array slice access
+    elif component.type == PathComponentType.SLICE:
+        logger.debug(f"Processing slice: {component.value}")
+        if isinstance(data, (list, tuple)):
+            slice_obj = component.value
+            # Apply the slice to get a sublist/subtuple
+            sliced_data = data[slice_obj]
+            if not rest:
+                # This is the last component - yield the sliced data
+                yield sliced_data
+            else:
+                # Continue with remaining components - the sliced data becomes the new data
+                yield from traverse(sliced_data, rest, current_path, max_depth, current_depth + 1)
+    
     # Handle optional array index access
     elif component.type == PathComponentType.OPTIONAL_INDEX:
         logger.debug(f"Processing optional index: {component.value}")

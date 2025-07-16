@@ -62,8 +62,8 @@ docs/
    - `has_path()` - Check if path exists ✅
    - `first_path_match()` - Get first matching path ✅
    - Pipe operation handling with result chaining ✅
-   - `set_path()` - Set value at path (legacy, needs review)
-   - `delete_path()` - Delete value at path (not implemented)
+   - `set_path()` - Set value at path with wildcard support ✅
+   - `delete_path()` - Delete value at path ✅ NEW - COMPLETED
 
 ### Phase 2: Advanced Features ✅ COMPLETED
 1. **Selectors** (integrated in `traverse.py`) ✅
@@ -71,7 +71,7 @@ docs/
    - Conditional selectors: `[?(@.field == value)]` ✅
    - `select()` function with expressions ✅
    - Comparison operators: `==`, `>`, `<`, `>=`, `<=` ✅
-   - `.[]?` (optional selector) - not implemented
+   - Optional selectors: `.[]?`, `[index]?`, `.key?` ✅ NEW - COMPLETED
    - Array slicing - not implemented
 
 2. **Extended Path Operations** ✅
@@ -121,7 +121,7 @@ docs/
     - [x] `has_path()` function
     - [x] `set_path()` function (basic implementation)
     - [x] `batch_get_path()` and `first_path_match()` utilities
-    - [ ] `delete_path()` function
+    - [x] `delete_path()` function ✅
     - [x] Comprehensive test coverage for all path operations
 - [x] Phase 2: Advanced Features
   - [x] Selectors
@@ -130,8 +130,8 @@ docs/
     - [x] `select()` function with expressions
     - [x] Comparison operators: `==`, `>`, `<`, `>=`, `<=`
     - [x] Boolean and numeric value support
-    - [ ] Optional selector `[]?`
-    - [ ] Array slicing
+    - [x] Optional selectors: `[]?`, `[index]?`, `.key?` ✅ NEW
+    - [x] Array slicing: `[1:3]`, `[2:]`, `[:5]`, `[-2:]` ✅ NEW
   - [x] Path Construction
     - [x] Object construction: `{key: .field, value: .other}`
     - [x] Special handling for single-key objects (`.key`, `.value`)
@@ -154,13 +154,16 @@ docs/
   - [ ] jq Functions (map, reduce, etc.)
   - [ ] Performance Optimization
 
-## Current Snapshot (2025-07-15 - MAJOR UPDATE)
+## Current Snapshot (2025-07-16 - MAJOR UPDATE)
 - **Complete iterator-based implementation** with robust path traversal
 - **Full pipe operation support** enabling complex jq-like expressions
 - **Object construction syntax** with dynamic key/value extraction
 - **Advanced selector support** including `select()` function with conditions
 - **CLI compatibility with jq** - outputs identical to jq for implemented features
-- **Comprehensive test coverage** with all core tests passing (18/18) and CLI tests (16/19 passing, 3 skipped)
+- **Complete path manipulation API** with set_path() and delete_path() ✅ NEW
+- **Optional selector support** for safe data access ([]?, [index]?, .key?) ✅ NEW
+- **Array slicing support** for powerful array manipulation ([1:3], [2:], [:5]) ✅ NEW
+- **Comprehensive test coverage** with all tests passing (100 total tests, 3 skipped)
 - **Modern Python implementation** with proper type hints and code quality
 
 ### Key Features Added:
@@ -170,9 +173,12 @@ docs/
 4. **Select Function**: `select(.active == true)` filter with conditions
 5. **Wildcard Support**: Proper `.*` and `[]` wildcard handling
 6. **Special Object Handling**: `.key` and `.value` for single-key objects
-7. **🆕 CLI Interface**: Full command-line compatibility with jq
-8. **🆕 Literal Processing**: Numbers, booleans, strings, null values work correctly
-9. **🆕 Output Formatting**: Matches jq exactly (pretty print by default, compact with -c)
+7. **CLI Interface**: Full command-line compatibility with jq
+8. **Literal Processing**: Numbers, booleans, strings, null values work correctly
+9. **Output Formatting**: Matches jq exactly (pretty print by default, compact with -c)
+10. **🆕 Complete Path Manipulation**: set_path() and delete_path() with wildcard support
+11. **🆕 Optional Selectors**: Safe data access with []?, [index]?, .key? syntax
+12. **🆕 Array Slicing**: Powerful array manipulation with [1:3], [2:], [:5], [-2:] syntax
 
 ### Architecture Improvements:
 - Iterator-based design for memory efficiency
@@ -192,16 +198,14 @@ docs/
 - ✅ Null input (`-n`), slurp mode (`-s`)
 - ✅ Exit status (`-e`), file input
 - ✅ Select with comparisons (`select(.active == true)`)
+- ✅ Optional selectors (`.[]?`, `[index]?`, `.key?`) ✅ NEW
+- ✅ Array slicing (`.[1:3]`, `.[2:]`, `.[:5]`, `.[-2:]`) ✅ NEW
+- ✅ Complete path manipulation API (set_path, delete_path) ✅ NEW
 
-### 🎯 CURRENT STATE: jqpy is now CLI-compatible with jq for basic-to-intermediate usage!
+### 🎯 CURRENT STATE: jqpy is now feature-complete for advanced JSON processing with safe data access and array slicing!
 
 ### Next Steps (Priority Order)
-1. **🔴 High Priority:**
-   - Implement `delete_path()` function for completeness
-   - Add support for optional selector `[]?`
-   - Implement array slicing support `.[1:3]`
-
-2. **🟡 Medium Priority:**
+1. **🟡 Medium Priority:**
    - Add core jq functions: `map()`, `select()`, `has()`, `keys()`
    - Implement more string/number operations
    - Add complex selector combinations

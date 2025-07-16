@@ -1,6 +1,10 @@
 """Tests for delete_path and set_path functionality."""
 
 import pytest
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
 from src.jqpy import delete_path, delete_path_simple, set_path, set_path_simple
 
 
