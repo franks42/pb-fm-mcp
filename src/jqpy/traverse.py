@@ -94,25 +94,28 @@ def traverse(
     # Update current path (create new list to avoid sharing state between recursive calls)
     current_path = current_path + [component]
     
-    # Handle null input
+    # Handle null input - only for literal processing, not for optional selectors
     if data is None:
-        if not rest:
+        if not rest and component.type == PathComponentType.KEY and component.value.startswith('LITERAL:'):
+            # This is a literal value processing case
+            literal_str = component.value[8:]  # Remove 'LITERAL:' prefix
             try:
                 # Try to convert to appropriate type
-                if component.value.lower() == 'true':
+                if literal_str.lower() == 'true':
                     yield True
-                elif component.value.lower() == 'false':
+                elif literal_str.lower() == 'false':
                     yield False
-                elif component.value.isdigit() or (component.value.startswith('-') and component.value[1:].isdigit()):
-                    yield int(component.value)
-                elif component.value.replace('.', '').isdigit() or (component.value.startswith('-') and component.value[1:].replace('.', '').isdigit()):
-                    yield float(component.value)
+                elif literal_str.isdigit() or (literal_str.startswith('-') and literal_str[1:].isdigit()):
+                    yield int(literal_str)
+                elif literal_str.replace('.', '').isdigit() or (literal_str.startswith('-') and literal_str[1:].replace('.', '').isdigit()):
+                    yield float(literal_str)
                 else:
-                    yield component.value
+                    yield literal_str
             except Exception:
-                yield component.value
+                yield literal_str
             return
-        return
+        # For optional selectors and other types, let them handle None appropriately
+        # Don't return early - continue to the specific component type handlers
     
     # Handle array splat (empty key or [] value)
     if (component.type == PathComponentType.KEY and component.value == '') or \
@@ -243,6 +246,19 @@ def traverse(
             return
         if isinstance(data, dict) and component.value in data:
             yield from traverse(data[component.value], rest, current_path, max_depth, current_depth + 1)
+        elif rest and len(rest) > 0 and rest[0].type in (PathComponentType.OPTIONAL_INDEX, PathComponentType.OPTIONAL_WILDCARD, PathComponentType.OPTIONAL_KEY):
+            # If the key doesn't exist but the next component is optional, pass None to it
+            yield from traverse(None, rest, current_path, max_depth, current_depth + 1)
+    
+    # Handle optional key access
+    elif component.type == PathComponentType.OPTIONAL_KEY:
+        logger.debug(f"Processing optional key: {component.value}")
+        if isinstance(data, dict) and component.value in data:
+            yield from traverse(data[component.value], rest, current_path, max_depth, current_depth + 1)
+        elif data is None:
+            # Data is None/null - don't yield anything (silent failure)
+            pass
+        # For missing keys or non-dict types, just don't continue (no error)
     
     # Handle array index access
     elif component.type == PathComponentType.INDEX:
@@ -252,6 +268,57 @@ def traverse(
             # Handle negative indices and bounds checking
             if -len(data) <= idx < len(data):
                 yield from traverse(data[idx], rest, current_path, max_depth, current_depth + 1)
+    
+    # Handle optional array index access
+    elif component.type == PathComponentType.OPTIONAL_INDEX:
+        logger.debug(f"Processing optional index: {component.value}")
+        if isinstance(data, (list, tuple)):
+            idx = component.value
+            # Handle negative indices and bounds checking
+            if -len(data) <= idx < len(data):
+                yield from traverse(data[idx], rest, current_path, max_depth, current_depth + 1)
+            else:
+                # Out of bounds - yield null if this is the last component
+                if not rest:
+                    yield None
+                # If there are more components, just don't continue the traversal
+        elif data is None:
+            # Data is None/null - yield null if this is the last component
+            if not rest:
+                yield None
+        # For non-list types, just don't continue (no error)
+    
+    # Handle optional wildcard access
+    elif component.type == PathComponentType.OPTIONAL_WILDCARD:
+        logger.debug("Processing optional wildcard component")
+        # Handle optional wildcard for dictionaries
+        if isinstance(data, dict):
+            logger.debug(f"Processing dict optional wildcard with {len(data)} items")
+            for k, v in data.items():
+                logger.debug(f"Processing optional wildcard key: {k}")
+                if not rest:
+                    # No more components, yield the value
+                    yield v
+                else:
+                    # Continue with remaining components
+                    yield from traverse(v, rest, current_path, max_depth, current_depth + 1)
+        # Handle optional wildcard for lists
+        elif isinstance(data, (list, tuple)):
+            logger.debug(f"Processing list optional wildcard with {len(data)} items")
+            for i, item in enumerate(data):
+                logger.debug(f"Processing optional wildcard index: {i}")
+                if not rest:
+                    # No more components, yield the item
+                    yield item
+                else:
+                    # Continue with remaining components  
+                    yield from traverse(item, rest, current_path, max_depth, current_depth + 1)
+        elif data is None:
+            # Data is None/null - don't yield anything (silent failure)
+            pass
+        else:
+            logger.debug(f"Skipping optional wildcard for non-container type: {type(data)}")
+        return
     
     # Handle the case where we have more components but current data isn't a container
     # This will naturally stop the recursion for that path

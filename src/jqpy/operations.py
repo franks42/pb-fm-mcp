@@ -190,6 +190,7 @@ def set_path(
     # Check if this is a simple path (no wildcards) for single setting
     has_wildcards = any(
         comp.type == PathComponentType.WILDCARD or 
+        comp.type == PathComponentType.OPTIONAL_WILDCARD or
         (comp.type == PathComponentType.KEY and comp.value == '') or
         comp.value == '[]'
         for comp in path_components
@@ -332,6 +333,7 @@ def _find_concrete_paths_for_setting(
     component, *remaining = path_components
     
     if component.type == PathComponentType.WILDCARD or \
+       component.type == PathComponentType.OPTIONAL_WILDCARD or \
        (component.type == PathComponentType.KEY and component.value == '') or \
        component.value == '[]':
         # Handle wildcard - iterate through all keys/indices
@@ -432,6 +434,7 @@ def delete_path(
     # Check if paths exist first for non-wildcard, non-all_matches cases
     has_wildcards = any(
         comp.type == PathComponentType.WILDCARD or 
+        comp.type == PathComponentType.OPTIONAL_WILDCARD or
         (comp.type == PathComponentType.KEY and comp.value == '') or
         comp.value == '[]'
         for comp in path_components
