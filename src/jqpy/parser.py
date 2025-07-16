@@ -199,7 +199,13 @@ def parse_path(path: str) -> list[PathComponent]:
             continue
             
         # Handle core jq functions
-        jq_functions = ['keys', 'length', 'type', 'paths']
+        jq_functions = [
+            'keys', 'length', 'type', 'paths',
+            # String functions
+            'lowercase', 'downcase', 'uppercase', 'upcase', 'trim',
+            # Math functions
+            'add', 'min', 'max', 'sort', 'sort_by', 'reverse', 'unique', 'group_by', 'flatten'
+        ]
         if part in jq_functions:
             logger.debug(f"Core jq function: {part}")
             components.append(PathComponent(
@@ -239,6 +245,73 @@ def parse_path(path: str) -> list[PathComponent]:
             components.append(PathComponent(
                 type=PathComponentType.FUNCTION,
                 value=f"paths({type_filter})",
+                raw_value=part
+            ))
+            continue
+            
+        # Handle string functions with arguments
+        if part.startswith('split(') and part.endswith(')'):
+            # Extract the delimiter
+            delimiter = part[6:-1]  # Remove 'split(' and ')'
+            logger.debug(f"Function call: split with delimiter: {delimiter}")
+            components.append(PathComponent(
+                type=PathComponentType.FUNCTION,
+                value=f"split:{delimiter}",
+                raw_value=part
+            ))
+            continue
+            
+        if part.startswith('join(') and part.endswith(')'):
+            # Extract the delimiter
+            delimiter = part[5:-1]  # Remove 'join(' and ')'
+            logger.debug(f"Function call: join with delimiter: {delimiter}")
+            components.append(PathComponent(
+                type=PathComponentType.FUNCTION,
+                value=f"join:{delimiter}",
+                raw_value=part
+            ))
+            continue
+            
+        if part.startswith('startswith(') and part.endswith(')'):
+            # Extract the prefix
+            prefix = part[11:-1]  # Remove 'startswith(' and ')'
+            logger.debug(f"Function call: startswith with prefix: {prefix}")
+            components.append(PathComponent(
+                type=PathComponentType.FUNCTION,
+                value=f"startswith:{prefix}",
+                raw_value=part
+            ))
+            continue
+            
+        if part.startswith('endswith(') and part.endswith(')'):
+            # Extract the suffix
+            suffix = part[9:-1]  # Remove 'endswith(' and ')'
+            logger.debug(f"Function call: endswith with suffix: {suffix}")
+            components.append(PathComponent(
+                type=PathComponentType.FUNCTION,
+                value=f"endswith:{suffix}",
+                raw_value=part
+            ))
+            continue
+            
+        if part.startswith('contains(') and part.endswith(')'):
+            # Extract the substring
+            substring = part[9:-1]  # Remove 'contains(' and ')'
+            logger.debug(f"Function call: contains with substring: {substring}")
+            components.append(PathComponent(
+                type=PathComponentType.FUNCTION,
+                value=f"contains:{substring}",
+                raw_value=part
+            ))
+            continue
+            
+        if part.startswith('flatten(') and part.endswith(')'):
+            # Extract the depth
+            depth = part[8:-1]  # Remove 'flatten(' and ')'
+            logger.debug(f"Function call: flatten with depth: {depth}")
+            components.append(PathComponent(
+                type=PathComponentType.FUNCTION,
+                value=f"flatten:{depth}",
                 raw_value=part
             ))
             continue

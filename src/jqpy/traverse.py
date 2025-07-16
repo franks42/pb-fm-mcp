@@ -567,6 +567,238 @@ def _handle_jq_function(data: Any, function_spec: str) -> Any:
         
         return results
     
+    # Handle string operations
+    elif function_spec.startswith('split:'):
+        delimiter = function_spec[6:]  # Remove 'split:' prefix
+        
+        # Remove quotes if present
+        if (delimiter.startswith('"') and delimiter.endswith('"')) or \
+           (delimiter.startswith("'") and delimiter.endswith("'")):
+            delimiter = delimiter[1:-1]
+        
+        if isinstance(data, str):
+            return data.split(delimiter)
+        else:
+            return None
+    
+    elif function_spec.startswith('join:'):
+        delimiter = function_spec[5:]  # Remove 'join:' prefix
+        
+        # Remove quotes if present
+        if (delimiter.startswith('"') and delimiter.endswith('"')) or \
+           (delimiter.startswith("'") and delimiter.endswith("'")):
+            delimiter = delimiter[1:-1]
+        
+        if isinstance(data, list):
+            # Convert all elements to strings before joining
+            str_items = [str(item) for item in data]
+            return delimiter.join(str_items)
+        else:
+            return None
+    
+    elif function_spec.startswith('startswith:'):
+        prefix = function_spec[11:]  # Remove 'startswith:' prefix
+        
+        # Remove quotes if present
+        if (prefix.startswith('"') and prefix.endswith('"')) or \
+           (prefix.startswith("'") and prefix.endswith("'")):
+            prefix = prefix[1:-1]
+        
+        if isinstance(data, str):
+            return data.startswith(prefix)
+        else:
+            return False
+    
+    elif function_spec.startswith('endswith:'):
+        suffix = function_spec[9:]  # Remove 'endswith:' prefix
+        
+        # Remove quotes if present
+        if (suffix.startswith('"') and suffix.endswith('"')) or \
+           (suffix.startswith("'") and suffix.endswith("'")):
+            suffix = suffix[1:-1]
+        
+        if isinstance(data, str):
+            return data.endswith(suffix)
+        else:
+            return False
+    
+    elif function_spec.startswith('contains:'):
+        substring = function_spec[9:]  # Remove 'contains:' prefix
+        
+        # Remove quotes if present
+        if (substring.startswith('"') and substring.endswith('"')) or \
+           (substring.startswith("'") and substring.endswith("'")):
+            substring = substring[1:-1]
+        
+        if isinstance(data, str):
+            return substring in data
+        elif isinstance(data, list):
+            return substring in data
+        elif isinstance(data, dict):
+            return substring in data.values()
+        else:
+            return False
+    
+    elif function_spec == 'lowercase' or function_spec == 'downcase':
+        if isinstance(data, str):
+            return data.lower()
+        else:
+            return None
+    
+    elif function_spec == 'uppercase' or function_spec == 'upcase':
+        if isinstance(data, str):
+            return data.upper()
+        else:
+            return None
+    
+    elif function_spec == 'trim':
+        if isinstance(data, str):
+            return data.strip()
+        else:
+            return None
+    
+    # Handle math operations
+    elif function_spec == 'add':
+        if isinstance(data, list):
+            if not data:
+                return None
+            
+            # Check if all elements are numbers
+            if all(isinstance(x, (int, float)) for x in data):
+                return sum(data)
+            # Check if all elements are strings
+            elif all(isinstance(x, str) for x in data):
+                return ''.join(data)
+            # Check if all elements are arrays
+            elif all(isinstance(x, list) for x in data):
+                result = []
+                for sublist in data:
+                    result.extend(sublist)
+                return result
+            else:
+                return None
+        else:
+            return None
+    
+    elif function_spec == 'min':
+        if isinstance(data, list):
+            if not data:
+                return None
+            
+            # Only work with numbers
+            numbers = [x for x in data if isinstance(x, (int, float))]
+            if numbers:
+                return min(numbers)
+            else:
+                return None
+        else:
+            return None
+    
+    elif function_spec == 'max':
+        if isinstance(data, list):
+            if not data:
+                return None
+            
+            # Only work with numbers
+            numbers = [x for x in data if isinstance(x, (int, float))]
+            if numbers:
+                return max(numbers)
+            else:
+                return None
+        else:
+            return None
+    
+    elif function_spec == 'sort':
+        if isinstance(data, list):
+            try:
+                return sorted(data)
+            except TypeError:
+                # If items are not comparable, sort by string representation
+                return sorted(data, key=str)
+        else:
+            return None
+    
+    elif function_spec == 'sort_by':
+        # This is a placeholder - sort_by would need an expression parameter
+        # For now, just return regular sort
+        if isinstance(data, list):
+            try:
+                return sorted(data)
+            except TypeError:
+                return sorted(data, key=str)
+        else:
+            return None
+    
+    elif function_spec == 'reverse':
+        if isinstance(data, list):
+            return list(reversed(data))
+        elif isinstance(data, str):
+            return data[::-1]
+        else:
+            return None
+    
+    elif function_spec == 'unique':
+        if isinstance(data, list):
+            # Preserve order while removing duplicates
+            seen = set()
+            result = []
+            for item in data:
+                # Use string representation for unhashable types
+                try:
+                    if item not in seen:
+                        seen.add(item)
+                        result.append(item)
+                except TypeError:
+                    # For unhashable types, check manually
+                    if item not in result:
+                        result.append(item)
+            return result
+        else:
+            return None
+    
+    elif function_spec == 'group_by':
+        # This is a placeholder - group_by would need an expression parameter
+        # For now, just return the data as a single group
+        if isinstance(data, list):
+            return [data]
+        else:
+            return None
+    
+    elif function_spec == 'flatten':
+        if isinstance(data, list):
+            result = []
+            for item in data:
+                if isinstance(item, list):
+                    result.extend(item)
+                else:
+                    result.append(item)
+            return result
+        else:
+            return None
+    
+    elif function_spec.startswith('flatten:'):
+        depth_str = function_spec[8:]  # Remove 'flatten:' prefix
+        try:
+            depth = int(depth_str)
+        except ValueError:
+            depth = 1
+        
+        if isinstance(data, list):
+            def flatten_recursive(arr, d):
+                if d <= 0:
+                    return arr
+                result = []
+                for item in arr:
+                    if isinstance(item, list):
+                        result.extend(flatten_recursive(item, d - 1))
+                    else:
+                        result.append(item)
+                return result
+            
+            return flatten_recursive(data, depth)
+        else:
+            return None
+    
     else:
         raise ValueError(f"Unsupported jq function: {function_spec}")
 
