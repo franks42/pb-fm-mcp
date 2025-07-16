@@ -13,7 +13,7 @@ from collections.abc import Sequence
 from typing import Any, TextIO
 
 from . import get_path, parse_path
-from .parser import PathComponent
+from .parser import PathComponent, PathComponentType
 
 
 class JQPYError(Exception):
@@ -155,13 +155,28 @@ def process_input_streaming(
         
         try:
             path_components = process_path_expression(path_expr)
-            # Use iterator directly - no list conversion!
-            results_iterator = get_path(data, path_components, only_first_path_match=False)
             
-            has_results = False
-            for result in results_iterator:
-                has_results = True
-                yield result
+            # Check if this is array construction - it should return arrays, not stream
+            is_array_construction = (
+                len(path_components) == 1 and 
+                path_components[0].type == PathComponentType.ARRAY_CONSTRUCTION
+            )
+            
+            if is_array_construction:
+                # For array construction, collect all results and yield as a single array
+                results_iterator = get_path(data, path_components, only_first_path_match=False)
+                has_results = False
+                for result in results_iterator:
+                    has_results = True
+                    yield result  # This should already be an array from traverse()
+            else:
+                # Use iterator directly - no list conversion!
+                results_iterator = get_path(data, path_components, only_first_path_match=False)
+                
+                has_results = False
+                for result in results_iterator:
+                    has_results = True
+                    yield result
             
             # Handle empty results
             if not has_results:

@@ -55,7 +55,13 @@
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(sed:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(PYTHONPATH=. python tests/test_jqpy/test_core_path_aware.py)",
+      "Bash(PYTHONPATH=. python3 tests/test_jqpy/test_core_path_aware.py)",
+      "Bash(PYTHONPATH=. python3 example_path_aware_usage.py)",
+      "Bash(PYTHONPATH=. python3 example_path_annotation_approaches.py)",
+      "Bash(PYTHONPATH=. python3 elegant_path_annotation_demo.py)",
+      "Bash(PYTHONPATH=. python3:*)"
     ],
     "deny": []
   }

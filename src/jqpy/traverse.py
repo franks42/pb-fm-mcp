@@ -197,6 +197,49 @@ def traverse(
                         yield from traverse(item, rest, current_path, max_depth, current_depth + 1)
         return
     
+    # Handle array construction
+    elif component.type == PathComponentType.ARRAY_CONSTRUCTION:
+        logger.debug(f"Processing array construction: {component.value}")
+        inner_expr = component.value
+        
+        # Parse the inner expression and collect all results into an array
+        try:
+            from .parser import parse_path  # Import here to avoid circular imports
+            inner_components = parse_path(inner_expr)
+            logger.debug(f"Array construction inner components: {inner_components}")
+            
+            # Check if inner expression contains comma-separated values
+            if ',' in inner_expr:
+                # Handle comma-separated expressions like [.a, .b, .c]
+                results = []
+                expressions = [expr.strip() for expr in inner_expr.split(',')]
+                for expr in expressions:
+                    expr_components = parse_path(expr)
+                    for result in traverse(data, expr_components, None, max_depth, 0):
+                        results.append(result)
+            else:
+                # Single expression like [.users[].name]
+                results = []
+                for result in traverse(data, inner_components, None, max_depth, 0):
+                    results.append(result)
+            
+            logger.debug(f"Array construction collected {len(results)} results")
+            
+            # If there are remaining components, continue traversal with the constructed array
+            if rest:
+                yield from traverse(results, rest, current_path, max_depth, current_depth + 1)
+            else:
+                # This is the final component, yield the constructed array
+                yield results
+                
+        except Exception as e:
+            logger.debug(f"Array construction failed: {e}")
+            # If parsing fails, treat as empty array
+            if rest:
+                yield from traverse([], rest, current_path, max_depth, current_depth + 1)
+            else:
+                yield []
+        return
     
     # Handle object construction
     if component.type == PathComponentType.KEY and component.value.startswith('OBJECT_CONSTRUCT:'):

@@ -14,6 +14,7 @@ class PathComponentType(Enum):
     OPTIONAL_KEY = "optional_key"  # Optional dictionary key access (e.g., .key?)
     OPTIONAL_INDEX = "optional_index"  # Optional array index access (e.g., [0]?)
     OPTIONAL_WILDCARD = "optional_wildcard"  # Optional wildcard access (e.g., []?)
+    ARRAY_CONSTRUCTION = "array_construction"  # Array construction (e.g., [expression])
 
 
 @dataclass(frozen=False)  # frozen=False allows _replace
@@ -165,6 +166,27 @@ def parse_path(path: str) -> list[PathComponent]:
         ))
         return components
 
+    # Check for array construction [expression] before pipe processing
+    if path_stripped.startswith('[') and path_stripped.endswith(']') and not path_stripped == '[]':
+        # This might be array construction [expression]
+        inner_expr = path_stripped[1:-1].strip()
+        
+        # Make sure it's not just an array index, slice, or selector
+        if not (inner_expr.isdigit() or  # [0], [1], etc.
+                inner_expr.startswith('-') and inner_expr[1:].isdigit() or  # [-1], [-2], etc.
+                ':' in inner_expr or  # [1:3], [2:], [:5]
+                inner_expr.startswith('?(') or  # [?(@.key==value)]
+                inner_expr == '*' or inner_expr == ''):  # [*] or []
+            # This is array construction
+            logger.debug(f"Array construction detected: [{inner_expr}]")
+            return [
+                PathComponent(
+                    type=PathComponentType.ARRAY_CONSTRUCTION,
+                    value=inner_expr,
+                    raw_value=path_stripped
+                )
+            ]
+
     # Split by pipe operator
     pipe_parts = path.split('|')
     components = []
@@ -176,6 +198,26 @@ def parse_path(path: str) -> list[PathComponent]:
         part = part.strip()
         if not part:
             continue
+            
+        # Check for array construction in this pipe part
+        if part.startswith('[') and part.endswith(']') and not part == '[]':
+            # This might be array construction [expression]
+            inner_expr = part[1:-1].strip()
+            
+            # Make sure it's not just an array index, slice, or selector
+            if not (inner_expr.isdigit() or  # [0], [1], etc.
+                    inner_expr.startswith('-') and inner_expr[1:].isdigit() or  # [-1], [-2], etc.
+                    ':' in inner_expr or  # [1:3], [2:], [:5]
+                    inner_expr.startswith('?(') or  # [?(@.key==value)]
+                    inner_expr == '*' or inner_expr == ''):  # [*] or []
+                # This is array construction
+                logger.debug(f"Array construction in pipe part detected: [{inner_expr}]")
+                components.append(PathComponent(
+                    type=PathComponentType.ARRAY_CONSTRUCTION,
+                    value=inner_expr,
+                    raw_value=part
+                ))
+                continue
             
         # Handle array splat
         if part == '[]':
