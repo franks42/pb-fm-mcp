@@ -10,6 +10,7 @@ class PathComponentType(Enum):
     WILDCARD = "wildcard"  # Wildcard access (e.g., .* or [*])
     SELECTOR = "selector"  # Filter selector (e.g., [?(@.active==True)])
     SLICE = "slice"      # Array slice access (e.g., [1:3], [2:], [:5])
+    FUNCTION = "function"  # jq function calls (e.g., keys, length, type, has(), map())
     OPTIONAL_KEY = "optional_key"  # Optional dictionary key access (e.g., .key?)
     OPTIONAL_INDEX = "optional_index"  # Optional array index access (e.g., [0]?)
     OPTIONAL_WILDCARD = "optional_wildcard"  # Optional wildcard access (e.g., []?)
@@ -197,6 +198,40 @@ def parse_path(path: str) -> list[PathComponent]:
             ))
             continue
             
+        # Handle core jq functions
+        jq_functions = ['keys', 'length', 'type']
+        if part in jq_functions:
+            logger.debug(f"Core jq function: {part}")
+            components.append(PathComponent(
+                type=PathComponentType.FUNCTION,
+                value=part,
+                raw_value=part
+            ))
+            continue
+            
+        # Handle jq functions with arguments
+        if part.startswith('has(') and part.endswith(')'):
+            # Extract the argument
+            arg = part[4:-1]  # Remove 'has(' and ')'
+            logger.debug(f"Function call: has with argument: {arg}")
+            components.append(PathComponent(
+                type=PathComponentType.FUNCTION,
+                value=f"has:{arg}",
+                raw_value=part
+            ))
+            continue
+            
+        if part.startswith('map(') and part.endswith(')'):
+            # Extract the expression
+            expr = part[4:-1]  # Remove 'map(' and ')'
+            logger.debug(f"Function call: map with expression: {expr}")
+            components.append(PathComponent(
+                type=PathComponentType.FUNCTION,
+                value=f"map:{expr}",
+                raw_value=part
+            ))
+            continue
+            
         # Handle object construction
         if part.startswith('{') and part.endswith('}'):
             obj_parts = part[1:-1].split(',')
@@ -236,11 +271,19 @@ def parse_path(path: str) -> list[PathComponent]:
                         rest = rest[1:]  # Remove the ? from rest
                     
                     if key_part:
-                        components.append(PathComponent(
-                            type=PathComponentType.KEY,
-                            value=key_part,
-                            raw_value=key_part
-                        ))
+                        # Check if key_part is a core jq function
+                        if key_part in ['keys', 'length', 'type']:
+                            components.append(PathComponent(
+                                type=PathComponentType.FUNCTION,
+                                value=key_part,
+                                raw_value=key_part
+                            ))
+                        else:
+                            components.append(PathComponent(
+                                type=PathComponentType.KEY,
+                                value=key_part,
+                                raw_value=key_part
+                            ))
                     
                     if bracket_content.startswith('?(') and bracket_content.endswith(')'):
                         try:
@@ -323,6 +366,13 @@ def parse_path(path: str) -> list[PathComponent]:
                         components.append(PathComponent(
                             type=PathComponentType.OPTIONAL_KEY,
                             value=key_name,
+                            raw_value=dot_part
+                        ))
+                    elif dot_part in ['keys', 'length', 'type']:
+                        # Core jq function that was parsed as a key
+                        components.append(PathComponent(
+                            type=PathComponentType.FUNCTION,
+                            value=dot_part,
                             raw_value=dot_part
                         ))
                     else:

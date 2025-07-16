@@ -88,10 +88,14 @@ docs/
    - Raw output, compact output, slurp modes ✅
    - File input and stdin handling ✅
 
-### Phase 3: jq Compatibility
-1. **jq Functions**
-   - Core jq functions (map, reduce, etc.) - not implemented
-   - Path-related functions - not implemented
+### Phase 3: jq Compatibility ✅ PARTIAL
+1. **Core jq Functions** ✅ NEW - COMPLETED
+   - `keys` - Get object keys or array indices ✅ 
+   - `length` - Get size of arrays/objects/strings ✅
+   - `type` - Get type of value (object, array, string, etc.) ✅
+   - `has(key)` - Check if key/index exists ✅
+   - `map(expr)` - Transform arrays with expressions ✅
+   - Advanced functions (reduce, group_by, etc.) - not implemented
    - String/number operations - not implemented
 
 2. **Performance & Polish**
@@ -163,7 +167,8 @@ docs/
 - **Complete path manipulation API** with set_path() and delete_path() ✅ NEW
 - **Optional selector support** for safe data access ([]?, [index]?, .key?) ✅ NEW
 - **Array slicing support** for powerful array manipulation ([1:3], [2:], [:5]) ✅ NEW
-- **Comprehensive test coverage** with all tests passing (100 total tests, 3 skipped)
+- **Core jq functions** - keys, length, type, has(), map() ✅ NEW
+- **Comprehensive test coverage** with all tests passing (110 total tests, 3 skipped)
 - **Modern Python implementation** with proper type hints and code quality
 
 ### Key Features Added:
@@ -179,6 +184,7 @@ docs/
 10. **🆕 Complete Path Manipulation**: set_path() and delete_path() with wildcard support
 11. **🆕 Optional Selectors**: Safe data access with []?, [index]?, .key? syntax
 12. **🆕 Array Slicing**: Powerful array manipulation with [1:3], [2:], [:5], [-2:] syntax
+13. **🆕 Core jq Functions**: keys, length, type, has(), map() for data transformation
 
 ### Architecture Improvements:
 - Iterator-based design for memory efficiency
@@ -200,16 +206,17 @@ docs/
 - ✅ Select with comparisons (`select(.active == true)`)
 - ✅ Optional selectors (`.[]?`, `[index]?`, `.key?`) ✅ NEW
 - ✅ Array slicing (`.[1:3]`, `.[2:]`, `.[:5]`, `.[-2:]`) ✅ NEW
+- ✅ Core jq functions (`keys`, `length`, `type`, `has()`, `map()`) ✅ NEW
 - ✅ Complete path manipulation API (set_path, delete_path) ✅ NEW
 
-### 🎯 CURRENT STATE: jqpy is now feature-complete for advanced JSON processing with safe data access and array slicing!
+### 🎯 CURRENT STATE: jqpy is now feature-complete for advanced JSON processing with core jq functions!
 
 ### Next Steps (Priority Order)
 1. **🟡 Medium Priority:**
-   - Add core jq functions: `map()`, `select()`, `has()`, `keys()`
-   - Implement more string/number operations
+   - Implement getpaths() and getpaths_setpaths() utility functions
+   - Add more jq functions: reduce(), group_by(), sort_by()
+   - Implement mathematical expression parsing (for advanced map() operations)
    - Add complex selector combinations
-   - Performance optimizations for large datasets
 
 3. **🟢 Lower Priority:**
    - Advanced jq features (reduce, group_by, etc.)

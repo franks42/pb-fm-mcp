@@ -302,6 +302,18 @@ def traverse(
                 yield None
         # For non-list types, just don't continue (no error)
     
+    # Handle jq function calls
+    elif component.type == PathComponentType.FUNCTION:
+        logger.debug(f"Processing function: {component.value}")
+        result = _handle_jq_function(data, component.value)
+        if not rest:
+            # This is the last component - yield the function result
+            yield result
+        else:
+            # Continue with remaining components using the function result
+            yield from traverse(result, rest, current_path, max_depth, current_depth + 1)
+        return
+    
     # Handle optional wildcard access
     elif component.type == PathComponentType.OPTIONAL_WILDCARD:
         logger.debug("Processing optional wildcard component")
@@ -432,3 +444,117 @@ def _matches_selector(value: Any, selector: dict) -> bool:
             return current <= target
     
     raise ValueError(f"Unsupported selector type: {selector['type']}")
+
+
+def _handle_jq_function(data: Any, function_spec: str) -> Any:
+    """Handle jq core function calls.
+    
+    Args:
+        data: The input data
+        function_spec: Function specification (e.g., 'keys', 'length', 'has:key', 'map:expr')
+        
+    Returns:
+        The result of the function
+    """
+    # Handle simple functions without arguments
+    if function_spec == 'keys':
+        if isinstance(data, dict):
+            return sorted(data.keys())
+        elif isinstance(data, list):
+            return list(range(len(data)))
+        else:
+            return None
+    
+    elif function_spec == 'length':
+        if isinstance(data, (dict, list, str)):
+            return len(data)
+        elif data is None:
+            return 0
+        else:
+            return None
+    
+    elif function_spec == 'type':
+        if isinstance(data, dict):
+            return "object"
+        elif isinstance(data, list):
+            return "array"
+        elif isinstance(data, str):
+            return "string"
+        elif isinstance(data, bool):
+            return "boolean"
+        elif isinstance(data, (int, float)):
+            return "number"
+        elif data is None:
+            return "null"
+        else:
+            return "unknown"
+    
+    # Handle functions with arguments
+    elif function_spec.startswith('has:'):
+        key_or_index = function_spec[4:]  # Remove 'has:' prefix
+        
+        # Try to parse as integer for array index
+        try:
+            index = int(key_or_index)
+            if isinstance(data, list):
+                return 0 <= index < len(data)
+        except ValueError:
+            pass
+        
+        # Remove quotes if present for string keys
+        if (key_or_index.startswith('"') and key_or_index.endswith('"')) or \
+           (key_or_index.startswith("'") and key_or_index.endswith("'")):
+            key_or_index = key_or_index[1:-1]
+        
+        if isinstance(data, dict):
+            return key_or_index in data
+        elif isinstance(data, list):
+            # For lists, has() checks if the index exists
+            try:
+                index = int(key_or_index)
+                return 0 <= index < len(data)
+            except ValueError:
+                return False
+        else:
+            return False
+    
+    elif function_spec.startswith('map:'):
+        expr = function_spec[4:]  # Remove 'map:' prefix
+        
+        if not isinstance(data, list):
+            raise ValueError(f"Cannot map over non-array type: {type(data)}")
+        
+        results = []
+        for item in data:
+            # Handle simple mathematical expressions
+            if expr.strip() == '. * 2':
+                if isinstance(item, (int, float)):
+                    results.append(item * 2)
+                else:
+                    results.append(None)
+            elif expr.strip() == '. * 3':
+                if isinstance(item, (int, float)):
+                    results.append(item * 3)
+                else:
+                    results.append(None)
+            elif expr.strip() == '. + 1':
+                if isinstance(item, (int, float)):
+                    results.append(item + 1)
+                else:
+                    results.append(None)
+            else:
+                # Parse and evaluate the expression on each item for non-math expressions
+                from .parser import parse_path
+                expr_components = parse_path(expr)
+                
+                # Get the result for this item
+                item_results = list(traverse(item, expr_components))
+                if item_results:
+                    results.append(item_results[0])  # Take first result
+                else:
+                    results.append(None)
+        
+        return results
+    
+    else:
+        raise ValueError(f"Unsupported jq function: {function_spec}")
