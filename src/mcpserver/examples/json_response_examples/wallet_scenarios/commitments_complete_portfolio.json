@@ -1,0 +1,47 @@
+{
+  "commitments": [
+    {
+      "market_id": 1,
+      "amount": [
+        {
+          "denom": "nhash",
+          "amount": "2000000000000000"
+        },
+        {
+          "denom": "uusd.trading",
+          "amount": "1000000000"
+        }
+      ]
+    },
+    {
+      "market_id": 2,
+      "amount": [
+        {
+          "denom": "neth.figure.se",
+          "amount": "250000000000000000"
+        },
+        {
+          "denom": "uusdc.figure.se",
+          "amount": "1500000000"
+        }
+      ]
+    },
+    {
+      "market_id": 3,
+      "amount": [
+        {
+          "denom": "nsol.figure.se",
+          "amount": "25000000000"
+        },
+        {
+          "denom": "uusd.trading",
+          "amount": "500000000"
+        }
+      ]
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "3"
+  }
+}

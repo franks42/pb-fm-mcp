@@ -1,0 +1,20 @@
+{
+  "account": {
+    "@type": "/cosmos.auth.v1beta1.BaseAccount",
+    "address": "tp1basic****",
+    "pub_key": null,
+    "account_number": "45821",
+    "sequence": "12"
+  },
+  "flags": {
+    "isVesting": false,
+    "hasMarkers": false,
+    "hasContracts": false
+  },
+  "baseAccount": {
+    "address": "tp1basic****",
+    "pubKey": null,
+    "accountNumber": 45821,
+    "sequence": 12
+  }
+}

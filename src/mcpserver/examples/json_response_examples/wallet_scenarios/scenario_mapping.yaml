@@ -1,0 +1,271 @@
+# Comprehensive Wallet Scenario Mapping
+# Maps realistic wallet scenarios to their corresponding API responses
+
+wallet_scenarios:
+  
+  basic_holder:
+    description: "Simple HASH holder with no vesting or delegation"
+    wallet_address: "tp1basic****"
+    account_number: 45821
+    characteristics:
+      vesting: false
+      delegation: false
+      multi_asset: false
+      exchange_commitments: false
+    files:
+      account_info: "account_info_basic_holder.json"
+      balances: "balances_basic_holder.json"
+    amounts:
+      nhash: 750000000000000  # 750 HASH
+    testing_scenarios:
+      - "Simple wallet composition"
+      - "Single asset balance transformation"
+      - "No vesting/delegation edge case"
+  
+  multi_asset_holder:
+    description: "Diversified portfolio holder across all Figure Markets assets"
+    wallet_address: "tp1multi****"
+    account_number: 67432
+    characteristics:
+      vesting: false
+      delegation: false
+      multi_asset: true
+      exchange_commitments: false
+    files:
+      account_info: "account_info_multi_asset_holder.json"
+      balances: "balances_multi_asset_holder.json"
+    amounts:
+      nhash: 2500000000000000     # 2,500 HASH
+      uusd.trading: 1250000000    # 1,250 USD
+      neth.figure.se: 500000000000000000  # 0.5 ETH
+      nsol.figure.se: 75000000000 # 75 SOL
+      uxrp.figure.se: 2000000000  # 2,000 XRP
+      uylds.fcc: 100000000        # 100 YLDS
+    testing_scenarios:
+      - "Multi-asset balance transformation"
+      - "Denomination conversion across all assets"
+      - "Plural response variants"
+  
+  vesting_only:
+    description: "Account with vesting schedule but no delegation"
+    wallet_address: "tp1vesting****"
+    account_number: 23891
+    characteristics:
+      vesting: true
+      delegation: false
+      multi_asset: false
+      exchange_commitments: false
+    files:
+      account_info: "account_info_vesting_only.json"
+      balances: "balances_vesting_only.json"
+      vesting: "vesting_vesting_only.json"
+    amounts:
+      nhash_original: 10000000000000000  # 10,000 HASH original vesting
+      nhash_vested: 4500000000000000     # 4,500 HASH vested (45% progress)
+      nhash_unvested: 5500000000000000   # 5,500 HASH unvested
+    vesting_schedule:
+      start_time: "2023-07-01T00:00:00Z"
+      end_time: "2026-07-01T00:00:00Z"
+      duration_months: 36
+      progress_percentage: 45
+    testing_scenarios:
+      - "Vesting progress calculation"
+      - "Time-based vesting logic"
+      - "Vesting complete picture logical group"
+  
+  delegation_only:
+    description: "Active staker with multiple validator delegations"
+    wallet_address: "tp1delegator****"
+    account_number: 78901
+    characteristics:
+      vesting: false
+      delegation: true
+      multi_asset: false
+      exchange_commitments: false
+    files:
+      account_info: "account_info_delegation_only.json"
+      balances: "balances_delegation_only.json"
+      delegation: "delegation_delegation_only.json"
+    amounts:
+      nhash_available: 125000000000000     # 125 HASH available
+      nhash_delegated: 9425000000000000    # 9,425 HASH total delegated
+      nhash_staked: 8500000000000000       # 8,500 HASH actively staked
+      nhash_rewards: 175000000000000       # 175 HASH pending rewards
+      nhash_unbonding: 500000000000000     # 500 HASH unbonding
+    delegation_details:
+      validator_count: 4
+      earning_amount: 8500000000000000
+      not_earning_amount: 925000000000000
+    testing_scenarios:
+      - "Multi-validator delegation"
+      - "Delegation complete picture logical group"
+      - "Earning vs non-earning calculations"
+  
+  vesting_delegator:
+    description: "Vesting account that also delegates tokens"
+    wallet_address: "tp1vestdel****"
+    account_number: 34567
+    characteristics:
+      vesting: true
+      delegation: true
+      multi_asset: false
+      exchange_commitments: false
+    files:
+      account_info: "account_info_vesting_delegator.json"
+      balances: "balances_vesting_delegator.json"
+      vesting: "vesting_vesting_delegator.json"
+      delegation: "delegation_vesting_delegator.json"
+    amounts:
+      nhash_original: 15000000000000000    # 15,000 HASH original vesting
+      nhash_vested: 8250000000000000       # 8,250 HASH vested (55% progress)
+      nhash_available: 3250000000000000    # 3,250 HASH available in wallet
+      nhash_delegated: 5125000000000000    # 5,125 HASH total delegated
+      nhash_delegated_free: 2000000000000000   # 2,000 HASH delegated from free
+      nhash_delegated_vesting: 3000000000000000 # 3,000 HASH delegated from vesting
+    vesting_schedule:
+      start_time: "2023-01-01T00:00:00Z"
+      end_time: "2025-12-31T23:59:59Z"
+      duration_months: 36
+      progress_percentage: 55
+    testing_scenarios:
+      - "Complex vesting + delegation interaction"
+      - "Delegated free vs delegated vesting"
+      - "Combined logical groups validation"
+  
+  power_trader:
+    description: "Figure Markets power trader with commitments across all assets"
+    wallet_address: "tp1trader****"
+    account_number: 91234
+    characteristics:
+      vesting: false
+      delegation: false
+      multi_asset: true
+      exchange_commitments: true
+    files:
+      account_info: "account_info_power_trader.json"
+      balances: "balances_power_trader.json"
+      commitments: "commitments_power_trader.json"
+    amounts:
+      nhash: 5000000000000000       # 5,000 HASH
+      uusd.trading: 25000000000     # 25,000 USD
+      neth.figure.se: 2000000000000000000  # 2 ETH
+      uusdc.figure.se: 15000000000  # 15,000 USDC
+      nsol.figure.se: 300000000000  # 300 SOL
+      uxrp.figure.se: 50000000000   # 50,000 XRP
+      uylds.fcc: 1000000000         # 1,000 YLDS
+    commitments:
+      market_count: 5
+      total_markets_active: true
+      cross_asset_trading: true
+    testing_scenarios:
+      - "All asset denomination handling"
+      - "Exchange commitment transformation"
+      - "Trading-focused wallet composition"
+  
+  complete_portfolio:
+    description: "Full scenario: vesting, delegation, multi-asset, and trading"
+    wallet_address: "tp1complete****"
+    account_number: 15673
+    characteristics:
+      vesting: true
+      delegation: true
+      multi_asset: true
+      exchange_commitments: true
+    files:
+      account_info: "account_info_complete_portfolio.json"
+      balances: "balances_complete_portfolio.json"
+      vesting: "vesting_complete_portfolio.json"
+      delegation: "delegation_complete_portfolio.json"
+      commitments: "commitments_complete_portfolio.json"
+    amounts:
+      nhash_original: 25000000000000000    # 25,000 HASH original vesting
+      nhash_vested: 8750000000000000       # 8,750 HASH vested (35% progress)
+      nhash_available: 8750000000000000    # 8,750 HASH available
+      nhash_delegated: 8250000000000000    # 8,250 HASH delegated
+      uusd.trading: 5000000000             # 5,000 USD
+      neth.figure.se: 1500000000000000000  # 1.5 ETH
+      uusdc.figure.se: 7500000000          # 7,500 USDC
+      nsol.figure.se: 200000000000         # 200 SOL
+      uxrp.figure.se: 15000000000          # 15,000 XRP
+    vesting_schedule:
+      start_time: "2024-01-01T00:00:00Z"
+      end_time: "2027-12-31T23:59:59Z"
+      duration_months: 48
+      progress_percentage: 35
+    testing_scenarios:
+      - "Complete wallet composition logical group"
+      - "All transformation features combined"
+      - "Real-world complex portfolio"
+
+# Testing Configuration
+
+logical_group_coverage:
+  wallet_composition_complete:
+    - "basic_holder"
+    - "multi_asset_holder" 
+    - "power_trader"
+    - "complete_portfolio"
+  
+  vesting_complete_picture:
+    - "vesting_only"
+    - "vesting_delegator"
+    - "complete_portfolio"
+  
+  delegation_complete_picture:
+    - "delegation_only"
+    - "vesting_delegator"
+    - "complete_portfolio"
+  
+  multi_asset_portfolio:
+    - "multi_asset_holder"
+    - "power_trader"
+    - "complete_portfolio"
+
+transformation_test_coverage:
+  denomination_handling:
+    - "All scenarios test nhash handling"
+    - "multi_asset_holder, power_trader, complete_portfolio test all denominations"
+  
+  singular_plural_variants:
+    - "basic_holder tests singular asset response"
+    - "multi_asset_holder tests plural asset response"
+  
+  stateless_optimization:
+    - "All scenarios test base denomination format"
+    - "All scenarios test UTC timestamp format"
+  
+  bandwidth_optimization:
+    - "All scenarios test filtered metadata removal"
+    - "All scenarios test relevant attribute extraction"
+
+api_call_combinations:
+  single_call:
+    - account_info: ["basic_holder", "multi_asset_holder", "vesting_only", "delegation_only"]
+    - balances: ["basic_holder", "multi_asset_holder"]
+  
+  dual_call:
+    - account_info + vesting: ["vesting_only", "vesting_delegator"]
+    - account_info + delegation: ["delegation_only"]
+  
+  triple_call:
+    - account_info + vesting + delegation: ["vesting_delegator"]
+    - account_info + balances + commitments: ["power_trader"]
+  
+  complete_call:
+    - all_apis: ["complete_portfolio"]
+
+validation_scenarios:
+  edge_cases:
+    - "basic_holder: minimal data"
+    - "vesting_only: no delegation data" 
+    - "delegation_only: no vesting data"
+  
+  complex_cases:
+    - "vesting_delegator: interaction between vesting and delegation"
+    - "power_trader: all asset types"
+    - "complete_portfolio: all features combined"
+  
+  data_consistency:
+    - "vesting progress calculations"
+    - "delegation earning vs non-earning amounts"
+    - "commitment vs balance consistency"

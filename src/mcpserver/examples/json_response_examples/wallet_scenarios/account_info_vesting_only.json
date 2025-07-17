@@ -1,0 +1,40 @@
+{
+  "account": {
+    "@type": "/cosmos.auth.v1beta1.BaseAccount",
+    "address": "tp1vesting****",
+    "pub_key": null,
+    "account_number": "23891",
+    "sequence": "45"
+  },
+  "flags": {
+    "isVesting": true,
+    "hasMarkers": false,
+    "hasContracts": false
+  },
+  "baseAccount": {
+    "address": "tp1vesting****",
+    "pubKey": null,
+    "accountNumber": 23891,
+    "sequence": 45
+  },
+  "originalVesting": [
+    {
+      "denom": "nhash",
+      "amount": "10000000000000000"
+    }
+  ],
+  "delegatedFree": [
+    {
+      "denom": "nhash", 
+      "amount": "0"
+    }
+  ],
+  "delegatedVesting": [
+    {
+      "denom": "nhash",
+      "amount": "0"
+    }
+  ],
+  "endTime": "2026-07-01T00:00:00Z",
+  "startTime": "2023-07-01T00:00:00Z"
+}

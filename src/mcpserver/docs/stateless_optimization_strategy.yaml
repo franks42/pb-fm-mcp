@@ -1,0 +1,268 @@
+# Stateless MCP Server Optimization Strategy
+#
+# Since the MCP server is stateless, we optimize by:
+# 1. Fetching data once and letting AI agent maintain state
+# 2. Always using base denominations (small integers) for amounts
+# 3. Providing conversion table to AI agent for local conversions
+# 4. Using UTC ISO timestamps and letting AI agent handle local time
+
+optimization_principles:
+  
+  stateless_efficiency:
+    description: "Minimize redundant data fetching by providing reference data once"
+    strategies:
+      - "Provide denomination conversion table to AI agent"
+      - "Use base denominations consistently in all responses"
+      - "Let AI agent perform display conversions locally"
+      - "Provide timezone-aware timestamps for AI agent to localize"
+      
+  denomination_strategy:
+    description: "Always use base denominations, provide conversion table separately"
+    approach:
+      - "All amounts in responses use base units (integers)"
+      - "Provide get_denomination_conversion_table() function"
+      - "AI agent caches conversion table and performs display conversions"
+      - "Eliminates need for server-side display format calculations"
+      
+  datetime_strategy:
+    description: "Use UTC ISO format, let AI agent handle localization"
+    approach:
+      - "All timestamps in UTC with ISO 8601 format"
+      - "Include timezone information explicitly (+00:00 or Z)"
+      - "AI agent converts to local time based on user context"
+      - "Server never assumes caller's timezone"
+
+# MCP Functions for State Management
+
+state_management_functions:
+  
+  get_denomination_conversion_table:
+    description: "Provides complete denomination conversion information for AI agent caching"
+    frequency: "Call once per session or when conversion data might change"
+    mcp_function_name: "get_denomination_conversion_table"
+    parameters: []
+    
+    returns:
+      conversion_table:
+        description: "Complete table for all supported assets"
+        structure: |
+          {
+            "table_version": "2024-07-17T10:30:00Z",
+            "last_updated": "2024-07-17T10:30:00Z",
+            "assets": [
+              {
+                "asset_symbol": "HASH",
+                "base_denomination": "nhash",
+                "display_denomination": "HASH",
+                "conversion_factor": 1000000000,
+                "conversion_formula": "display = base / 1000000000",
+                "decimal_places": 9,
+                "example_conversion": {
+                  "base_amount": 1500000000,
+                  "display_amount": "1.500000000"
+                }
+              }
+            ]
+          }
+          
+    ai_agent_usage:
+      cache_strategy: "Cache this table for the entire session"
+      conversion_logic: "Use cached table to convert base amounts to display"
+      update_strategy: "Re-fetch if table_version changes or daily"
+      
+  get_system_timezone_info:
+    description: "Provides timezone context for AI agent to understand server time"
+    frequency: "Call once per session"
+    mcp_function_name: "get_system_timezone_info"
+    parameters: []
+    
+    returns:
+      timezone_info:
+        description: "Server timezone context and current time"
+        structure: |
+          {
+            "server_timezone": "UTC",
+            "current_utc_time": "2024-07-17T10:30:00.123Z",
+            "iso_format_explanation": "All timestamps use ISO 8601 with explicit timezone",
+            "recommendations": {
+              "ai_agent_localization": "Convert UTC to user's local timezone",
+              "display_format": "Present dates in user-friendly local format",
+              "calculations": "Use UTC for all date arithmetic"
+            }
+          }
+          
+    ai_agent_usage:
+      cache_strategy: "Cache timezone info for session"
+      time_handling: "Convert all UTC timestamps to user's local time"
+      user_display: "Format dates according to user preferences"
+
+# Optimized Response Formats
+
+optimized_response_formats:
+  
+  base_denomination_only:
+    description: "All amounts in base units, no display conversions"
+    example: |
+      {
+        "available_total_amount_nhash": 1500000000,
+        "delegated_staked_amount_nhash": 750000000,
+        "account_address": "tp1abc123",
+        "last_updated_utc": "2024-07-17T10:30:00.123Z"
+      }
+    
+    ai_agent_conversion:
+      process: |
+        1. Receive response with base amounts
+        2. Use cached conversion table to convert to display
+        3. Present user-friendly amounts to user
+        
+      example_conversion: |
+        # AI agent logic
+        nhash_amount = response["available_total_amount_nhash"]  # 1500000000
+        conversion_factor = cached_table["HASH"]["conversion_factor"]  # 1000000000
+        display_amount = nhash_amount / conversion_factor  # 1.5
+        formatted = f"{display_amount:.9f} HASH"  # "1.500000000 HASH"
+        
+  utc_timestamps_only:
+    description: "All timestamps in UTC ISO format with explicit timezone"
+    example: |
+      {
+        "vesting_start_date": "2023-01-01T00:00:00.000Z",
+        "vesting_end_date": "2025-01-01T00:00:00.000Z", 
+        "current_calculation_time": "2024-07-17T10:30:00.123Z",
+        "block_timestamp": "2024-07-17T10:29:45.678Z"
+      }
+      
+    ai_agent_conversion:
+      process: |
+        1. Receive UTC timestamps from server
+        2. Convert to user's local timezone
+        3. Format according to user preferences
+        
+      example_conversion: |
+        # AI agent logic (assuming user in EST)
+        utc_time = "2024-07-17T10:30:00.123Z"
+        local_time = convert_utc_to_local(utc_time, "America/New_York")
+        # Result: "2024-07-17T06:30:00.123-04:00"
+        user_friendly = format_for_user(local_time)
+        # Result: "July 17, 2024 at 6:30 AM EDT"
+
+# Configuration Updates for Stateless Optimization
+
+configuration_updates:
+  
+  field_mappings_update:
+    description: "Update field mappings to always use base denominations"
+    changes:
+      - "Remove all display format transformations from server"
+      - "Ensure all amount fields use base denomination suffixes"
+      - "Add explicit UTC timezone markers to timestamp fields"
+      
+  response_templates_update:
+    description: "Update response templates for base-only format"
+    base_amounts_only: |
+      # OLD (includes display conversion)
+      {
+        "amount": {
+          "base_units": 1500000000,
+          "display_amount": "1.500000000",
+          "display_symbol": "HASH"
+        }
+      }
+      
+      # NEW (base only)
+      {
+        "available_total_amount_nhash": 1500000000
+      }
+      
+    utc_timestamps_only: |
+      # OLD (ambiguous timezone)
+      {
+        "vesting_start_date": "2023-01-01T00:00:00"
+      }
+      
+      # NEW (explicit UTC)
+      {
+        "vesting_start_date": "2023-01-01T00:00:00.000Z"
+      }
+
+# AI Agent Integration Guidelines
+
+ai_agent_guidelines:
+  
+  session_initialization:
+    description: "Steps AI agent should take at session start"
+    steps:
+      - "Call get_denomination_conversion_table() and cache result"
+      - "Call get_system_timezone_info() and cache result"
+      - "Establish user's timezone preference"
+      - "Set up local conversion functions"
+      
+  amount_handling:
+    description: "How AI agent should handle amount fields"
+    receiving_data:
+      - "Extract base amounts from *_nhash, *_uusd, etc. fields"
+      - "Use cached conversion table for display formatting"
+      - "Present user-friendly amounts in responses"
+      
+    sending_parameters:
+      - "Convert user-input amounts to base units before API calls"
+      - "Use base denomination field names in parameters"
+      
+  datetime_handling:
+    description: "How AI agent should handle timestamps"
+    receiving_data:
+      - "Parse UTC timestamps from server responses"
+      - "Convert to user's local timezone for display"
+      - "Format according to user preferences"
+      
+    sending_parameters:
+      - "Convert user-input dates to UTC ISO format"
+      - "Always include explicit timezone information"
+
+# Performance Benefits
+
+performance_benefits:
+  
+  server_side:
+    reduced_processing:
+      - "No display format calculations on server"
+      - "No timezone conversions on server"
+      - "Smaller response payloads (no redundant display data)"
+      - "Faster response times"
+      
+    simplified_logic:
+      - "Server only handles base denominations"
+      - "Server only outputs UTC timestamps"
+      - "Reduced complexity and error potential"
+      
+  ai_agent_side:
+    caching_efficiency:
+      - "Conversion table cached once per session"
+      - "No repeated fetching of static conversion data"
+      - "Local conversions are faster than server round-trips"
+      
+    user_experience:
+      - "AI agent can format amounts according to user preferences"
+      - "AI agent can localize timestamps to user's timezone"
+      - "Consistent user experience across all interactions"
+
+# Implementation Priority
+
+implementation_changes:
+  
+  high_priority:
+    - "Add get_denomination_conversion_table() MCP function"
+    - "Add get_system_timezone_info() MCP function" 
+    - "Update all amount fields to use base denominations only"
+    - "Ensure all timestamps use UTC ISO format with timezone"
+    
+  medium_priority:
+    - "Update field mappings to remove display conversions"
+    - "Update response templates for base-only format"
+    - "Add AI agent integration documentation"
+    
+  low_priority:
+    - "Performance monitoring for base-only responses"
+    - "Caching strategies for conversion table updates"
+    - "Advanced timezone handling features"

@@ -1,0 +1,12 @@
+{
+  "results": [
+    {
+      "denom": "nhash",
+      "amount": "4500000000000000"
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "1"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "commitments": [
+    {
+      "market_id": 1,
+      "amount": [
+        {
+          "denom": "nhash",
+          "amount": "100000000000"
+        },
+        {
+          "denom": "uusd.trading", 
+          "amount": "50000"
+        }
+      ]
+    },
+    {
+      "market_id": 2,
+      "amount": [
+        {
+          "denom": "neth.figure.se",
+          "amount": "1000000000"
+        }
+      ]
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "2"
+  }
+}

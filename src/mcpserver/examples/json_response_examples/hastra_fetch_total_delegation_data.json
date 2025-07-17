@@ -1,0 +1,9 @@
+{
+  "delegated_staked_amount": 2500000000000000,
+  "delegated_redelegated_amount": 100000000000000,
+  "delegated_rewards_amount": 25000000000000,
+  "delegated_unbonding_amount": 200000000000000,
+  "delegated_total_delegated_amount": 2825000000000000,
+  "delegated_earning_amount": 2600000000000000,
+  "delegated_not_earning_amount": 225000000000000
+}

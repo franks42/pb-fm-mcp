@@ -1,0 +1,36 @@
+{
+  "results": [
+    {
+      "denom": "nhash",
+      "amount": "5000000000000000"
+    },
+    {
+      "denom": "uusd.trading",
+      "amount": "25000000000"
+    },
+    {
+      "denom": "neth.figure.se", 
+      "amount": "2000000000000000000"
+    },
+    {
+      "denom": "uusdc.figure.se",
+      "amount": "15000000000"
+    },
+    {
+      "denom": "nsol.figure.se",
+      "amount": "300000000000"
+    },
+    {
+      "denom": "uxrp.figure.se",
+      "amount": "50000000000"
+    },
+    {
+      "denom": "uylds.fcc",
+      "amount": "1000000000"
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "7"
+  }
+}

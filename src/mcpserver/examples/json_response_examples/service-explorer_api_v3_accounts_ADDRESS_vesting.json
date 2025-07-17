@@ -1,0 +1,26 @@
+{
+  "account": {
+    "address": "tp1****",
+    "accountNumber": 12345
+  },
+  "originalVestingList": [
+    {
+      "denom": "nhash",
+      "amount": "5000000000000000"
+    }
+  ],
+  "delegatedFree": [
+    {
+      "denom": "nhash",
+      "amount": "1000000000000000"
+    }
+  ],
+  "delegatedVesting": [
+    {
+      "denom": "nhash", 
+      "amount": "2000000000000000"
+    }
+  ],
+  "startTime": "2023-01-01T00:00:00Z",
+  "endTime": "2025-01-01T00:00:00Z"
+}

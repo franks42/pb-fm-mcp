@@ -1,0 +1,35 @@
+{
+  "delegated_staked_amount": 4750000000000000,
+  "delegated_redelegated_amount": 0,
+  "delegated_rewards_amount": 125000000000000,
+  "delegated_unbonding_amount": 250000000000000,
+  "delegated_total_delegated_amount": 5125000000000000,
+  "delegated_earning_amount": 4750000000000000,
+  "delegated_not_earning_amount": 375000000000000,
+  "validator_count": 2,
+  "delegations": [
+    {
+      "validator_address": "tpvaloper1****primary",
+      "shares": "3000000000000000.000000000000000000",
+      "balance": "3000000000000000",
+      "rewards": "85000000000000"
+    },
+    {
+      "validator_address": "tpvaloper2****secondary", 
+      "shares": "2125000000000000.000000000000000000",
+      "balance": "2125000000000000",
+      "rewards": "40000000000000"
+    }
+  ],
+  "unbonding_delegations": [
+    {
+      "validator_address": "tpvaloper3****unbonding",
+      "entries": [
+        {
+          "balance": "250000000000000",
+          "completion_time": "2024-08-01T12:00:00Z"
+        }
+      ]
+    }
+  ]
+}
