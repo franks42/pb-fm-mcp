@@ -1,141 +1,212 @@
-# jqpy - A jq-like JSON processor in Python
+# PB-FM-MCP: Provenance Blockchain + Figure Markets MCP Server
 
-`jqpy` is a Python implementation of a jq-like command-line JSON processor with a powerful path expression language.
+A Model Context Protocol (MCP) server providing tools to interact with the Provenance Blockchain and Figure Markets exchange, deployed on AWS Lambda.
 
 ## Features
 
-- **jq-like path expressions** for querying JSON data
-- **Selector syntax** for filtering with conditions (e.g., `users.*[?(@.active==true)].name`)
-- **Flexible output** with pretty-printing, compact mode, and raw output options
-- **Easy installation** via pip
-- **Pure Python** - no external dependencies
+### Provenance Blockchain Tools
+- Account balance and info retrieval
+- Vesting schedule analysis
+- Delegation and staking data
+- HASH token statistics
+- Committed amounts tracking
 
-## Installation
+### Figure Markets Exchange Tools
+- Real-time crypto token prices
+- Market data and trading pairs
+- Asset information and metadata
+- Account portfolio balances
+
+## Architecture
+
+- **Runtime**: Python 3.12 on AWS Lambda
+- **Protocol**: Model Context Protocol with streamable HTTP transport
+- **API Gateway**: HTTP API for external access
+- **Dependencies**: AWS Labs MCP Lambda Handler, httpx, structlog
+
+## Quick Start
+
+### Prerequisites
+- AWS CLI configured with appropriate permissions
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) package manager
+- IAM role for Lambda execution
+
+### Local Development
+
+1. Clone and install dependencies:
+```bash
+git clone <repository-url>
+cd pb-fm-mcp
+uv sync
+```
+
+2. Test locally:
+```bash
+uv run pytest tests/
+```
+
+### AWS Lambda Deployment
+
+1. Create deployment package:
+```bash
+uv run python deploy.py --package-only
+```
+
+2. Deploy to AWS Lambda:
+```bash
+uv run python deploy.py \
+  --function-name pb-fm-mcp-server \
+  --role-arn arn:aws:iam::123456789012:role/lambda-execution-role \
+  --region us-east-1 \
+  --api-gateway
+```
+
+3. Manual API Gateway setup (if --api-gateway flag used):
+   - Go to AWS Console > API Gateway
+   - Create new HTTP API
+   - Add integration to Lambda function
+   - Add route: `POST /mcp`
+   - Enable CORS if needed
+   - Deploy API
+
+## Usage
+
+### MCP Client Connection
+
+Connect to your deployed server using any MCP-compatible client:
 
 ```bash
-# Install from source
-git clone https://github.com/yourusername/hastra-fm-mcp.git
-cd haskell-fm-mcp
-pip install -e .
+# Using MCP client
+mcp connect https://your-api-gateway-url.amazonaws.com/mcp
 ```
 
-## Command-Line Usage
+### Available Tools
 
-```bash
-# Basic usage
-$ echo '{"name": "John", "age": 30}' | jqpy 'name'
-"John"
+#### System & Context
+- `get_system_context()` - Essential usage guidelines and documentation
 
-# Nested access
-$ echo '{"user": {"name": "John", "age": 30}}' | jqpy 'user.name'
-"John"
+#### HASH Token & Blockchain
+- `fetch_last_crypto_token_price(token_pair, last_number_of_trades)` - Recent trading data
+- `fetch_current_hash_statistics()` - Overall HASH token statistics
+- `fetch_current_fm_data()` - Current market data
 
-# Array access
-$ echo '{"items": [1, 2, 3]}' | jqpy 'items[0]'
-1
+#### Account Management
+- `fetch_current_fm_account_balance_data(wallet_address)` - Portfolio balances
+- `fetch_current_fm_account_info(wallet_address)` - Account details
+- `fetch_account_is_vesting(wallet_address)` - Vesting status check
 
-# Wildcard access
-$ echo '{"users": [{"name": "John"}, {"name": "Jane"}]}' | jqpy 'users.*.name'
-[
-  "John",
-  "Jane"
-]
+#### Vesting & Delegation
+- `fetch_vesting_total_unvested_amount(wallet_address, date_time)` - Vesting calculations
+- `fetch_total_delegation_data(wallet_address)` - Staking and delegation info
+- `fetch_available_committed_amount(wallet_address)` - Exchange commitments
 
-# Selector syntax
-$ echo '{"users": [{"name": "John", "active": true}, {"name": "Jane", "active": false}]}' \
-  | jqpy 'users.*[?(@.active==true)].name'
-[
-  "John"
-]
+#### Assets & Markets
+- `fetch_figure_markets_assets_info()` - Trading asset details
 
-# Raw output (no JSON quotes for strings)
-$ echo '{"name": "John"}' | jqpy -r 'name'
-John
+## Configuration
 
-# From file
-$ jqpy 'path.to.value' data.json
-```
+### Environment Variables
+- `AWS_REGION` - AWS region for deployment
+- `LOG_LEVEL` - Logging level (INFO, DEBUG, etc.)
 
-## Library Usage
+### IAM Permissions
+Lambda execution role needs:
+- `logs:CreateLogGroup`
+- `logs:CreateLogStream` 
+- `logs:PutLogEvents`
 
-```python
-from jqpy import get_path
+## API Documentation
 
-data = {
-    "users": [
-        {"name": "John", "age": 30, "active": True},
-        {"name": "Jane", "age": 25, "active": False}
-    ]
-}
+### Wallet Address Format
+All wallet addresses should be in Bech32 format (e.g., `pb1...`).
 
-# Get all active user names
-active_users = list(get_path(data, 'users.*[?(@.active==true)].name'))
-print(active_users)  # ['John']
-```
+### Token Denominations
+- `nhash` - nano-HASH (1 HASH = 1,000,000,000 nhash)
+- `uusd.trading` - micro-USD
+- `uusdc.figure.se` - USDC
+- `neth.figure.se` - ETH
+- `nsol.figure.se` - SOL
+- `uxrp.figure.se` - XRP
+
+### Error Handling
+All functions return standardized error responses with `MCP-ERROR` key for failed operations.
 
 ## Development
 
-To run the tests:
-
-```bash
-bash run_jqpy_tests.sh
+### Project Structure
 ```
+pb-fm-mcp/
+├── lambda_handler.py      # Main Lambda handler with MCP tools
+├── src/
+│   ├── utils.py          # Utility functions
+│   ├── hastra.py         # Blockchain interaction logic
+│   ├── base64expand.py   # Base64 expansion utilities
+│   └── hastra_types.py   # Type definitions
+├── deploy.py             # Deployment script
+├── pyproject.toml        # Project dependencies
+└── README.md            # This file
+```
+
+### Testing
+```bash
+# Dependencies are already installed with uv sync
+
+# Run tests
+uv run pytest tests/
+
+# Run linting
+uv run ruff check .
+
+# Format code
+uv run ruff format .
+```
+
+### Adding New Tools
+1. Add new function with `@mcp_server.tool()` decorator in `lambda_handler.py`
+2. Follow existing patterns for error handling
+3. Update documentation
+4. Add tests
+
+## Monitoring
+
+### CloudWatch Logs
+Monitor Lambda execution logs in CloudWatch for debugging and performance analysis.
+
+### Cold Start Optimization
+- Function is optimized for minimal cold start times
+- Consider provisioned concurrency for production workloads
+
+## Cost Optimization
+
+- **Lambda**: Pay per request/execution time
+- **API Gateway**: Pay per API call
+- **Free Tier**: 1M Lambda requests/month included
+
+## Troubleshooting
+
+### Common Issues
+1. **Import Errors**: Ensure all dependencies are included in deployment package
+2. **Timeout Errors**: Increase Lambda timeout if needed (max 15 minutes)
+3. **Memory Errors**: Increase Lambda memory allocation
+4. **CORS Issues**: Configure API Gateway CORS settings
+
+### Debug Mode
+Set `LOG_LEVEL=DEBUG` environment variable for verbose logging.
 
 ## License
 
-MIT
+MIT License - see LICENSE file for details.
 
----
+## Contributing
 
-# Python Workers: FastMCP Example
+1. Fork the repository
+2. Create feature branch
+3. Add tests for new functionality
+4. Submit pull request
 
-This is an example of a Python Worker that uses the FastMCP package.
+## Support
 
-[![Deploy to Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/danlapid/python-workers-mcp/)
-
->[!NOTE]
->Due to the [size](https://developers.cloudflare.com/workers/platform/limits/#worker-size) of the Worker, this example can only be deployed if you're using the Workers Paid plan. Free plan users will encounter deployment errors because this Worker exceeds the 3MB size limit.
-
-## Developing and Deploying
-
-To develop your Worker run:
-
-```console
-uv run pywrangler dev
-
-Test:
-https://playground.ai.cloudflare.com/
-connect to "http://localhost:8787/mcp/"
-```
-
-To deploy your Worker run:
-
-```console
-uv run pywrangler deploy
-
-Test:
-https://playground.ai.cloudflare.com/
-connect to "https://hastra-fm-mcp.frank-siebenlist.workers.dev/mcp"
-
-```
-
-## Testing
-
-To test run:
-
-```console
-uv run pytest tests
-```
-
-## Linting and Formatting
-
-This project uses Ruff for linting and formatting:
-
-```console
-uv ruff format . --check
-uv ruff check .
-```
-
-## IDE Integration
-
-To have good autocompletions in your IDE simply select .venv-workers/bin/python as your IDE's interpreter.
+For issues and questions:
+- GitHub Issues: [Repository Issues](https://github.com/your-repo/issues)
+- Documentation: [MCP Documentation](https://modelcontextprotocol.io)

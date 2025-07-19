@@ -1,24 +1,22 @@
 [project]
-name = "hastra-fm-mcp"
+name = "pb-fm-mcp"
 version = "0.1.0"
 requires-python = "==3.12.*"
 dependencies = [
-    "mcp",
-    "pyyaml>=6.0.2",
-    "structlog",
+    "awslabs-mcp-lambda-handler",
     "httpx",
+    "structlog",
+    "pyyaml>=6.0.2",
 ]
 
-[project.scripts]
-jqpy = "jqpy.cli:main"
 
 [dependency-groups]
 dev = [
-    "workers-py",
     "pytest",
-    "requests",
     "pytest-asyncio",
     "ruff",
+    "boto3",
+    "aws-cdk-lib",
 ]
 
 [tool.ruff]
@@ -46,5 +44,3 @@ indent-style = "space"
 line-ending = "auto"
 skip-magic-trailing-comma = false
 
-[tool.uv.sources]
-workers-py = { git = "https://github.com/cloudflare/workers-py" }
