@@ -3,12 +3,12 @@
 import sys
 from datetime import UTC, datetime
 
+sys.path.insert(0, "/session/metadata/vendor")
+sys.path.insert(0, "/session/metadata")
+
 import utils
 from base64expand import base64expand
 from hastra_types import JSONType
-
-sys.path.insert(0, "/session/metadata/vendor")
-sys.path.insert(0, "/session/metadata")
 
 #########################################################################################
 # helper functions

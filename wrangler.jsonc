@@ -4,19 +4,10 @@
     "compatibility_flags": [
         "python_workers",
     ],
-    "compatibility_date": "2025-04-10",
+    "compatibility_date": "2025-06-10",
     "vars": {
         "API_HOST": "example.com"
     },
-    "rules": [
-        {
-            "globs": [
-                "vendor/**/"
-            ],
-            "type": "Data",
-            "fallthrough": true
-        }
-    ],
     "observability": {
         "enabled": true
     }
