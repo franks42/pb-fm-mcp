@@ -2,39 +2,52 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 IMPORTANT: Project Status Update (July 2025)
+
+**This project has been MIGRATED from Cloudflare Workers to AWS Lambda due to Python compatibility issues.**
+
+### Current State
+- ✅ **Production**: AWS Lambda deployment working perfectly
+- ✅ **Local Testing**: SAM local environment configured
+- ✅ **Documentation**: Complete testing and deployment guides in `docs/`
+- ✅ **Architecture**: Ready for dual API expansion (MCP + REST)
+
+### Previous Issues with Cloudflare Workers
+- Pyodide WebAssembly environment couldn't handle Rust-based extensions (pydantic v2, rpds, etc.)
+- Multiple dependency conflicts and performance issues
+- **Solution**: Migrated to AWS Lambda for full Python 3.12 compatibility
+
 ## Development Commands
 
-### Development and Testing
-- **Development**: `uv run pywrangler dev` - Run the worker locally for development
-- **Testing**: `uv run pytest tests` - Run the test suite
-- **Linting**: `uv ruff check .` - Check for linting issues
-- **Formatting**: `uv ruff format . --check` - Check code formatting
+### AWS Lambda Development (Current)
+- **Local Testing**: `sam build && sam local start-api --port 3000`
+- **Deploy Production**: `sam build && sam deploy --resolve-s3`
+- **Testing**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
+- **Linting**: `uv ruff check .`
 
-### Deployment
-- **Deploy**: `uv run pywrangler deploy` - Deploy the worker to Cloudflare Workers
-
-### Testing Endpoints
-- **Local**: Connect to `http://localhost:8787/mcp/` during development
-- **Production**: Connect to `https://hastra-fm-mcp.frank-siebenlist.workers.dev/mcp` after deployment
+### Production Endpoints
+- **Local**: `http://localhost:3000/mcp`
+- **Production**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/mcp`
 
 ## Project Architecture
 
-This is a Python-based MCP (Model Context Protocol) server that runs on Cloudflare Workers, providing tools for interacting with the Figure Markets exchange and Provenance Blockchain.
+This is a Python-based MCP (Model Context Protocol) server running on **AWS Lambda**, providing tools for interacting with Figure Markets exchange and Provenance Blockchain.
 
 ### Core Components
 
-- **`src/worker.py`** - Main entry point and MCP server setup using FastMCP
+- **`lambda_handler.py`** - Main AWS Lambda function with MCP server setup
+- **`async_wrapper.py`** - Decorators for async function compatibility with AWS MCP handler
 - **`src/hastra.py`** - Core business logic for blockchain and exchange operations
-- **`src/utils.py`** - Utility functions for datetime, HTTP requests, and amount/denomination operations
-- **`src/exceptions.py`** - HTTP exception handling for Starlette framework
+- **`src/utils.py`** - Utility functions for datetime, HTTP requests, and operations
+- **`src/base64expand.py`** - Base64 data expansion utilities (ready for integration)
+- **`src/jqpy/`** - Complete jq-like JSON processor (162/193 tests passing, core functionality solid)
 
-### Key Architecture Details
+### AWS Lambda Architecture
 
-1. **FastMCP Framework**: Uses FastMCP for MCP server implementation with HTTP streaming support
-2. **Async HTTP Client**: All external API calls use httpx with proper timeout and error handling
-3. **Error Handling**: Standardized error responses with "MCP-ERROR" key for failed operations
-4. **Amount/Denomination Types**: Custom utilities for handling blockchain token amounts with proper denomination validation
-5. **Cloudflare Workers**: Deployed using workers-py with Python 3.12 compatibility
+1. **MCPLambdaHandler**: Uses AWS Labs MCP Lambda handler for HTTP transport
+2. **Async Wrapper Pattern**: `@async_to_sync_mcp_tool` decorators enable async functions
+3. **API Gateway Integration**: HTTP endpoints with CORS support
+4. **CloudFormation/SAM**: Infrastructure as Code deployment
 
 ### MCP Tools Structure
 
@@ -46,20 +59,46 @@ The server exposes numerous tools for:
 
 ### Dependencies
 
-- **Production**: `mcp`, `structlog`
-- **Development**: `workers-py`, `pytest`, `requests`, `pytest-asyncio`, `ruff`
+- **Production**: `awslabs-mcp-lambda-handler`, `httpx`, `structlog`
+- **Development**: `pytest`, `pytest-asyncio`, `ruff` (managed via uv)
 - **External APIs**: Figure Markets exchange API and Provenance blockchain explorer API
 
 ### Configuration
 
-- **Python Version**: 3.12 (strict)
-- **Ruff**: Line length 100, uses modern Python features (pycodestyle, flake8-bugbear, isort, etc.)
-- **Pytest**: Async support with session-scoped event loop
-- **Cloudflare**: Uses python_workers compatibility flag
+- **Python Version**: 3.12 (AWS Lambda runtime)
+- **Package Management**: `uv` for dependency management
+- **Deployment**: AWS SAM with CloudFormation
+- **Testing**: Local SAM + production Lambda
+- **Region**: us-west-1
 
-### Development Notes
+## Development Context for New Claude Sessions
 
-- The codebase interacts with external APIs for blockchain and exchange data
-- All network operations include proper timeout and error handling
-- The server runs stateless HTTP mode for compatibility with Cloudflare Workers
-- IDE integration: Use `.venv-workers/bin/python` as interpreter for proper autocompletion
+### What We've Accomplished
+1. **Cloudflare → AWS Migration**: Solved Python compatibility issues
+2. **Production Deployment**: Stable AWS Lambda with 13 MCP tools
+3. **Local Testing**: SAM environment with Docker
+4. **Code Preservation**: jqpy (JSON processor) and base64expand ready for integration
+5. **Documentation**: Complete testing/deployment guides
+
+### Current Development Focus
+**Next Phase**: Dual API architecture (MCP + REST) with proxy layer refactoring
+
+**Key Files to Review:**
+- `docs/development_roadmap.md` - Architecture vision and todo priorities  
+- `docs/testing-deploying-setup.md` - Complete testing and deployment workflows
+- `lambda_handler.py` - Current MCP server implementation
+- `src/jqpy/` - JSON processing capabilities (162/193 tests passing)
+- `src/base64expand.py` - Data expansion utilities
+
+### Testing & Deployment
+- **Local**: `sam build && sam local start-api --port 3000`
+- **Production**: `sam build && sam deploy --resolve-s3`
+- **MCP Testing**: `npx @modelcontextprotocol/inspector http://localhost:3000/mcp`
+
+### Architecture Goals
+1. **Proxy Layer**: Separate async PB-API calls from MCP tool logic
+2. **Dual APIs**: Expose both MCP protocol and REST endpoints
+3. **jqpy Integration**: Add dynamic JSON transformation capabilities
+4. **Standardization**: Clean data transformation layer
+
+**Status**: Ready for proxy layer refactoring and dual API implementation.
