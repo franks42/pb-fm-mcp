@@ -61,7 +61,16 @@
       "Bash(PYTHONPATH=. python3 example_path_aware_usage.py)",
       "Bash(PYTHONPATH=. python3 example_path_annotation_approaches.py)",
       "Bash(PYTHONPATH=. python3 elegant_path_annotation_demo.py)",
-      "Bash(PYTHONPATH=. python3:*)"
+      "Bash(PYTHONPATH=. python3:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(git rm:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(cp:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(rsync:*)"
     ],
     "deny": []
   }
