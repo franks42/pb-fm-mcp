@@ -1,0 +1,15 @@
+# SAM configuration file for pb-fm-mcp deployment
+version = 0.1
+
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "pb-fm-mcp-v2"
+s3_bucket = ""
+s3_prefix = "pb-fm-mcp"
+region = "us-west-1"
+capabilities = "CAPABILITY_IAM"
+disable_rollback = false
+confirm_changeset = false
+force_upload = false
+# parameter_overrides = ""

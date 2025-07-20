@@ -2,6 +2,8 @@
 Provenance Blockchain + Figure Markets MCP Server for AWS Lambda
 """
 import sys
+import asyncio
+import json
 from datetime import UTC, datetime
 from typing import Dict, Any, Union
 from pathlib import Path
@@ -12,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import utils
 from base64expand import base64expand
 from hastra_types import JSONType
+from async_wrapper import sync_wrapper, async_to_sync_mcp_tool
 
 # AWS Lambda MCP Handler
 from awslabs.mcp_lambda_handler import MCPLambdaHandler
@@ -85,6 +88,54 @@ async def async_http_get_json(
         except Exception as e:
             return {"MCP-ERROR": f"Unknown exception raised: {e}"}
 
+# helper function to standardize sync http-get of json return
+def http_get_json(
+    url: str,
+    params: dict | None = None,
+    timeout: float = 10.0,
+    connect_timeout: float = 5.0
+) -> JSONType:
+    """Make a sync HTTP GET request and return JSON response.
+
+    Args:
+        url: The URL to send the GET request to
+        params: Query parameters to include
+        timeout: Total request timeout in seconds
+        connect_timeout: Connection timeout in seconds
+
+    Returns:
+        JSON response data on success, or error dict with 'MCP-ERROR' key on failure
+    """
+
+    if params is None:
+        params = {}
+
+    timeout_config = httpx.Timeout(timeout, connect=connect_timeout)
+    headers = {"Accept": "application/json"}
+
+    with httpx.Client(timeout=timeout_config) as client:
+        try:
+            response = client.get(url, params=params, headers=headers)
+            response.raise_for_status()
+
+            # Validate content type
+            content_type = response.headers.get("content-type", "")
+            if not content_type.startswith("application/json"):
+                return {"MCP-ERROR": f"Expected JSON, got {content_type}"}
+
+            return response.json()
+
+        except httpx.TimeoutException:
+            return {"MCP-ERROR": "Network Error: Request timed out"}
+        except httpx.HTTPStatusError as e:
+            return {"MCP-ERROR": f"HTTP error: {e.response.status_code}"}
+        except httpx.RequestError as e:
+            return {"MCP-ERROR": f"Request error: {e}"}
+        except ValueError as e:
+            return {"MCP-ERROR": f"Invalid JSON response: {e}"}
+        except Exception as e:
+            return {"MCP-ERROR": f"Unknown exception raised: {e}"}
+
 #########################################################################################
 # Initialize MCP Server for AWS Lambda
 #########################################################################################
@@ -102,7 +153,7 @@ def adt(a: int, b: int) -> int:
     return 42
 
 @mcp_server.tool()
-async def get_system_context() -> dict:
+def get_system_context() -> dict:
     """
     REQUIRED READING: Essential system context for the Figure Markets Exchange 
     and the Provenance Blockchain that MUST be read before using any tools.
@@ -112,13 +163,13 @@ async def get_system_context() -> dict:
         as a markdown formatted str can be retrieved.
     """
     url = "https://raw.githubusercontent.com/franks42/FigureMarkets-MCP-Server/refs/heads/main/FigureMarketsContext.md"
-    async with httpx.AsyncClient() as client:
+    with httpx.Client() as client:
         client.headers['accept-encoding'] = 'identity'
-        r = await client.get(url)
+        r = client.get(url)
         return {'context': r.text}
 
 @mcp_server.tool()
-async def fetch_last_crypto_token_price(token_pair: str = "HASH-USD", last_number_of_trades: int = 1) -> JSONType:
+def fetch_last_crypto_token_price(token_pair: str = "HASH-USD", last_number_of_trades: int = 1) -> JSONType:
     """For the crypto token_pair, e.g. HASH-USD, fetch the prices for the last_number_of_trades 
     from the Figure Markets exchange.
     Args:
@@ -129,14 +180,14 @@ async def fetch_last_crypto_token_price(token_pair: str = "HASH-USD", last_numbe
     """
     url = 'https://www.figuremarkets.com/service-hft-exchange/api/v1/trades/' + token_pair
     params = {'size': last_number_of_trades}
-    response = await async_http_get_json(url, params=params)
+    response = http_get_json(url, params=params)
     if response.get("MCP-ERROR"):
         return response
     # massage json response data
     return response
 
 @mcp_server.tool()
-async def fetch_current_fm_data() -> JSONType:
+def fetch_current_fm_data() -> JSONType:
     """Fetch the current market data from the Figure Markets exchange.
     The data is a list of trading pair details.
     The 'id' attribute is the identifier for the trading pair.
@@ -145,14 +196,14 @@ async def fetch_current_fm_data() -> JSONType:
         JSONType: json list of trading pair details
     """
     url = 'https://www.figuremarkets.com/service-hft-exchange/api/v1/markets'
-    response = await async_http_get_json(url)
+    response = http_get_json(url)
     if response.get("MCP-ERROR"):
         return response
     data = response['data']
     return data
 
 @mcp_server.tool()
-async def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONType:
+def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONType:
     """Fetch the current account balance data from the Figure Markets exchange for the given wallet address' portfolio.
     The data is a list of dictionaries with balance details for all assets in the wallet.
     The relevant attributes are:
@@ -168,14 +219,14 @@ async def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONType
     url = "https://service-explorer.provenance.io/api/v2/accounts/" + \
         wallet_address + "/balances"
     params = {"count": 20, "page": 1}
-    response = await async_http_get_json(url, params=params)
+    response = http_get_json(url, params=params)
     if response.get("MCP-ERROR"):
         return response
     balance_list = response['results']
     return balance_list
 
 @mcp_server.tool()
-async def fetch_available_total_amount(wallet_address: str) -> JSONType:
+def fetch_available_total_amount(wallet_address: str) -> JSONType:
     """Fetch the current available_total_amount of HASH in the wallet.
 
     available_total_amount = available_spendable_amount + available_committed_amount + available_unvested_amount
@@ -191,7 +242,7 @@ async def fetch_available_total_amount(wallet_address: str) -> JSONType:
     url = "https://service-explorer.provenance.io/api/v2/accounts/" + \
         wallet_address + "/balances"
     params = {"count": 20, "page": 1}
-    response = await async_http_get_json(url, params=params)
+    response = http_get_json(url, params=params)
     if response.get("MCP-ERROR"):
         return response
     balance_list = response['results']
@@ -201,7 +252,7 @@ async def fetch_available_total_amount(wallet_address: str) -> JSONType:
                     'denom': e['denom']}
     return {"MCP-ERROR": "fetch_available_total_amount() - No 'nhash' in balance list"}
 
-@mcp_server.tool()
+@async_to_sync_mcp_tool(mcp_server)
 async def fetch_current_fm_account_info(wallet_address: str) -> JSONType:
     """Fetch the current account/wallet info from the Figure Markets exchange for the given wallet address.
     Important attributes in the json response:
@@ -218,7 +269,7 @@ async def fetch_current_fm_account_info(wallet_address: str) -> JSONType:
         return response
     return base64expand(response)
 
-@mcp_server.tool()
+@async_to_sync_mcp_tool(mcp_server)
 async def fetch_account_is_vesting(wallet_address: str) -> JSONType:
     """Fetch whether or not this wallet_address represents a Figure Markets exchange account 
     that is subject to a vesting schedule restrictions.
@@ -234,7 +285,7 @@ async def fetch_account_is_vesting(wallet_address: str) -> JSONType:
         return response
     return {'wallet_is_vesting': response['flags']['isVesting']}
 
-@mcp_server.tool()
+@async_to_sync_mcp_tool(mcp_server)
 async def fetch_vesting_total_unvested_amount(wallet_address: str, date_time: str | None = None) -> JSONType:
     """Fetch the vesting_total_unvested_amount from the Figure Markets exchange for the given wallet address and the given `date_time`.
     `date_time` is current datetime.now() by default.
@@ -292,7 +343,7 @@ async def fetch_vesting_total_unvested_amount(wallet_address: str, date_time: st
 
     return vesting_data
 
-@mcp_server.tool()
+@async_to_sync_mcp_tool(mcp_server)
 async def fetch_available_committed_amount(wallet_address: str) -> JSONType:
     """Fetch the current committed HASH amount to the the Figure Markets exchange for the given wallet address.
     API returns amounts in nhash (1 HASH = 1,000,000,000 nhash). Convert to HASH for display purposes.
@@ -316,7 +367,7 @@ async def fetch_available_committed_amount(wallet_address: str) -> JSONType:
     hash_amount_dict["available_committed_amount"] = hash_amount_dict_list[0]["amount"] if hash_amount_dict_list else 0
     return hash_amount_dict
 
-@mcp_server.tool()
+@async_to_sync_mcp_tool(mcp_server)
 async def fetch_figure_markets_assets_info() -> JSONType:
     """Fetch the list of assets, like (crypto) tokens, stable coins, and funds,
     that are traded on the Figure Markets exchange.
@@ -345,7 +396,7 @@ async def fetch_figure_markets_assets_info() -> JSONType:
                           for details in response['data']]
     return asset_details_list
 
-@mcp_server.tool()
+@async_to_sync_mcp_tool(mcp_server)
 async def fetch_current_hash_statistics() -> JSONType:
     """Fetch the current overall statistics for the Provenance Blockchain's utility token HASH.
     Pie chart of stats also available at 'https://explorer.provenance.io/network/token-stats'.
@@ -374,7 +425,7 @@ async def fetch_current_hash_statistics() -> JSONType:
                           "denom": "nhash"}
     return response
 
-@mcp_server.tool()
+@async_to_sync_mcp_tool(mcp_server)
 async def fetch_total_delegation_data(wallet_address: str) -> JSONType:
     """
     For a wallet_address, the cumulative delegation hash amounts for all validators are returned,
@@ -427,5 +478,184 @@ async def fetch_total_delegation_data(wallet_address: str) -> JSONType:
 #########################################################################################
 
 def lambda_handler(event, context):
-    """Standard AWS Lambda handler"""
-    return mcp_server.handle_request(event, context)
+    """Standard AWS Lambda handler with MCP Streamable HTTP transport support and detailed debugging"""
+    
+    try:
+        # Extract request details
+        http_method = event.get('httpMethod', 'POST')
+        path = event.get('path', '/mcp')
+        headers = event.get('headers', {})
+        query_params = event.get('queryStringParameters') or {}
+        body = event.get('body') or ''
+        
+        # Debug logging
+        print("🔍 === MCP REQUEST DEBUG ===")
+        print(f"📍 Timestamp: {datetime.now(UTC).isoformat()}")
+        print(f"📍 Method: {http_method}")
+        print(f"📍 Path: {path}")
+        print(f"📍 Query Params: {query_params}")
+        print(f"📍 Request Source IP: {event.get('requestContext', {}).get('identity', {}).get('sourceIp', 'unknown')}")
+        print(f"📍 Request ID: {event.get('requestContext', {}).get('requestId', 'unknown')}")
+        print(f"📍 Raw Event: {json.dumps(event, indent=2, default=str)}")
+        print(f"📍 Headers:")
+        for key, value in headers.items():
+            print(f"   {key}: {value}")
+        print(f"📍 Body: {body[:200]}{'...' if len(body) > 200 else ''}")
+        print(f"📍 Body Length: {len(body)}")
+        print(f"📍 Context: {context}")
+        
+        # Get Accept header (case-insensitive)
+        accept_header = ''
+        content_type = ''
+        origin = ''
+        user_agent = ''
+        authorization = ''
+        connection = ''
+        upgrade = ''
+        
+        for key, value in headers.items():
+            key_lower = key.lower()
+            if key_lower == 'accept':
+                accept_header = value
+            elif key_lower == 'content-type':
+                content_type = value
+            elif key_lower == 'origin':
+                origin = value
+            elif key_lower == 'user-agent':
+                user_agent = value
+            elif key_lower == 'authorization':
+                authorization = value
+            elif key_lower == 'connection':
+                connection = value
+            elif key_lower == 'upgrade':
+                upgrade = value
+        
+        print(f"📍 Parsed Accept: {accept_header}")
+        print(f"📍 Parsed Content-Type: {content_type}")
+        print(f"📍 Parsed Origin: {origin}")
+        print(f"📍 Parsed User-Agent: {user_agent}")
+        print(f"📍 Parsed Authorization: {'[PRESENT]' if authorization else '[NONE]'}")
+        print(f"📍 Parsed Connection: {connection}")
+        print(f"📍 Parsed Upgrade: {upgrade}")
+        
+        # Check if this looks like a capability check or connection probe
+        if not body and http_method == 'POST':
+            print("⚠️ WARNING: Empty body POST request - potential capability check")
+        
+        if 'upgrade' in connection.lower() or upgrade:
+            print("⚠️ WARNING: Client attempting protocol upgrade")
+            
+        # Check for WebSocket or SSE connection attempts
+        if 'websocket' in upgrade.lower():
+            print("❌ DETECTED: WebSocket upgrade attempt - unsupported")
+            return {
+                'statusCode': 426,
+                'headers': {
+                    'Content-Type': 'text/plain',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept'
+                },
+                'body': 'Upgrade Required - WebSocket not supported, use HTTP POST'
+            }
+        
+        if 'text/event-stream' in accept_header and http_method != 'GET':
+            print("⚠️ WARNING: SSE Accept header on non-GET request")
+        
+        if http_method == 'GET':
+            print("🔎 Processing GET request")
+            # MCP Streamable HTTP spec: GET requests for SSE
+            if 'text/event-stream' in accept_header:
+                print("❌ Client requesting SSE - returning 405")
+                # Client wants SSE - we don't support it, return 405
+                response = {
+                    'statusCode': 405,
+                    'headers': {
+                        'Content-Type': 'text/plain',
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept',
+                        'Allow': 'POST, OPTIONS'
+                    },
+                    'body': 'Method Not Allowed - SSE not supported, use HTTP POST'
+                }
+            else:
+                print("✅ Returning server info for GET request")
+                # Regular GET request - return server info
+                response = {
+                    'statusCode': 200,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept'
+                    },
+                    'body': json.dumps({
+                        'name': 'pb-fm-mcp',
+                        'version': '0.1.0',
+                        'transport': 'http',  # HTTP-only transport
+                        'capabilities': {
+                            'tools': True,
+                            'streaming': False
+                        }
+                    })
+                }
+        
+        elif http_method == 'POST':
+            print("🔎 Processing POST request")
+            
+            # Try to parse JSON body if present
+            json_body = None
+            if body:
+                try:
+                    json_body = json.loads(body)
+                    print(f"📍 Parsed JSON Body: {json.dumps(json_body, indent=2)}")
+                except json.JSONDecodeError as e:
+                    print(f"⚠️ Failed to parse JSON body: {e}")
+            
+            # Check if client accepts both application/json and text/event-stream
+            if 'application/json' in accept_header and 'text/event-stream' in accept_header:
+                print("✅ Proper MCP client detected - using MCP handler")
+                # Proper MCP client - use MCP handler
+                response = mcp_server.handle_request(event, context)
+            else:
+                print("⚠️ Non-standard accept header - using MCP handler anyway")
+                # Regular POST request - use MCP handler
+                response = mcp_server.handle_request(event, context)
+        
+        elif http_method == 'OPTIONS':
+            print("🔎 Processing OPTIONS (CORS preflight) request")
+            response = mcp_server.handle_request(event, context)
+        
+        else:
+            print(f"🔎 Processing {http_method} request through MCP handler")
+            # Handle other requests through MCP handler
+            response = mcp_server.handle_request(event, context)
+        
+        # Debug response
+        print("📤 === MCP RESPONSE DEBUG ===")
+        print(f"📍 Status Code: {response.get('statusCode')}")
+        print(f"📍 Response Headers:")
+        for key, value in response.get('headers', {}).items():
+            print(f"   {key}: {value}")
+        response_body = response.get('body', '')
+        print(f"📍 Response Body: {response_body[:200]}{'...' if len(response_body) > 200 else ''}")
+        print(f"📍 Response Body Length: {len(response_body)}")
+        print("🔍 === END DEBUG ===\n")
+        
+        return response
+        
+    except Exception as e:
+        print(f"🚨 EXCEPTION in lambda_handler: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept'
+            },
+            'body': json.dumps({'error': 'Internal server error', 'message': str(e)})
+        }

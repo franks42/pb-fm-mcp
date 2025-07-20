@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: pb-fm-mcp - Provenance Blockchain + Figure Markets MCP Server
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.12
+  Api:
+    Cors:
+      AllowMethods: "'POST,GET,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization,Accept'"
+      AllowOrigin: "'*'"
+      MaxAge: "'3600'"
+
+Resources:
+  PbFmMcpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: lambda_handler.lambda_handler
+      Description: "MCP Server for Provenance Blockchain and Figure Markets APIs"
+      Events:
+        McpApi:
+          Type: Api
+          Properties:
+            Path: /mcp
+            Method: ANY
+    Metadata:
+      BuildMethod: python3.12
+
