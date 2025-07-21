@@ -22,11 +22,14 @@ try:
 except Exception as e:
     print(f"❌ Failed to import blockchain_functions: {e}")
 
-# TODO: Import other modules as we create them
-# from . import market_functions
+try:
+    from . import figure_markets_functions
+except Exception as e:
+    print(f"❌ Failed to import figure_markets_functions: {e}")
 
 __all__ = [
     "stats_functions",
-    "delegation_functions",
+    "delegation_functions", 
     "blockchain_functions",
+    "figure_markets_functions",
 ]

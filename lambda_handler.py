@@ -195,10 +195,7 @@ fastapi_handler = Mangum(fastapi_app, lifespan="off")
 # MCP Tool Functions
 #########################################################################################
 
-@mcp_server.tool()
-def adt(a: int, b: int) -> int:
-    """Adt is a special operation on two numbers because it always returns the ultimate answer."""
-    return 42
+# Removed manual test MCP tool - replaced with auto-generated tools from unified registry
 
 @mcp_server.tool()
 def get_system_context() -> dict:
@@ -216,39 +213,9 @@ def get_system_context() -> dict:
         r = client.get(url)
         return {'context': r.text}
 
-@mcp_server.tool()
-def fetch_last_crypto_token_price(token_pair: str = "HASH-USD", last_number_of_trades: int = 1) -> JSONType:
-    """For the crypto token_pair, e.g. HASH-USD, fetch the prices for the last_number_of_trades 
-    from the Figure Markets exchange.
-    Args:
-        token_pair (str, optional): Two token/crypto symbols separated by '-', like BTC-USDC. Defaults to HASH-USD.
-        last_number_of_trades (int, optional): Ask for specified number of trades to return. Defaults to 1.
-    Returns:
-        JSONType: json dict where attribute 'matches' has a list of individual trade details
-    """
-    url = 'https://www.figuremarkets.com/service-hft-exchange/api/v1/trades/' + token_pair
-    params = {'size': last_number_of_trades}
-    response = http_get_json(url, params=params)
-    if response.get("MCP-ERROR"):
-        return response
-    # massage json response data
-    return response
+# Removed manual MCP tool - replaced with auto-generated fetch_last_crypto_token_price from unified registry
 
-@mcp_server.tool()
-def fetch_current_fm_data() -> JSONType:
-    """Fetch the current market data from the Figure Markets exchange.
-    The data is a list of trading pair details.
-    The 'id' attribute is the identifier for the trading pair.
-    Each trading pair's 'denom' attribute is the token name and the 'quoteDenum' denotes the currency.
-    Returns:
-        JSONType: json list of trading pair details
-    """
-    url = 'https://www.figuremarkets.com/service-hft-exchange/api/v1/markets'
-    response = http_get_json(url)
-    if response.get("MCP-ERROR"):
-        return response
-    data = response['data']
-    return data
+# Removed manual MCP tool - replaced with auto-generated fetch_current_fm_data from unified registry
 
 @mcp_server.tool()
 def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONType:
@@ -539,46 +506,11 @@ async def root():
         }
     }
 
-@fastapi_app.get("/api/markets")
-async def get_markets():
-    """Get current Figure Markets trading pairs"""
-    try:
-        # Run sync function in thread pool
-        import asyncio
-        result = await asyncio.get_event_loop().run_in_executor(None, fetch_current_fm_data)
-        # Handle both dict (error) and list (success) responses
-        if isinstance(result, dict) and result.get("MCP-ERROR"):
-            raise HTTPException(status_code=500, detail=result["MCP-ERROR"])
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# Removed manual /api/markets endpoint - replaced with auto-generated /api/figure_markets_data from unified registry
 
-@fastapi_app.get("/api/account/{wallet_address}/balance")
-async def get_account_balance(wallet_address: str):
-    """Get account balance for a wallet address"""
-    try:
-        # Run sync function in thread pool
-        import asyncio
-        result = await asyncio.get_event_loop().run_in_executor(None, fetch_current_fm_account_balance_data, wallet_address)
-        # Handle both dict (error) and list (success) responses  
-        if isinstance(result, dict) and result.get("MCP-ERROR"):
-            raise HTTPException(status_code=500, detail=result["MCP-ERROR"])
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# Removed manual /api/account/{wallet_address}/balance endpoint - replaced with auto-generated /api/fm_account_balance/{wallet_address} from unified registry
 
-@fastapi_app.get("/api/account/{wallet_address}/info")
-async def get_account_info(wallet_address: str):
-    """Get account info for a wallet address"""
-    try:
-        # Use the sync wrapper for the async function
-        result = await fetch_current_fm_account_info(wallet_address)
-        # Handle both dict (error) and dict (success) responses
-        if isinstance(result, dict) and result.get("MCP-ERROR"):
-            raise HTTPException(status_code=500, detail=result["MCP-ERROR"])
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# Removed manual /api/account/{wallet_address}/info endpoint - replaced with auto-generated /api/fm_account_info/{wallet_address} from unified registry
 
 def _generate_docs_html():
     """Generate the documentation HTML content (sync function for thread pool execution)"""
