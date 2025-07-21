@@ -22,7 +22,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### AWS Lambda Development (Current)
 - **Local Testing**: `sam build && sam local start-api --port 3000`
 - **Deploy Production**: `sam build && sam deploy --resolve-s3`
+- **Deploy Development**: `sam build && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
 - **Testing**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
+- **Equivalence Testing**: `python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
 - **Linting**: `uv ruff check .`
 
 ### Production Endpoints (STABLE - Used by colleagues)
@@ -86,12 +88,25 @@ The server exposes numerous tools for:
 
 ### What We've Accomplished
 1. **Cloudflare → AWS Migration**: Solved Python compatibility issues
-2. **Production Deployment**: Stable AWS Lambda with 13 MCP tools
-3. **Dual API Implementation**: MCP + REST protocols in single Lambda deployment
-4. **Full Documentation**: Working /docs endpoint with external Swagger UI integration
-5. **CORS & Async**: Proper async patterns and CORS for browser compatibility
-6. **Local Testing**: SAM environment with Docker
-7. **Code Preservation**: jqpy (JSON processor) and base64expand ready for integration
+2. **Unified Function Registry**: Complete @api_function decorator system for dual protocol exposure
+3. **Flat Naming Architecture**: Consistent flat structure across MCP and REST (see naming rationale below)
+4. **Standardized Naming**: Function names, API paths, and response keys all aligned (e.g., `/api/delegated_rewards_amount`)
+5. **Equivalence Testing**: Automated verification that MCP and REST return identical results with live data tolerance
+6. **Production Deployment**: Stable AWS Lambda with auto-generated MCP tools and REST endpoints
+7. **Dual API Implementation**: MCP + REST protocols with single function definitions
+8. **Full Documentation**: Working /docs endpoint with external Swagger UI integration
+9. **CORS & Async**: Proper async patterns and CORS for browser compatibility
+10. **Local Testing**: SAM environment with comprehensive testing suite
+
+### Flat API Structure Rationale
+**MCP Protocol Constraint**: MCP tool functions require a flat naming structure with no namespace hierarchy support. Function names like `fetchAccountInfo` or `fetchDelegatedRewardsAmount` cannot be organized into namespaces like `account.fetchInfo` or `delegation.fetchRewards`.
+
+**Design Decision**: To maintain perfect 1:1 mapping between MCP tools and REST endpoints, we use a flat API structure:
+- **MCP Function**: `fetch_delegated_rewards_amount` 
+- **REST Endpoint**: `/api/delegated_rewards_amount/{wallet_address}`
+- **Response Key**: `delegated_rewards_amount`
+
+This eliminates any impedance mismatch between protocols and creates a clean data dictionary where function names directly correspond to API paths and response keys.
 
 ### Current Development Focus
 **Phase 1 Complete**: Dual API architecture (MCP + REST) successfully implemented ✅

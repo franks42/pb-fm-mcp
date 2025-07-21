@@ -27,6 +27,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from mangum import Mangum
 
+# Unified Function Registry  
+from registry import get_registry, MCPIntegration, FastAPIIntegration
+import functions  # This will register all @api_function decorated functions
+
 #########################################################################################
 # helper functions
 #########################################################################################
@@ -168,6 +172,21 @@ fastapi_app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+#########################################################################################
+# Unified Function Registry Integration
+#########################################################################################
+
+# Get the global function registry
+registry = get_registry()
+
+# Auto-register all @api_function decorated functions with MCP server
+MCPIntegration.register_mcp_tools(mcp_server, registry)
+print(f"🔧 Registered {len(registry.get_mcp_functions())} MCP tools from function registry")
+
+# Auto-register all @api_function decorated functions with FastAPI
+FastAPIIntegration.register_rest_routes(fastapi_app, registry)
+print(f"🌐 Registered {len(registry.get_rest_functions())} REST routes from function registry")
 
 # Create Mangum handler for FastAPI with proper async support
 fastapi_handler = Mangum(fastapi_app, lifespan="off")
