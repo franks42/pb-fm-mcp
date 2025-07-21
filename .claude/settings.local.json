@@ -84,7 +84,8 @@
       "Bash(sam deploy:*)",
       "Bash(sam build)",
       "Bash(git checkout:*)",
-      "Bash(./scripts/validate-and-update-docs.sh:*)"
+      "Bash(./scripts/validate-and-update-docs.sh:*)",
+      "Bash(sam list:*)"
     ],
     "deny": []
   }

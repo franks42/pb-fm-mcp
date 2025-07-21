@@ -32,73 +32,36 @@ class MCPIntegration:
     @staticmethod
     def register_mcp_tools(mcp_server, registry: FunctionRegistry):
         """
-        Register all MCP functions from registry as MCP tools.
+        Register all MCP functions from registry as MCP tools using @async_to_sync_mcp_tool decorator.
         
         Args:
             mcp_server: The MCP server instance
             registry: Function registry containing decorated functions
         """
-        generator = RegistryGenerator(registry)
+        # Import the async_to_sync_mcp_tool decorator
+        try:
+            from async_wrapper import async_to_sync_mcp_tool
+        except ImportError:
+            try:
+                from ..async_wrapper import async_to_sync_mcp_tool
+            except ImportError:
+                # Fallback - assume it's available in lambda_handler context
+                import sys
+                async_to_sync_mcp_tool = getattr(sys.modules.get('__main__'), 'async_to_sync_mcp_tool', None)
+                if not async_to_sync_mcp_tool:
+                    raise ImportError("Cannot import async_to_sync_mcp_tool decorator")
+        
         mcp_functions = registry.get_mcp_functions()
         
         for meta in mcp_functions:
-            # Generate MCP tool definition
-            tool_def = MCPToolGenerator.generate_mcp_tool(meta)
+            # Use the original function directly with proper decorator
+            original_func = meta.func
             
-            # Create wrapper function for MCP server
-            async def mcp_tool_wrapper(arguments: Dict[str, Any] = None) -> Dict[str, Any]:
-                arguments = arguments or {}
-                
-                try:
-                    # Call the original function with proper error handling
-                    if asyncio.iscoroutinefunction(meta.func):
-                        result = await meta.func(**arguments)
-                    else:
-                        # Run sync function in thread pool
-                        loop = asyncio.get_event_loop()
-                        result = await loop.run_in_executor(None, meta.func, **arguments)
-                    
-                    # Handle MCP-ERROR responses
-                    if isinstance(result, dict) and result.get("MCP-ERROR"):
-                        return result
-                    
-                    return result
-                    
-                except Exception as e:
-                    return {"MCP-ERROR": f"Function execution error: {str(e)}"}
+            # Apply the @async_to_sync_mcp_tool decorator to the original function
+            # This converts async function to sync for AWS MCP Lambda handler
+            decorated_func = async_to_sync_mcp_tool(mcp_server)(original_func)
             
-            # Register the tool with MCP server
-            # Note: We need to create a closure to capture the current meta
-            def create_mcp_tool(function_meta: FunctionMeta):
-                async def tool_func(arguments: Dict[str, Any] = None) -> Dict[str, Any]:
-                    arguments = arguments or {}
-                    
-                    try:
-                        # Call the original function
-                        if asyncio.iscoroutinefunction(function_meta.func):
-                            result = await function_meta.func(**arguments)
-                        else:
-                            loop = asyncio.get_event_loop()
-                            result = await loop.run_in_executor(None, lambda: function_meta.func(**arguments))
-                        
-                        # Handle MCP-ERROR responses
-                        if isinstance(result, dict) and result.get("MCP-ERROR"):
-                            return result
-                        
-                        return result
-                        
-                    except Exception as e:
-                        return {"MCP-ERROR": f"Function execution error: {str(e)}"}
-                
-                # Set the tool name and description
-                tool_func.__name__ = function_meta.name
-                tool_func.__doc__ = function_meta.docstring
-                
-                # Register with MCP server (no name parameter needed)
-                return mcp_server.tool()(tool_func)
-            
-            # Register the tool
-            create_mcp_tool(meta)
+            # The decorator handles registration automatically
 
 
 class FastAPIIntegration:
