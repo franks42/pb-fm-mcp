@@ -27,18 +27,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Equivalence Testing**: `python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
 - **Linting**: `uv ruff check .`
 
-### Production Endpoints (STABLE - Used by colleagues)
-- **MCP Protocol**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/mcp`
+### 🚨 DEPLOYMENT ENVIRONMENTS
+
+**Production Environment**: `pb-fm-mcp-v2` stack (STABLE - Used by colleagues)
+- **MCP Protocol**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/mcp` 
 - **REST API**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/api/*`
 - **Documentation**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/docs`
 - **OpenAPI Spec**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/openapi.json`
+- **Deploy Command**: `sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3`
+- **Deploy Branch**: `main` branch ONLY, when explicitly requested
 
-### Development Endpoints (ACTIVE - For testing new features)
-- **Dev MCP Protocol**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/mcp` ✅
-- **Dev REST API**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/api/*` ✅
-- **Dev Documentation**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/docs` ✅
-- **Dev OpenAPI Spec**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/openapi.json` ✅
-- **Local Testing**: `http://localhost:3000/*` (all endpoints)
+**Development Environment**: `pb-fm-mcp-dev` stack (ACTIVE - For testing new features)
+- **MCP Protocol**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/mcp` ✅
+- **REST API**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/api/*` ✅
+- **Documentation**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/docs` ✅
+- **OpenAPI Spec**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/openapi.json` ✅
+- **Deploy Command**: `sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
+- **Deploy Branch**: `dev` branch for all development work
+
+**Local Testing**: `http://localhost:3000/*` (all endpoints)
+- **Local Command**: `sam build && sam local start-api --port 3000`
 
 ## Project Architecture
 
