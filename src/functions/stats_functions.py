@@ -55,7 +55,7 @@ async def async_http_get_json(url: str, params=None) -> JSONType:
     path="/api/current_hash_statistics",
     method="GET",
     tags=["statistics", "blockchain"],
-    description="Fetch current HASH token statistics"
+    description="Fetch current HASH token statistics."
 )
 async def fetch_current_hash_statistics() -> JSONType:
     """

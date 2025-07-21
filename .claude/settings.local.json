@@ -79,7 +79,12 @@
       "Bash(aws logs describe-log-streams:*)",
       "Bash(aws logs get-log-events:*)",
       "WebFetch(domain:modelcontextprotocol.io)",
-      "Bash(npx @modelcontextprotocol/inspector:*)"
+      "Bash(npx @modelcontextprotocol/inspector:*)",
+      "Bash(open:*)",
+      "Bash(sam deploy:*)",
+      "Bash(sam build)",
+      "Bash(git checkout:*)",
+      "Bash(./scripts/validate-and-update-docs.sh:*)"
     ],
     "deny": []
   }
