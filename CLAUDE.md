@@ -25,11 +25,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Testing**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
 - **Linting**: `uv ruff check .`
 
-### Production Endpoints
+### Production Endpoints (STABLE - Used by colleagues)
 - **MCP Protocol**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/mcp`
 - **REST API**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/api/*`
 - **Documentation**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/docs`
 - **OpenAPI Spec**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/openapi.json`
+
+### Development Endpoints (TO BE CREATED)
+- **Dev MCP Protocol**: `https://[DEV-GATEWAY]/Prod/mcp` (for testing new features)
+- **Dev REST API**: `https://[DEV-GATEWAY]/Prod/api/*` (for development)
 - **Local Testing**: `http://localhost:3000/*` (all endpoints)
 
 ## Project Architecture
@@ -90,10 +94,16 @@ The server exposes numerous tools for:
 ### Current Development Focus
 **Phase 1 Complete**: Dual API architecture (MCP + REST) successfully implemented ✅
 
-**Next Phase**: Enhanced functionality and optimization
-- Auto-generate REST endpoints from hastra.py functions  
-- jqpy integration for dynamic JSON transformation
-- Proxy layer refactoring for cleaner data transformation
+**CRITICAL NEXT**: Production/Development Environment Separation
+- Create separate endpoints for production (stable) and development (testing)
+- Implement git branch strategy: `main` for production, `dev` for active development
+- Separate SAM stack deployments to prevent breaking colleagues' Claude integrations
+
+**Phase 2**: Unified Function Registry Architecture
+- Decorator-based function registry with `@api_function` for auto-generation
+- Modular business function structure in domain-specific files
+- Auto-generate both MCP tools and REST endpoints from single function definitions
+- Full typing system with automatic validation and OpenAPI schema generation
 
 **Key Files to Review:**
 - `docs/development_roadmap.md` - Architecture vision and todo priorities  
@@ -116,3 +126,5 @@ The server exposes numerous tools for:
 ✅ **Production**: Stable deployment with fast response times
 
 **Current Status**: Production-ready dual-protocol server with comprehensive documentation.
+
+⚠️ **CRITICAL**: Need to separate production and development environments before major refactoring to avoid breaking colleagues' Claude integrations.
