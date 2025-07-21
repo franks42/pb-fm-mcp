@@ -31,9 +31,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Documentation**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/docs`
 - **OpenAPI Spec**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/openapi.json`
 
-### Development Endpoints (TO BE CREATED)
-- **Dev MCP Protocol**: `https://[DEV-GATEWAY]/Prod/mcp` (for testing new features)
-- **Dev REST API**: `https://[DEV-GATEWAY]/Prod/api/*` (for development)
+### Development Endpoints (ACTIVE - For testing new features)
+- **Dev MCP Protocol**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/mcp` ✅
+- **Dev REST API**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/api/*` ✅
+- **Dev Documentation**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/docs` ✅
+- **Dev OpenAPI Spec**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/openapi.json` ✅
 - **Local Testing**: `http://localhost:3000/*` (all endpoints)
 
 ## Project Architecture
@@ -94,10 +96,10 @@ The server exposes numerous tools for:
 ### Current Development Focus
 **Phase 1 Complete**: Dual API architecture (MCP + REST) successfully implemented ✅
 
-**CRITICAL NEXT**: Production/Development Environment Separation
-- Create separate endpoints for production (stable) and development (testing)
-- Implement git branch strategy: `main` for production, `dev` for active development
-- Separate SAM stack deployments to prevent breaking colleagues' Claude integrations
+✅ **PHASE 1 COMPLETE**: Production/Development Environment Separation  
+- Separate endpoints: Production (stable) + Development (testing) ✅
+- Git branch strategy: `main` (production) vs `dev` (development) ✅  
+- Separate SAM stack deployments: Colleagues' integrations protected ✅
 
 **Phase 2**: Unified Function Registry Architecture
 - Decorator-based function registry with `@api_function` for auto-generation
