@@ -197,3 +197,49 @@ async def fetch_current_fm_account_info(wallet_address: str) -> JSONType:
         return response
         
     return response
+
+
+@api_function(
+    protocols=["mcp", "rest"],
+    path="/api/figure_markets_assets_info",
+    method="GET",
+    tags=["assets", "markets"],
+    description="Fetch list of assets traded on Figure Markets exchange"
+)
+async def fetch_figure_markets_assets_info() -> JSONType:
+    """
+    Fetch the list of assets, like crypto tokens, stable coins, and funds,
+    that are traded on the Figure Markets exchange.
+    
+    Returns:
+        List of dictionaries with asset information:
+        - asset_name: Identifier to use for asset
+        - asset_description: Description of the asset
+        - asset_display_name: Display name for the asset
+        - asset_type: Type of asset (CRYPTO, STABLECOIN, or FUND)
+        - asset_exponent: 10 to the power of asset_exponent multiplied by amount of asset_denom yields the asset amount
+        - asset_denom: Asset denomination
+        
+    Raises:
+        HTTPError: If the Figure Markets API is unavailable
+    """
+    url = 'https://figuremarkets.com/service-hft-exchange/api/v1/assets'
+    
+    # Run sync HTTP call in thread pool to avoid event loop conflicts
+    import asyncio
+    loop = asyncio.get_event_loop()
+    response = await loop.run_in_executor(None, http_get_json, url)
+    
+    if response.get("MCP-ERROR"):
+        return response
+    
+    asset_details_list = [{
+        'asset_name': details['name'],
+        'asset_description': details['description'],
+        'asset_display_name': details['displayName'],
+        'asset_type': details['type'],
+        'asset_exponent': details['exponent'],
+        'asset_denom': details['provenanceMarkerName']
+    } for details in response['data']]
+    
+    return asset_details_list

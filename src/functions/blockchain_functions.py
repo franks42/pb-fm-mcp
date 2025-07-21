@@ -420,3 +420,147 @@ async def fetch_total_delegation_data(wallet_address: str) -> JSONType:
     except (KeyError, ValueError, TypeError) as e:
         logger.error(f"Could not calculate delegation totals: {e}")
         return {"MCP-ERROR": f"Calculation error: {str(e)}"}
+
+
+@api_function(
+    protocols=["mcp", "rest"],
+    path="/api/vesting_total_unvested_amount/{wallet_address}",
+    method="GET",
+    tags=["vesting", "blockchain"],
+    description="Fetch vesting unvested amount for wallet address at specific date-time"
+)
+async def fetch_vesting_total_unvested_amount(wallet_address: str, date_time: str = None) -> JSONType:
+    """
+    Fetch the vesting_total_unvested_amount for the given wallet address and date_time.
+    
+    The vesting schedule is estimated by a linear function for the unvested_amount that starts
+    on start_time at vesting_original_amount, and decreases linearly over time to zero at end_time.
+    
+    Args:
+        wallet_address: Wallet's Bech32 address
+        date_time: Date-time in ISO 8601 format for which the vesting data is requested.
+                  Defaults to current datetime if not provided.
+        
+    Returns:
+        Dictionary containing vesting information:
+        - date_time: The date-time for which vesting info was requested
+        - vesting_original_amount: Original number of nano-HASH subject to vesting schedule
+        - denom: Token denomination
+        - vesting_total_vested_amount: Amount of nhash that have vested as of date_time
+        - vesting_total_unvested_amount: Amount of nhash still vesting and unvested as of date_time
+        - start_time: Date-time when vesting starts
+        - end_time: Date-time when vesting ends
+        
+    Raises:
+        HTTPError: If the Provenance blockchain API is unavailable
+    """
+    try:
+        url = f"https://service-explorer.provenance.io/api/v3/accounts/{wallet_address}/vesting"
+        response = await async_http_get_json(url)
+        
+        if response.get("MCP-ERROR"):
+            return response
+
+        # Calculate timestamp for vesting calculations
+        if date_time:
+            from datetime import datetime
+            dtms = int(datetime.fromisoformat(date_time).timestamp() * 1000)
+        else:
+            from datetime import datetime, UTC
+            dtms = int(datetime.now(UTC).timestamp() * 1000)
+
+        # Parse vesting schedule dates
+        from datetime import datetime
+        end_time_ms = int(datetime.fromisoformat(response["endTime"]).timestamp() * 1000)
+        start_time_ms = int(datetime.fromisoformat(response["startTime"]).timestamp() * 1000)
+        
+        # Get original vesting amount
+        vesting_original_amount = parse_amount(response['originalVestingList'][0]['amount'])
+        denom = response['originalVestingList'][0]['denom']
+        
+        # Calculate vested amount based on linear schedule
+        if dtms < start_time_ms:
+            total_vested_amount = 0
+        elif dtms > end_time_ms:
+            total_vested_amount = vesting_original_amount
+        else:
+            total_vested_amount = int(
+                vesting_original_amount * (dtms - start_time_ms) / (end_time_ms - start_time_ms)
+            )
+        
+        total_unvested_amount = vesting_original_amount - total_vested_amount
+        
+        # Build result
+        from datetime import datetime, UTC
+        result_datetime = datetime.fromtimestamp(dtms / 1000, tz=UTC).isoformat()
+        
+        vesting_data = {
+            'date_time': result_datetime,
+            'vesting_original_amount': vesting_original_amount,
+            'denom': denom,
+            'vesting_total_vested_amount': total_vested_amount,
+            'vesting_total_unvested_amount': total_unvested_amount,
+            'start_time': response["startTime"],
+            'end_time': response["endTime"]
+        }
+        
+        return vesting_data
+        
+    except Exception as e:
+        logger.error(f"Could not fetch vesting data: {e}")
+        return {"MCP-ERROR": f"Vesting data fetch error: {str(e)}"}
+
+
+@api_function(
+    protocols=["mcp", "rest"],
+    path="/api/available_committed_amount/{wallet_address}",
+    method="GET",
+    tags=["commitment", "blockchain"],
+    description="Fetch committed HASH amount to Figure Markets exchange"
+)
+async def fetch_available_committed_amount(wallet_address: str) -> JSONType:
+    """
+    Fetch the current committed HASH amount to the Figure Markets exchange for the given wallet address.
+    
+    API returns amounts in nhash (1 HASH = 1,000,000,000 nhash). Values are converted to integers.
+    
+    Args:
+        wallet_address: Wallet's Bech32 address
+        
+    Returns:
+        Dictionary containing:
+        - denom: Token/HASH denomination (nhash)
+        - available_committed_amount: Amount of denom committed to the exchange
+        
+    Raises:
+        HTTPError: If the Provenance blockchain API is unavailable
+    """
+    try:
+        url = f"https://api.provenance.io/provenance/exchange/v1/commitments/account/{wallet_address}"
+        response = await async_http_get_json(url)
+        
+        if response.get("MCP-ERROR"):
+            return response
+        
+        # Extract market 1 commitments
+        market1_list = [x["amount"] for x in response["commitments"] if x["market_id"] == 1]
+        hash_amount_dict_list = [
+            x for x in (market1_list[0] if market1_list else []) 
+            if x["denom"] == "nhash"
+        ]
+        
+        # Build result with integer amount
+        available_committed_amount = 0
+        if hash_amount_dict_list:
+            available_committed_amount = parse_amount(hash_amount_dict_list[0]["amount"])
+        
+        hash_amount_dict = {
+            "denom": "nhash",
+            "available_committed_amount": available_committed_amount
+        }
+        
+        return hash_amount_dict
+        
+    except Exception as e:
+        logger.error(f"Could not fetch committed amount: {e}")
+        return {"MCP-ERROR": f"Committed amount fetch error: {str(e)}"}
