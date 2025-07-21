@@ -103,6 +103,7 @@ The server exposes numerous tools for:
 - Decorator-based function registry with `@api_function` for auto-generation
 - Modular business function structure in domain-specific files
 - Auto-generate both MCP tools and REST endpoints from single function definitions
+- **Single-source documentation**: Function docstrings automatically become both MCP tool descriptions AND OpenAPI documentation
 - Full typing system with automatic validation and OpenAPI schema generation
 
 **Key Files to Review:**

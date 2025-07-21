@@ -120,11 +120,13 @@
 ### Benefits of Unified Function Registry (Phase 2)
 
 1. **Single Source of Truth**: One function definition serves both MCP and REST protocols
-2. **Type Safety**: Full typing with automatic validation and OpenAPI schema generation  
-3. **Modular Organization**: Functions organized by domain in separate files
-4. **Zero Duplication**: Auto-generation eliminates manual route/tool duplication
-5. **Clean Separation**: Business functions contain zero protocol-specific code
-6. **Easy Expansion**: Just add `@api_function` decorator to expose new functionality
+2. **Unified Documentation**: Function docstrings and type hints automatically become MCP tool descriptions AND OpenAPI documentation
+3. **Type Safety**: Full typing with automatic validation and OpenAPI schema generation  
+4. **Modular Organization**: Functions organized by domain in separate files
+5. **Zero Duplication**: Auto-generation eliminates manual route/tool duplication
+6. **Clean Separation**: Business functions contain zero protocol-specific code
+7. **Easy Expansion**: Just add `@api_function` decorator to expose new functionality
+8. **Consistent Introspection**: Same documentation visible in MCP tool discovery and REST API docs
 
 ### Example Function Definition (Phase 2)
 
@@ -138,7 +140,19 @@ from src.registry.decorator import api_function
     description="Fetch account information for given address"
 )
 async def fetch_account_info(address: str) -> dict:
-    """Fetch account information for given Provenance address"""
+    """
+    Fetch account information for given Provenance address.
+    
+    Args:
+        address: Bech32-encoded Provenance blockchain address (e.g., tp1...)
+        
+    Returns:
+        Account data including balances, sequence number, and account type
+        
+    Raises:
+        ValueError: If address format is invalid
+        APIError: If blockchain API is unavailable
+    """
     # Pure business logic - no protocol-specific code
     response = await http_get_json(f"https://api.provenance.io/accounts/{address}")
     return transform_account_data(response)
@@ -146,13 +160,44 @@ async def fetch_account_info(address: str) -> dict:
 
 **Auto-generated MCP tool:**
 ```json
-{"name": "fetch_account_info", "description": "Fetch account information", "inputSchema": {...}}
+{
+  "name": "fetch_account_info", 
+  "description": "Fetch account information for given Provenance address.\n\nArgs:\n  address: Bech32-encoded Provenance blockchain address (e.g., tp1...)",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "address": {"type": "string", "description": "Bech32-encoded Provenance blockchain address"}
+    },
+    "required": ["address"]
+  }
+}
 ```
 
 **Auto-generated REST endpoint:**
+```yaml
+GET /api/accounts/{address}/info:
+  summary: Fetch account information for given address
+  description: |
+    Fetch account information for given Provenance address.
+    
+    Args:
+        address: Bech32-encoded Provenance blockchain address (e.g., tp1...)
+        
+    Returns:
+        Account data including balances, sequence number, and account type
+  parameters:
+    - name: address
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Bech32-encoded Provenance blockchain address
+  responses:
+    200:
+      description: Account data including balances, sequence number, and account type
 ```
-GET /api/accounts/{address}/info -> OpenAPI schema + validation
-```
+
+**🎯 Key Advantage**: The same docstring and type hints automatically populate BOTH the MCP tool description AND the OpenAPI documentation - true single source of documentation!
 
 ### Benefits of Current Dual API Approach (Phase 1)
 
