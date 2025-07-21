@@ -27,6 +27,26 @@ Resources:
           Properties:
             Path: /mcp
             Method: ANY
+        RestApiRoot:
+          Type: Api
+          Properties:
+            Path: /
+            Method: ANY
+        RestApiDocs:
+          Type: Api
+          Properties:
+            Path: /docs
+            Method: ANY
+        RestApiOpenApi:
+          Type: Api
+          Properties:
+            Path: /openapi.json
+            Method: ANY
+        RestApiRoutes:
+          Type: Api
+          Properties:
+            Path: /api/{proxy+}
+            Method: ANY
     Metadata:
       BuildMethod: python3.12
 

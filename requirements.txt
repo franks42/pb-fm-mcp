@@ -1,3 +1,5 @@
 awslabs-mcp-lambda-handler
 httpx
 structlog
+fastapi
+mangum

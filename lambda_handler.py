@@ -21,6 +21,12 @@ from awslabs.mcp_lambda_handler import MCPLambdaHandler
 import httpx
 import hastra
 
+# FastAPI and Lambda adapter
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, HTMLResponse
+from mangum import Mangum
+
 #########################################################################################
 # helper functions
 #########################################################################################
@@ -142,6 +148,29 @@ def http_get_json(
 
 # Initialize the MCP server with a name and version
 mcp_server = MCPLambdaHandler(name="pb-fm-mcp", version="0.1.0")
+
+# Initialize FastAPI app for REST endpoints
+fastapi_app = FastAPI(
+    title="PB-FM API",
+    description="REST API for Provenance Blockchain and Figure Markets data",
+    version="0.1.0",
+    docs_url=None,  # Disable built-in docs to avoid async issues
+    openapi_url="/openapi.json",
+    # Configure for API Gateway path
+    root_path="/Prod"
+)
+
+# Add CORS middleware to enable external Swagger UI access
+fastapi_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for OpenAPI spec access
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
+
+# Create Mangum handler for FastAPI with proper async support
+fastapi_handler = Mangum(fastapi_app, lifespan="off")
 
 #########################################################################################
 # MCP Tool Functions
@@ -474,19 +503,175 @@ async def fetch_total_delegation_data(wallet_address: str) -> JSONType:
     return r
 
 #########################################################################################
+# FastAPI REST Endpoints
+#########################################################################################
+
+@fastapi_app.get("/")
+async def root():
+    """Root endpoint with API information"""
+    return {
+        "name": "PB-FM API",
+        "version": "0.1.0",
+        "description": "REST API for Provenance Blockchain and Figure Markets data",
+        "endpoints": {
+            "docs": "/docs",
+            "openapi": "/openapi.json",
+            "mcp": "/mcp"
+        }
+    }
+
+@fastapi_app.get("/api/markets")
+async def get_markets():
+    """Get current Figure Markets trading pairs"""
+    try:
+        # Run sync function in thread pool
+        import asyncio
+        result = await asyncio.get_event_loop().run_in_executor(None, fetch_current_fm_data)
+        # Handle both dict (error) and list (success) responses
+        if isinstance(result, dict) and result.get("MCP-ERROR"):
+            raise HTTPException(status_code=500, detail=result["MCP-ERROR"])
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@fastapi_app.get("/api/account/{wallet_address}/balance")
+async def get_account_balance(wallet_address: str):
+    """Get account balance for a wallet address"""
+    try:
+        # Run sync function in thread pool
+        import asyncio
+        result = await asyncio.get_event_loop().run_in_executor(None, fetch_current_fm_account_balance_data, wallet_address)
+        # Handle both dict (error) and list (success) responses  
+        if isinstance(result, dict) and result.get("MCP-ERROR"):
+            raise HTTPException(status_code=500, detail=result["MCP-ERROR"])
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@fastapi_app.get("/api/account/{wallet_address}/info")
+async def get_account_info(wallet_address: str):
+    """Get account info for a wallet address"""
+    try:
+        # Use the sync wrapper for the async function
+        result = await fetch_current_fm_account_info(wallet_address)
+        # Handle both dict (error) and dict (success) responses
+        if isinstance(result, dict) and result.get("MCP-ERROR"):
+            raise HTTPException(status_code=500, detail=result["MCP-ERROR"])
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def _generate_docs_html():
+    """Generate the documentation HTML content (sync function for thread pool execution)"""
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>PB-FM API Documentation</title>
+        <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@3.25.0/swagger-ui.css" />
+        <style>
+            body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+            .header { background: #1f8aed; color: white; padding: 20px; margin: -20px -20px 20px -20px; }
+            .quick-links { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+            .endpoint { background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 15px; margin: 10px 0; }
+            .method { font-weight: bold; color: #1f8aed; }
+            a { color: #1f8aed; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🚀 PB-FM API Documentation</h1>
+            <p>REST API for Provenance Blockchain and Figure Markets data</p>
+        </div>
+        
+        <div class="quick-links">
+            <h3>📋 Quick Links</h3>
+            <p><strong>OpenAPI Spec:</strong> <a href="/Prod/openapi.json" target="_blank">/Prod/openapi.json</a></p>
+            <p><strong>Interactive Swagger UI Options:</strong></p>
+            <ul style="margin-left: 20px;">
+                <li><a href="https://generator3.swagger.io/index.html?url=https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/openapi.json" target="_blank">Swagger UI</a></li>
+                <li><a href="https://editor.swagger.io/" target="_blank">Swagger Editor</a> (manual: File → Import URL → paste OpenAPI URL)</li>
+                <li><a href="https://redoc.ly/redoc/?url=https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/openapi.json" target="_blank">ReDoc Documentation</a></li>
+            </ul>
+        </div>
+
+        <h3>🔗 Available Endpoints</h3>
+        
+        <div class="endpoint">
+            <div class="method">GET /api/markets</div>
+            <p>Get current Figure Markets trading pairs and prices</p>
+            <p><a href="/Prod/api/markets" target="_blank">Try it →</a></p>
+        </div>
+
+        <div class="endpoint">
+            <div class="method">GET /api/account/{wallet_address}/balance</div>
+            <p>Get account balance data for a wallet address</p>
+            <p><a href="/Prod/api/account/pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8/balance" target="_blank">Try example →</a></p>
+        </div>
+
+        <div class="endpoint">
+            <div class="method">GET /api/account/{wallet_address}/info</div>
+            <p>Get account info and vesting status for a wallet address</p>
+            <p><a href="/Prod/api/account/pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8/info" target="_blank">Try example →</a></p>
+        </div>
+
+        <div class="endpoint">
+            <div class="method">POST /mcp</div>
+            <p>MCP (Model Context Protocol) endpoint for AI agents</p>
+            <p>Accepts JSON-RPC 2.0 formatted requests with MCP protocol</p>
+        </div>
+
+        <h3>💡 Usage Examples</h3>
+        <pre style="background: #f8f9fa; padding: 15px; border-radius: 6px; overflow-x: auto;">
+# Get all trading pairs
+curl "https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/api/markets"
+
+# Get account balance  
+curl "https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/api/account/pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8/balance"
+
+# MCP protocol example
+curl -X POST "https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/mcp" \\
+  -H "Content-Type: application/json" \\
+  -d '{"method": "tools/list", "params": {}, "jsonrpc": "2.0", "id": 1}'
+        </pre>
+    </body>
+    </html>
+    """
+    return html_content
+
+@fastapi_app.get("/docs", response_class=HTMLResponse)
+async def custom_docs():
+    """Custom documentation page that works with Lambda async context"""
+    # Use thread pool to avoid event loop issues in Lambda
+    loop = asyncio.get_event_loop()
+    html_content = await loop.run_in_executor(None, _generate_docs_html)
+    return HTMLResponse(content=html_content)
+
+#########################################################################################
 # AWS Lambda Handler
 #########################################################################################
 
 def lambda_handler(event, context):
-    """Standard AWS Lambda handler with MCP Streamable HTTP transport support and detailed debugging"""
+    """Dual-protocol AWS Lambda handler: MCP + REST API with path-based routing"""
     
     try:
         # Extract request details
         http_method = event.get('httpMethod', 'POST')
         path = event.get('path', '/mcp')
-        headers = event.get('headers', {})
-        query_params = event.get('queryStringParameters') or {}
-        body = event.get('body') or ''
+        
+        # Path-based routing: determine which handler to use
+        if path.startswith('/api/') or path in ['/', '/docs', '/openapi.json']:
+            # Route to FastAPI for REST endpoints and documentation
+            print(f"🌐 Routing {http_method} {path} to FastAPI handler")
+            return fastapi_handler(event, context)
+        else:
+            # Route to MCP handler (default for /mcp and unknown paths)
+            print(f"🔧 Routing {http_method} {path} to MCP handler")
+            # Continue with existing MCP debug logic
+            headers = event.get('headers', {})
+            query_params = event.get('queryStringParameters') or {}
+            body = event.get('body') or ''
         
         # Debug logging
         print("🔍 === MCP REQUEST DEBUG ===")

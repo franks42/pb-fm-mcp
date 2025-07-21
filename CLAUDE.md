@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ✅ **Production**: AWS Lambda deployment working perfectly
 - ✅ **Local Testing**: SAM local environment configured
 - ✅ **Documentation**: Complete testing and deployment guides in `docs/`
-- ✅ **Architecture**: Ready for dual API expansion (MCP + REST)
+- ✅ **Dual API Architecture**: MCP + REST APIs fully implemented and deployed
 
 ### Previous Issues with Cloudflare Workers
 - Pyodide WebAssembly environment couldn't handle Rust-based extensions (pydantic v2, rpds, etc.)
@@ -26,28 +26,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Linting**: `uv ruff check .`
 
 ### Production Endpoints
-- **Local**: `http://localhost:3000/mcp`
-- **Production**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/mcp`
+- **MCP Protocol**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/mcp`
+- **REST API**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/api/*`
+- **Documentation**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/docs`
+- **OpenAPI Spec**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/openapi.json`
+- **Local Testing**: `http://localhost:3000/*` (all endpoints)
 
 ## Project Architecture
 
-This is a Python-based MCP (Model Context Protocol) server running on **AWS Lambda**, providing tools for interacting with Figure Markets exchange and Provenance Blockchain.
+This is a Python-based **dual-protocol server** running on **AWS Lambda**, providing both MCP (Model Context Protocol) and REST API access to Figure Markets exchange and Provenance Blockchain data.
 
 ### Core Components
 
-- **`lambda_handler.py`** - Main AWS Lambda function with MCP server setup
+- **`lambda_handler.py`** - Main AWS Lambda function with dual MCP+REST API setup
 - **`async_wrapper.py`** - Decorators for async function compatibility with AWS MCP handler
 - **`src/hastra.py`** - Core business logic for blockchain and exchange operations
 - **`src/utils.py`** - Utility functions for datetime, HTTP requests, and operations
 - **`src/base64expand.py`** - Base64 data expansion utilities (ready for integration)
 - **`src/jqpy/`** - Complete jq-like JSON processor (162/193 tests passing, core functionality solid)
 
-### AWS Lambda Architecture
+### Dual-Protocol AWS Lambda Architecture
 
-1. **MCPLambdaHandler**: Uses AWS Labs MCP Lambda handler for HTTP transport
-2. **Async Wrapper Pattern**: `@async_to_sync_mcp_tool` decorators enable async functions
-3. **API Gateway Integration**: HTTP endpoints with CORS support
-4. **CloudFormation/SAM**: Infrastructure as Code deployment
+1. **Path-Based Routing**: `/mcp` for MCP protocol, `/api/*` for REST endpoints, `/docs` for documentation
+2. **MCPLambdaHandler**: AWS Labs MCP Lambda handler for MCP protocol transport  
+3. **FastAPI + Mangum**: REST API with automatic OpenAPI documentation and CORS
+4. **Async Thread Pool**: All endpoints use proper async patterns with thread pool execution
+5. **API Gateway Integration**: Single deployment supporting both protocols
+6. **CloudFormation/SAM**: Infrastructure as Code deployment
 
 ### MCP Tools Structure
 
@@ -59,7 +64,7 @@ The server exposes numerous tools for:
 
 ### Dependencies
 
-- **Production**: `awslabs-mcp-lambda-handler`, `httpx`, `structlog`
+- **Production**: `awslabs-mcp-lambda-handler`, `httpx`, `structlog`, `fastapi`, `mangum`
 - **Development**: `pytest`, `pytest-asyncio`, `ruff` (managed via uv)
 - **External APIs**: Figure Markets exchange API and Provenance blockchain explorer API
 
@@ -76,17 +81,24 @@ The server exposes numerous tools for:
 ### What We've Accomplished
 1. **Cloudflare → AWS Migration**: Solved Python compatibility issues
 2. **Production Deployment**: Stable AWS Lambda with 13 MCP tools
-3. **Local Testing**: SAM environment with Docker
-4. **Code Preservation**: jqpy (JSON processor) and base64expand ready for integration
-5. **Documentation**: Complete testing/deployment guides
+3. **Dual API Implementation**: MCP + REST protocols in single Lambda deployment
+4. **Full Documentation**: Working /docs endpoint with external Swagger UI integration
+5. **CORS & Async**: Proper async patterns and CORS for browser compatibility
+6. **Local Testing**: SAM environment with Docker
+7. **Code Preservation**: jqpy (JSON processor) and base64expand ready for integration
 
 ### Current Development Focus
-**Next Phase**: Dual API architecture (MCP + REST) with proxy layer refactoring
+**Phase 1 Complete**: Dual API architecture (MCP + REST) successfully implemented ✅
+
+**Next Phase**: Enhanced functionality and optimization
+- Auto-generate REST endpoints from hastra.py functions  
+- jqpy integration for dynamic JSON transformation
+- Proxy layer refactoring for cleaner data transformation
 
 **Key Files to Review:**
 - `docs/development_roadmap.md` - Architecture vision and todo priorities  
 - `docs/testing-deploying-setup.md` - Complete testing and deployment workflows
-- `lambda_handler.py` - Current MCP server implementation
+- `lambda_handler.py` - Dual MCP+REST API implementation
 - `src/jqpy/` - JSON processing capabilities (162/193 tests passing)
 - `src/base64expand.py` - Data expansion utilities
 
@@ -94,11 +106,13 @@ The server exposes numerous tools for:
 - **Local**: `sam build && sam local start-api --port 3000`
 - **Production**: `sam build && sam deploy --resolve-s3`
 - **MCP Testing**: `npx @modelcontextprotocol/inspector http://localhost:3000/mcp`
+- **REST Testing**: Browser access to documentation and endpoints
 
-### Architecture Goals
-1. **Proxy Layer**: Separate async PB-API calls from MCP tool logic
-2. **Dual APIs**: Expose both MCP protocol and REST endpoints
-3. **jqpy Integration**: Add dynamic JSON transformation capabilities
-4. **Standardization**: Clean data transformation layer
+### Architecture Status
+✅ **Dual APIs**: Both MCP protocol and REST endpoints working  
+✅ **Documentation**: Full OpenAPI docs with external Swagger UI integration  
+✅ **CORS**: Cross-origin access enabled for browser compatibility  
+✅ **Async**: Proper async patterns with thread pool execution  
+✅ **Production**: Stable deployment with fast response times
 
-**Status**: Ready for proxy layer refactoring and dual API implementation.
+**Current Status**: Production-ready dual-protocol server with comprehensive documentation.
