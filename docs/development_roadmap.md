@@ -16,6 +16,7 @@
 - ✅ **Security Hardening**: Environment variable protection for sensitive data ✅ COMPLETE
 - ✅ **Asset Amount Standardization**: Consistent `{"amount": int, "denom": "nhash"}` format ✅ COMPLETE
 - ✅ **Figure Markets API Integration**: Public trading and asset data (private APIs disabled) ✅ COMPLETE
+- ✅ **AWS MCP Handler Bug Fix**: Comprehensive monkey patch preserves snake_case naming AND execution (tracking AWS fix in [Issue #757](https://github.com/awslabs/mcp/issues/757)) ✅ COMPLETE
 - ✅ Local SAM testing environment ✅ COMPLETE
 - ✅ jqpy and base64expand preserved for integration ✅ COMPLETE
 

@@ -18,6 +18,62 @@ from async_wrapper import sync_wrapper, async_to_sync_mcp_tool
 
 # AWS Lambda MCP Handler
 from awslabs.mcp_lambda_handler import MCPLambdaHandler
+
+# Fix AWS's unwanted camelCase conversion by monkey-patching the tool method
+def create_snake_case_tool_decorator(original_tool_method):
+    """
+    Wrapper that preserves original function names instead of converting to camelCase.
+    
+    AWS Lambda MCP Handler (v0.1.6) automatically converts snake_case to camelCase, which:
+    1. Violates MCP community standards (90% use snake_case) 
+    2. Creates confusion and inconsistency between function names and tool names
+    3. Goes against developer intent and naming conventions
+    
+    This monkey patch intercepts AWS's conversion and restores the original snake_case names
+    by patching BOTH the tools registry (for display) AND tool_implementations (for execution).
+    
+    Related: GitHub issue awslabs/mcp#757 - AWS investigating this bug for future fix.
+    TODO: Remove this patch when AWS provides native snake_case support.
+    
+    CRITICAL: This patches two AWS internal mappings:
+    - self.tools[tool_name] = tool_schema (for tools/list responses)  
+    - self.tool_implementations[tool_name] = func (for tools/call execution)
+    """
+    def patched_tool(self):
+        def decorator(func):
+            # Store original name before AWS modifies it
+            original_name = func.__name__
+            
+            # Let AWS create the tool with its camelCase conversion
+            aws_decorator = original_tool_method(self)
+            wrapped_func = aws_decorator(func)
+            
+            # Find and fix the name in AWS's internal tools registry
+            camel_name = ''.join([original_name.split('_')[0]] + 
+                               [word.capitalize() for word in original_name.split('_')[1:]])
+            
+            # Fix the tool registration if AWS changed the name
+            if (hasattr(self, 'tools') and camel_name in self.tools and 
+                camel_name != original_name):
+                # Move tool from camelCase key to original name key
+                tool_definition = self.tools.pop(camel_name)
+                # Fix the name field in the tool definition
+                if isinstance(tool_definition, dict) and 'name' in tool_definition:
+                    tool_definition['name'] = original_name
+                # Register with correct name
+                self.tools[original_name] = tool_definition
+                
+                # Also fix the tool_implementations mapping - this is critical for execution
+                if (hasattr(self, 'tool_implementations') and camel_name in self.tool_implementations):
+                    tool_func = self.tool_implementations.pop(camel_name)
+                    self.tool_implementations[original_name] = tool_func
+            
+            return wrapped_func
+        return decorator
+    return patched_tool
+
+# Apply the monkey patch to restore sane naming behavior
+MCPLambdaHandler.tool = create_snake_case_tool_decorator(MCPLambdaHandler.tool)
 import httpx
 
 # FastAPI and Lambda adapter

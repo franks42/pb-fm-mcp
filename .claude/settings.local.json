@@ -87,7 +87,12 @@
       "Bash(./scripts/validate-and-update-docs.sh:*)",
       "Bash(sam list:*)",
       "Bash(export TEST_WALLET_ADDRESS=*)",
-      "Bash(./scripts/deploy.sh:*)"
+      "Bash(./scripts/deploy.sh:*)",
+      "Bash(git log:*)",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)",
+      "WebFetch(domain:spec.modelcontextprotocol.io)",
+      "Bash(sam local start-api:*)"
     ],
     "deny": []
   }

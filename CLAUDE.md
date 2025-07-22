@@ -25,6 +25,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Legacy**: Production may have camelCase (e.g., `fetchCurrentHashStatistics`) 
 - **Rule**: Always ask before renaming ANY function - this is a breaking change
 
+### 🚨 AWS MCP Lambda Handler Bug Fix
+
+**Issue**: AWS MCP Lambda Handler (v0.1.6) automatically converts snake_case function names to camelCase, violating MCP community standards (90% use snake_case) and causing confusion.
+
+**Root Cause**: Hardcoded conversion in `awslabs.mcp_lambda_handler.mcp_lambda_handler:164-169`
+- **GitHub Issue**: [awslabs/mcp#757](https://github.com/awslabs/mcp/issues/757) (reported by Sophie Margolis, assigned to Lukas Xue)
+- **Example**: `fetch_account_info` → `fetchAccountInfo` (unwanted conversion)
+
+**Our Solution**: Comprehensive monkey patch in `lambda_handler.py:22-68` that:
+1. Preserves original function names exactly as written
+2. Intercepts AWS's camelCase conversion and restores snake_case
+3. Patches BOTH `tools` registry (display) AND `tool_implementations` (execution)
+4. Maintains perfect compatibility with existing functions
+5. **Status**: ✅ Fully implemented and tested - MCP functions execute correctly
+
+**Tracking**: Monitor AWS updates for native snake_case support to eventually remove our patch.
+
 ### 🚨 IMPORTANT: Always use `uv` for Python execution
 **ALWAYS use `uv run python` instead of `python` or `python3` for all Python scripts and commands.**
 

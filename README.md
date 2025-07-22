@@ -23,6 +23,10 @@ A Model Context Protocol (MCP) server providing tools to interact with the Prove
 - **Protocol**: Model Context Protocol with streamable HTTP transport
 - **API Gateway**: HTTP API for external access
 - **Dependencies**: AWS Labs MCP Lambda Handler, httpx, structlog
+- **⚠️ AWS Bug Workaround**: Comprehensive monkey patch for AWS MCP Handler's camelCase conversion bug ([Issue #757](https://github.com/awslabs/mcp/issues/757))
+  - **Problem**: AWS converts `fetch_account_info` → `fetchAccountInfo` violating MCP standards
+  - **Solution**: Runtime patching of both `tools` registry and `tool_implementations` mapping
+  - **Impact**: Preserves snake_case naming for all MCP tools and function execution
 
 ## Quick Start
 
