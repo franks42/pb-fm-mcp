@@ -21,7 +21,7 @@ from awslabs.mcp_lambda_handler import MCPLambdaHandler
 import httpx
 
 # FastAPI and Lambda adapter
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from mangum import Mangum
@@ -160,7 +160,21 @@ fastapi_app = FastAPI(
     docs_url=None,  # Disable built-in docs to avoid async issues
     openapi_url="/openapi.json",
     # Configure for API Gateway path
-    root_path="/Prod"
+    root_path="/Prod",
+    servers=[
+        {
+            "url": "https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod",
+            "description": "Development environment"
+        },
+        {
+            "url": "https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod", 
+            "description": "Production environment"
+        },
+        {
+            "url": "http://localhost:3000",
+            "description": "Local development server"
+        }
+    ]
 )
 
 # Add CORS middleware to enable external Swagger UI access
@@ -186,6 +200,10 @@ print(f"🔧 Registered {len(registry.get_mcp_functions())} MCP tools from funct
 # Auto-register all @api_function decorated functions with FastAPI
 FastAPIIntegration.register_rest_routes(fastapi_app, registry)
 print(f"🌐 Registered {len(registry.get_rest_functions())} REST routes from function registry")
+
+# Update OpenAPI schema with proper parameter definitions
+FastAPIIntegration.update_openapi_schema(fastapi_app, registry)
+print("📝 Updated OpenAPI schema with registry-generated documentation")
 
 # Create Mangum handler for FastAPI with proper async support
 fastapi_handler = Mangum(fastapi_app, lifespan="off")
@@ -237,22 +255,22 @@ async def root():
 
 # Removed manual /api/account/{wallet_address}/info endpoint - replaced with auto-generated /api/fm_account_info/{wallet_address} from unified registry
 
-def _generate_docs_html():
+def _generate_docs_html(base_url: str):
     """Generate the documentation HTML content (sync function for thread pool execution)"""
-    html_content = """
+    html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <title>PB-FM API Documentation</title>
         <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@3.25.0/swagger-ui.css" />
         <style>
-            body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-            .header { background: #1f8aed; color: white; padding: 20px; margin: -20px -20px 20px -20px; }
-            .quick-links { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-            .endpoint { background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 15px; margin: 10px 0; }
-            .method { font-weight: bold; color: #1f8aed; }
-            a { color: #1f8aed; text-decoration: none; }
-            a:hover { text-decoration: underline; }
+            body {{ margin: 0; padding: 20px; font-family: Arial, sans-serif; }}
+            .header {{ background: #1f8aed; color: white; padding: 20px; margin: -20px -20px 20px -20px; }}
+            .quick-links {{ background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
+            .endpoint {{ background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 15px; margin: 10px 0; }}
+            .method {{ font-weight: bold; color: #1f8aed; }}
+            a {{ color: #1f8aed; text-decoration: none; }}
+            a:hover {{ text-decoration: underline; }}
         </style>
     </head>
     <body>
@@ -266,9 +284,9 @@ def _generate_docs_html():
             <p><strong>OpenAPI Spec:</strong> <a href="/Prod/openapi.json" target="_blank">/Prod/openapi.json</a></p>
             <p><strong>Interactive Swagger UI Options:</strong></p>
             <ul style="margin-left: 20px;">
-                <li><a href="https://generator3.swagger.io/index.html?url=https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/openapi.json" target="_blank">Swagger UI</a></li>
+                <li><a href="https://generator3.swagger.io/index.html?url={base_url}/openapi.json" target="_blank">Swagger UI</a></li>
                 <li><a href="https://editor.swagger.io/" target="_blank">Swagger Editor</a> (manual: File → Import URL → paste OpenAPI URL)</li>
-                <li><a href="https://redoc.ly/redoc/?url=https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/openapi.json" target="_blank">ReDoc Documentation</a></li>
+                <li><a href="https://redoc.ly/redoc/?url={base_url}/openapi.json" target="_blank">ReDoc Documentation</a></li>
             </ul>
         </div>
 
@@ -281,13 +299,13 @@ def _generate_docs_html():
         </div>
 
         <div class="endpoint">
-            <div class="method">GET /api/account/{wallet_address}/balance</div>
+            <div class="method">GET /api/account/{{wallet_address}}/balance</div>
             <p>Get account balance data for a wallet address</p>
             <p><a href="/Prod/api/account/pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8/balance" target="_blank">Try example →</a></p>
         </div>
 
         <div class="endpoint">
-            <div class="method">GET /api/account/{wallet_address}/info</div>
+            <div class="method">GET /api/account/{{wallet_address}}/info</div>
             <p>Get account info and vesting status for a wallet address</p>
             <p><a href="/Prod/api/account/pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8/info" target="_blank">Try example →</a></p>
         </div>
@@ -301,15 +319,15 @@ def _generate_docs_html():
         <h3>💡 Usage Examples</h3>
         <pre style="background: #f8f9fa; padding: 15px; border-radius: 6px; overflow-x: auto;">
 # Get all trading pairs
-curl "https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/api/markets"
+curl "{base_url}/api/markets"
 
 # Get account balance  
-curl "https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/api/account/pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8/balance"
+curl "{base_url}/api/account/pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8/balance"
 
 # MCP protocol example
-curl -X POST "https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/mcp" \\
+curl -X POST "{base_url}/mcp" \\
   -H "Content-Type: application/json" \\
-  -d '{"method": "tools/list", "params": {}, "jsonrpc": "2.0", "id": 1}'
+  -d '{{"method": "tools/list", "params": {{}}, "jsonrpc": "2.0", "id": 1}}'
         </pre>
     </body>
     </html>
@@ -317,11 +335,16 @@ curl -X POST "https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/mcp" \
     return html_content
 
 @fastapi_app.get("/docs", response_class=HTMLResponse)
-async def custom_docs():
+async def custom_docs(request: Request):
     """Custom documentation page that works with Lambda async context"""
+    # Determine the base URL from the request
+    host = request.headers.get("host", "localhost:3000")
+    scheme = "https" if "execute-api" in host else "http"
+    base_url = f"{scheme}://{host}/Prod"
+    
     # Use thread pool to avoid event loop issues in Lambda
     loop = asyncio.get_event_loop()
-    html_content = await loop.run_in_executor(None, _generate_docs_html)
+    html_content = await loop.run_in_executor(None, _generate_docs_html, base_url)
     return HTMLResponse(content=html_content)
 
 #########################################################################################
