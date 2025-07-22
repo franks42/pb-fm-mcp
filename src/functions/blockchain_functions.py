@@ -529,8 +529,9 @@ async def fetch_wallet_liquid_balance(wallet_address: str) -> JSONType:
         
     Returns:
         Dictionary containing:
-        - wallet_liquid_balance: Available liquid HASH amount in the wallet
-        - denom: Token denomination (nhash)
+        - wallet_liquid_balance: Available liquid HASH amount with standardized amount/denom structure
+          - amount: Liquid HASH amount in nhash
+          - denom: Token denomination (nhash)
         
     Raises:
         HTTPError: If the Provenance blockchain API is unavailable
@@ -548,14 +549,18 @@ async def fetch_wallet_liquid_balance(wallet_address: str) -> JSONType:
         for balance in balance_list:
             if balance.get('denom') == 'nhash':
                 return {
-                    'wallet_liquid_balance': parse_amount(balance['amount']),
-                    'denom': balance['denom']
+                    'wallet_liquid_balance': {
+                        'amount': parse_amount(balance['amount']),
+                        'denom': balance['denom']
+                    }
                 }
         
         # No HASH found - return zero balance
         return {
-            'wallet_liquid_balance': 0,
-            'denom': 'nhash'
+            'wallet_liquid_balance': {
+                'amount': 0,
+                'denom': 'nhash'
+            }
         }
         
     except Exception as e:
