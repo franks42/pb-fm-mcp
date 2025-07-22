@@ -85,7 +85,8 @@
       "Bash(sam build)",
       "Bash(git checkout:*)",
       "Bash(./scripts/validate-and-update-docs.sh:*)",
-      "Bash(sam list:*)"
+      "Bash(sam list:*)",
+      "Bash(export TEST_WALLET_ADDRESS=*)"
     ],
     "deny": []
   }

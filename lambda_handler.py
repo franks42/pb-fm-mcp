@@ -301,13 +301,13 @@ def _generate_docs_html(base_url: str):
         <div class="endpoint">
             <div class="method">GET /api/account/{{wallet_address}}/balance</div>
             <p>Get account balance data for a wallet address</p>
-            <p><a href="/Prod/api/account/pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8/balance" target="_blank">Try example →</a></p>
+            <p>Example: /Prod/api/account/$TEST_WALLET_ADDRESS/balance</p>
         </div>
 
         <div class="endpoint">
             <div class="method">GET /api/account/{{wallet_address}}/info</div>
             <p>Get account info and vesting status for a wallet address</p>
-            <p><a href="/Prod/api/account/pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8/info" target="_blank">Try example →</a></p>
+            <p>Example: /Prod/api/account/$TEST_WALLET_ADDRESS/info</p>
         </div>
 
         <div class="endpoint">
@@ -322,7 +322,7 @@ def _generate_docs_html(base_url: str):
 curl "{base_url}/api/markets"
 
 # Get account balance  
-curl "{base_url}/api/account/pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8/balance"
+curl "{base_url}/api/account/$TEST_WALLET_ADDRESS/balance"
 
 # MCP protocol example
 curl -X POST "{base_url}/mcp" \\

@@ -1,6 +1,6 @@
 {
   "accountType": "Continuous Vesting Account",
-  "address": "pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8",
+  "address": "pb1example_wallet_address_placeholder",
   "accountNumber": 1290,
   "sequence": 124,
   "publicKey": {
@@ -9,7 +9,7 @@
     "sigList": [
       {
         "idx": 0,
-        "address": "pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8"
+        "address": "pb1example_wallet_address_placeholder"
       }
     ]
   },

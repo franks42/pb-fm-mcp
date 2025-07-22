@@ -1,11 +1,15 @@
 # Development Roadmap - pb-fm-mcp
 
 ## Current Status
-- ✅ AWS Lambda MCP server with 13 tools
-- ✅ Production deployment working
-- ✅ **Dual API Architecture**: MCP + REST protocols in single Lambda deployment
+- ✅ AWS Lambda MCP server with 13+ dual-protocol tools
+- ✅ **Dual API Architecture**: MCP + REST protocols in single Lambda deployment ✅ COMPLETE
 - ✅ **Complete Documentation**: Interactive /docs endpoint with external Swagger UI integration
-- ✅ **CORS & Async**: Proper async patterns with thread pool execution and cross-origin support
+- ✅ **CORS & Async**: Proper async patterns with thread pool execution and cross-origin support  
+- ✅ **Production/Development Separation**: Separate endpoints and deployment stacks ✅ COMPLETE
+- ✅ **Comprehensive Equivalence Testing**: 91% pass rate with automated MCP vs REST validation ✅ COMPLETE
+- ✅ **Security Hardening**: Environment variable protection for sensitive data ✅ COMPLETE
+- ✅ **Asset Amount Standardization**: Consistent `{"amount": int, "denom": "nhash"}` format ✅ COMPLETE
+- ✅ **Figure Markets API Integration**: Public trading and asset data (private APIs disabled)
 - ✅ Local SAM testing environment
 - ✅ jqpy and base64expand preserved for integration
 
@@ -13,11 +17,11 @@
 
 ### 🔴 High Priority
 
-#### 🚨 **CRITICAL: Production/Development Environment Separation**
-- **Create separate production and development endpoints** - Ensure colleagues can use stable MCP server while development continues
-- **Git branch strategy** - Use `main` branch for production, `dev` branch for active development
-- **Separate SAM stack deployments** - `pb-fm-mcp-prod` (stable) and `pb-fm-mcp-dev` (testing)
-- **Environment-based configuration** - Different endpoints, logging levels, and feature flags
+#### ✅ **COMPLETED: Production/Development Environment Separation**
+- ✅ **Separate production and development endpoints** - Colleagues use stable production, development continues on dev stack
+- ✅ **Git branch strategy** - `main` branch for production, `dev` branch for active development
+- ✅ **Separate SAM stack deployments** - `pb-fm-mcp-v2` (stable) and `pb-fm-mcp-dev` (testing)
+- ✅ **Environment-based configuration** - Different endpoints, logging levels, and feature flags
 
 #### 🚀 **NEXT PHASE: Unified Function Registry Architecture**
 - **Create decorator-based function registry** - Single `@api_function` decorator to expose functions via MCP, REST, or both

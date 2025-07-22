@@ -134,13 +134,14 @@ async def fetch_last_crypto_token_price(token_pair: str = "HASH-USD", last_numbe
     return response
 
 
-@api_function(
-    protocols=["mcp", "rest"], 
-    path="/api/fm_account_balance/{wallet_address}",
-    method="GET",
-    tags=["account", "balance", "markets"],
-    description="Fetch Figure Markets account balance data"
-)
+# NOTE: This API endpoint is not publicly accessible - Figure Markets account APIs are private
+# @api_function(
+#     protocols=["mcp", "rest"], 
+#     path="/api/fm_account_balance/{wallet_address}",
+#     method="GET",
+#     tags=["account", "balance", "markets"],
+#     description="Fetch Figure Markets account balance data"
+# )
 async def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONType:
     """
     Fetch the current account balance data from the Figure Markets exchange 
@@ -160,7 +161,7 @@ async def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONType
     Raises:
         HTTPError: If the Figure Markets API is unavailable
     """
-    url = f'https://api.figuremarkets.com/service-account-balance/api/v1/account/{wallet_address}/balance'
+    url = f'https://www.figuremarkets.com/service-account-balance/api/v1/account/{wallet_address}/balance'
     
     # Run sync HTTP call in thread pool to avoid event loop conflicts  
     import asyncio
@@ -177,13 +178,14 @@ async def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONType
     return response
 
 
-@api_function(
-    protocols=["mcp", "rest"],
-    path="/api/fm_account_info/{wallet_address}",
-    method="GET", 
-    tags=["account", "info", "markets"],
-    description="Fetch Figure Markets account information"
-)
+# NOTE: This API endpoint is not publicly accessible - Figure Markets account APIs are private
+# @api_function(
+#     protocols=["mcp", "rest"],
+#     path="/api/fm_account_info/{wallet_address}",
+#     method="GET", 
+#     tags=["account", "info", "markets"],
+#     description="Fetch Figure Markets account information"
+# )
 async def fetch_current_fm_account_info(wallet_address: str) -> JSONType:
     """
     Fetch comprehensive account information from Figure Markets exchange
@@ -198,7 +200,7 @@ async def fetch_current_fm_account_info(wallet_address: str) -> JSONType:
     Raises:
         HTTPError: If the Figure Markets API is unavailable
     """
-    url = f'https://api.figuremarkets.com/service-account/api/v1/account/{wallet_address}'
+    url = f'https://www.figuremarkets.com/service-account/api/v1/account/{wallet_address}'
     
     # Run sync HTTP call in thread pool to avoid event loop conflicts
     import asyncio
@@ -239,7 +241,7 @@ async def fetch_figure_markets_assets_info() -> JSONType:
     Raises:
         HTTPError: If the Figure Markets API is unavailable
     """
-    url = 'https://figuremarkets.com/service-hft-exchange/api/v1/assets'
+    url = 'https://www.figuremarkets.com/service-hft-exchange/api/v1/assets'
     
     # Run sync HTTP call in thread pool to avoid event loop conflicts
     import asyncio
@@ -250,8 +252,12 @@ async def fetch_figure_markets_assets_info() -> JSONType:
         # No event loop - call directly (shouldn't happen in async function)
         response = http_get_json(url)
     
-    if response.get("MCP-ERROR"):
+    if isinstance(response, dict) and response.get("MCP-ERROR"):
         return response
+    
+    # Ensure we have valid response structure
+    if not isinstance(response, dict) or 'data' not in response:
+        return {"MCP-ERROR": f"Invalid response structure: {type(response)}"}
     
     asset_details_list = [{
         'asset_name': details['name'],
