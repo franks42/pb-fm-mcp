@@ -586,8 +586,9 @@ async def fetch_available_committed_amount(wallet_address: str) -> JSONType:
         
     Returns:
         Dictionary containing:
-        - denom: Token/HASH denomination (nhash)
-        - available_committed_amount: Amount of denom committed to the exchange
+        - available_committed_amount: Committed HASH amount with standardized amount/denom structure
+          - amount: HASH amount committed to the exchange in nhash
+          - denom: Token denomination (nhash)
         
     Raises:
         HTTPError: If the Provenance blockchain API is unavailable
@@ -612,8 +613,10 @@ async def fetch_available_committed_amount(wallet_address: str) -> JSONType:
             available_committed_amount = parse_amount(hash_amount_dict_list[0]["amount"])
         
         hash_amount_dict = {
-            "denom": "nhash",
-            "available_committed_amount": available_committed_amount
+            "available_committed_amount": {
+                "amount": available_committed_amount,
+                "denom": "nhash"
+            }
         }
         
         return hash_amount_dict
