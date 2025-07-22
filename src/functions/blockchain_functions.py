@@ -512,6 +512,58 @@ async def fetch_vesting_total_unvested_amount(wallet_address: str, date_time: st
 
 
 @api_function(
+    protocols=["rest"],
+    path="/api/wallet_liquid_balance/{wallet_address}",
+    method="GET",
+    tags=["balance", "blockchain"],
+    description="Fetch liquid HASH balance available in wallet"
+)
+async def fetch_wallet_liquid_balance(wallet_address: str) -> JSONType:
+    """
+    Fetch the current liquid HASH balance available in the wallet (not delegated or committed).
+    
+    This is the amount that can be immediately spent, transferred, or delegated.
+    
+    Args:
+        wallet_address: Wallet's Bech32 address
+        
+    Returns:
+        Dictionary containing:
+        - wallet_liquid_balance: Available liquid HASH amount in the wallet
+        - denom: Token denomination (nhash)
+        
+    Raises:
+        HTTPError: If the Provenance blockchain API is unavailable
+    """
+    try:
+        url = f"https://service-explorer.provenance.io/api/v2/accounts/{wallet_address}/balances"
+        params = {"count": 20, "page": 1}
+        response = await async_http_get_json(url, params=params)
+        
+        if response.get("MCP-ERROR"):
+            return response
+            
+        # Find HASH balance in the results
+        balance_list = response.get('results', [])
+        for balance in balance_list:
+            if balance.get('denom') == 'nhash':
+                return {
+                    'wallet_liquid_balance': parse_amount(balance['amount']),
+                    'denom': balance['denom']
+                }
+        
+        # No HASH found - return zero balance
+        return {
+            'wallet_liquid_balance': 0,
+            'denom': 'nhash'
+        }
+        
+    except Exception as e:
+        logger.error(f"Could not fetch wallet liquid balance: {e}")
+        return {"MCP-ERROR": f"Wallet balance fetch error: {str(e)}"}
+
+
+@api_function(
     protocols=["mcp", "rest"],
     path="/api/available_committed_amount/{wallet_address}",
     method="GET",
@@ -564,3 +616,146 @@ async def fetch_available_committed_amount(wallet_address: str) -> JSONType:
     except Exception as e:
         logger.error(f"Could not fetch committed amount: {e}")
         return {"MCP-ERROR": f"Committed amount fetch error: {str(e)}"}
+
+
+# @api_function(
+#     protocols=["mcp", "rest"],
+#     path="/api/complete_hash_summary/{wallet_address}",
+#     method="GET",
+#     tags=["aggregates", "hash", "summary"],
+#     description="Get comprehensive summary of all HASH amounts for a wallet across all sources"
+# )
+# async def fetch_complete_hash_summary(wallet_address: str) -> JSONType:
+#     """
+#     Comprehensive summary of all HASH amounts for a wallet including liquid balance,
+#     delegation amounts, committed amounts, and vesting amounts (if applicable).
+    
+#     This function aggregates HASH from all possible sources to provide the most complete
+#     picture of a wallet's total HASH holdings across the entire ecosystem.
+    
+#     Args:
+#         wallet_address: Wallet's Bech32 address
+        
+#     Returns:
+#         Dictionary containing complete HASH breakdown:
+#         - wallet_liquid_balance: Liquid HASH in wallet (immediately spendable)
+#         - delegated_total_amount: Total HASH delegated to validators (from delegation summary)
+#         - delegated_earning_amount: HASH earning rewards (staked + redelegated)
+#         - delegated_rewards_amount: HASH rewards available to claim
+#         - committed_amount: HASH committed to Figure Markets exchange
+#         - vesting_unvested_amount: HASH still vesting (if vesting account)
+#         - total_hash_all_sources: Grand total of all HASH across all sources
+#         - hash_breakdown: Detailed breakdown by category
+#         - account_classification: Categorization based on HASH distribution
+        
+#     Raises:
+#         HTTPError: If any of the blockchain APIs are unavailable
+#     """
+#     logger.info(f"Fetching complete HASH summary for {wallet_address}")
+    
+#     # First check if account is vesting to determine which data to fetch
+#     is_vesting_task = fetch_account_is_vesting(wallet_address)
+#     is_vesting_result = await is_vesting_task
+    
+#     if is_vesting_result.get("MCP-ERROR"):
+#         return is_vesting_result
+    
+#     is_vesting_account = is_vesting_result.get("wallet_is_vesting", False)
+    
+#     # Define base tasks that we always need
+#     base_tasks = [
+#         fetch_wallet_liquid_balance(wallet_address),
+#         fetch_total_delegation_data(wallet_address),
+#         fetch_available_committed_amount(wallet_address)
+#     ]
+    
+#     # Add vesting task if account is vesting
+#     if is_vesting_account:
+#         base_tasks.append(fetch_vesting_total_unvested_amount(wallet_address))
+    
+#     # Execute all tasks concurrently
+#     results = await asyncio.gather(*base_tasks, return_exceptions=True)
+    
+#     # Extract results with error handling
+#     liquid_balance = results[0] if not isinstance(results[0], Exception) else {"MCP-ERROR": str(results[0])}
+#     delegation_data = results[1] if not isinstance(results[1], Exception) else {"MCP-ERROR": str(results[1])}
+#     committed_data = results[2] if not isinstance(results[2], Exception) else {"MCP-ERROR": str(results[2])}
+    
+#     # Handle vesting data if account is vesting
+#     vesting_data = {}
+#     if is_vesting_account and len(results) > 3:
+#         vesting_data = results[3] if not isinstance(results[3], Exception) else {"MCP-ERROR": str(results[3])}
+    
+#     # Check for critical errors
+#     if liquid_balance.get("MCP-ERROR") or delegation_data.get("MCP-ERROR"):
+#         error_msg = liquid_balance.get("MCP-ERROR") or delegation_data.get("MCP-ERROR")
+#         return {"MCP-ERROR": f"Critical data fetch error: {error_msg}"}
+    
+#     try:
+#         # Extract individual amounts
+#         liquid_amount = liquid_balance.get("wallet_liquid_balance", 0)
+#         committed_amount = committed_data.get("available_committed_amount", 0) if not committed_data.get("MCP-ERROR") else 0
+        
+#         # Extract delegation amounts using the amount/denom structure
+#         delegation_total_amount_data = delegation_data.get("delegated_total_delegated_amount", {"amount": 0})
+#         delegation_earning_amount_data = delegation_data.get("delegated_earning_amount", {"amount": 0})
+#         delegation_rewards_amount_data = delegation_data.get("delegated_rewards_amount", {"amount": 0})
+        
+#         delegation_total = delegation_total_amount_data.get("amount", 0)
+#         delegation_earning = delegation_earning_amount_data.get("amount", 0)
+#         delegation_rewards = delegation_rewards_amount_data.get("amount", 0)
+#         staking_validators = delegation_data.get("staking_validators", 0)
+        
+#         # Extract vesting amount if applicable
+#         vesting_unvested_amount = 0
+#         if is_vesting_account and not vesting_data.get("MCP-ERROR"):
+#             vesting_unvested_amount = vesting_data.get("vesting_total_unvested_amount", 0)
+        
+#         # Calculate total across all sources
+#         total_hash_all_sources = liquid_amount + delegation_total + committed_amount + vesting_unvested_amount
+        
+#         # Create detailed breakdown
+#         hash_breakdown = {
+#             "liquid_hash": liquid_amount,
+#             "delegated_hash": delegation_total,
+#             "committed_hash": committed_amount,
+#             "vesting_hash": vesting_unvested_amount,
+#             "total_earning_hash": delegation_earning,
+#             "claimable_rewards_hash": delegation_rewards
+#         }
+        
+#         # Classify account based on HASH distribution
+#         account_classification = []
+#         if liquid_amount > 0:
+#             account_classification.append("liquid_holder")
+#         if delegation_total > 0:
+#             account_classification.append("validator_delegator")
+#         if committed_amount > 0:
+#             account_classification.append("trading_participant")
+#         if vesting_unvested_amount > 0:
+#             account_classification.append("vesting_participant")
+#         if delegation_rewards > (delegation_total * 0.01):  # More than 1% rewards
+#             account_classification.append("rewards_accumulator")
+        
+#         # Build comprehensive response
+#         result = {
+#             "wallet_address": wallet_address,
+#             "is_vesting_account": is_vesting_account,
+#             "wallet_liquid_balance": liquid_amount,
+#             "delegated_total_amount": delegation_total,
+#             "delegated_earning_amount": delegation_earning,
+#             "delegated_rewards_amount": delegation_rewards,
+#             "staking_validators": staking_validators,
+#             "committed_amount": committed_amount,
+#             "vesting_unvested_amount": vesting_unvested_amount,
+#             "total_hash_all_sources": total_hash_all_sources,
+#             "hash_breakdown": hash_breakdown,
+#             "account_classification": account_classification,
+#             "denom": "nhash"
+#         }
+        
+#         return result
+        
+#     except Exception as e:
+#         logger.error(f"Could not calculate HASH summary: {e}")
+#         return {"MCP-ERROR": f"HASH summary calculation error: {str(e)}"}
