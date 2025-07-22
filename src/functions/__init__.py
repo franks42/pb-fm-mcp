@@ -32,10 +32,16 @@ try:
 except Exception as e:
     print(f"❌ Failed to import aggregate_functions: {e}")
 
+try:
+    from . import system_functions
+except Exception as e:
+    print(f"❌ Failed to import system_functions: {e}")
+
 __all__ = [
     "stats_functions",
     "delegation_functions", 
     "blockchain_functions",
     "figure_markets_functions",
     "aggregate_functions",
+    "system_functions",
 ]

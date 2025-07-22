@@ -93,6 +93,7 @@ class RESTTestClient:
     
     def __init__(self, base_url: str = DEV_BASE_URL):
         self.base_url = base_url
+        print(f"🌐 REST client using: {self.base_url}")
     
     async def call_endpoint(self, path: str, method: str = "GET") -> Dict[str, Any]:
         """Call a REST API endpoint"""
