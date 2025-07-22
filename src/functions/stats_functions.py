@@ -137,8 +137,12 @@ async def get_system_context() -> JSONType:
                 response.raise_for_status()
                 return response.text
         
-        loop = asyncio.get_event_loop()
-        context_text = await loop.run_in_executor(None, fetch_context)
+        try:
+            loop = asyncio.get_running_loop()
+            context_text = await loop.run_in_executor(None, fetch_context)
+        except RuntimeError:
+            # No event loop - call directly (shouldn't happen in async function)
+            context_text = fetch_context()
         
         return {'context': context_text}
         

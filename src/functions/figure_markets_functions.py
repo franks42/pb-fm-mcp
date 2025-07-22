@@ -80,8 +80,12 @@ async def fetch_current_fm_data() -> JSONType:
     
     # Run sync HTTP call in thread pool to avoid event loop conflicts
     import asyncio
-    loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, http_get_json, url)
+    try:
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(None, http_get_json, url)
+    except RuntimeError:
+        # No event loop - call directly (shouldn't happen in async function)
+        response = http_get_json(url)
     
     if response.get("MCP-ERROR"):
         return response
@@ -117,8 +121,12 @@ async def fetch_last_crypto_token_price(token_pair: str = "HASH-USD", last_numbe
     
     # Run sync HTTP call in thread pool to avoid event loop conflicts
     import asyncio
-    loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, http_get_json, url, params)
+    try:
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(None, http_get_json, url, params)
+    except RuntimeError:
+        # No event loop - call directly (shouldn't happen in async function)
+        response = http_get_json(url, params)
     
     if response.get("MCP-ERROR"):
         return response
@@ -156,8 +164,12 @@ async def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONType
     
     # Run sync HTTP call in thread pool to avoid event loop conflicts  
     import asyncio
-    loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, http_get_json, url)
+    try:
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(None, http_get_json, url)
+    except RuntimeError:
+        # No event loop - call directly (shouldn't happen in async function)
+        response = http_get_json(url)
     
     if response.get("MCP-ERROR"):
         return response
@@ -190,8 +202,12 @@ async def fetch_current_fm_account_info(wallet_address: str) -> JSONType:
     
     # Run sync HTTP call in thread pool to avoid event loop conflicts
     import asyncio
-    loop = asyncio.get_event_loop() 
-    response = await loop.run_in_executor(None, http_get_json, url)
+    try:
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(None, http_get_json, url)
+    except RuntimeError:
+        # No event loop - call directly (shouldn't happen in async function)
+        response = http_get_json(url)
     
     if response.get("MCP-ERROR"):
         return response
@@ -227,8 +243,12 @@ async def fetch_figure_markets_assets_info() -> JSONType:
     
     # Run sync HTTP call in thread pool to avoid event loop conflicts
     import asyncio
-    loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, http_get_json, url)
+    try:
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(None, http_get_json, url)
+    except RuntimeError:
+        # No event loop - call directly (shouldn't happen in async function)
+        response = http_get_json(url)
     
     if response.get("MCP-ERROR"):
         return response
