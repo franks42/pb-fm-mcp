@@ -27,8 +27,11 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from mangum import Mangum
 
 # Unified Function Registry  
-from registry import get_registry, MCPIntegration, FastAPIIntegration
-import functions  # This will register all @api_function decorated functions
+from src.registry import get_registry, MCPIntegration, FastAPIIntegration
+import src.functions as functions  # This will register all @api_function decorated functions
+
+# Version management
+from version import get_version_string, get_full_version_info
 
 #########################################################################################
 # helper functions
@@ -149,8 +152,8 @@ def http_get_json(
 # Initialize MCP Server for AWS Lambda
 #########################################################################################
 
-# Initialize the MCP server with a name and version
-mcp_server = MCPLambdaHandler(name="pb-fm-mcp", version="0.1.0")
+# Initialize the MCP server with dynamic version
+mcp_server = MCPLambdaHandler(name="pb-fm-mcp", version=get_version_string())
 
 # Initialize FastAPI app for REST endpoints
 fastapi_app = FastAPI(
@@ -238,9 +241,14 @@ fastapi_handler = Mangum(fastapi_app, lifespan="off")
 @fastapi_app.get("/")
 async def root():
     """Root endpoint with API information"""
+    version_info = get_full_version_info()
     return {
         "name": "PB-FM API",
-        "version": "0.1.0",
+        "version": version_info["version"],
+        "build_number": version_info["build_number"],
+        "build_datetime": version_info["build_datetime"],
+        "last_deployment": version_info["last_deployment"],
+        "environment": version_info["deployment_environment"],
         "description": "REST API for Provenance Blockchain and Figure Markets data",
         "endpoints": {
             "docs": "/docs",
@@ -480,7 +488,7 @@ def lambda_handler(event, context):
                     },
                     'body': json.dumps({
                         'name': 'pb-fm-mcp',
-                        'version': '0.1.0',
+                        'version': get_version_string(),
                         'transport': 'http',  # HTTP-only transport
                         'capabilities': {
                             'tools': True,

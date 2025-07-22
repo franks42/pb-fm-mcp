@@ -151,13 +151,13 @@ class FastAPIIntegration:
                         if asyncio.iscoroutinefunction(function_meta.func):
                             result = await function_meta.func(**kwargs)
                         else:
-                            # Sync function - use thread executor if in async context
-                            try:
-                                loop = asyncio.get_running_loop()
-                                result = await loop.run_in_executor(None, lambda: function_meta.func(**kwargs))
-                            except RuntimeError:
-                                # No event loop - call directly (shouldn't happen in FastAPI context)
-                                result = function_meta.func(**kwargs)
+                            # For sync functions in FastAPI async route handler,
+                            # use thread pool executor without checking for event loop
+                            # This avoids the "no current event loop" error in Lambda
+                            import concurrent.futures
+                            with concurrent.futures.ThreadPoolExecutor() as pool:
+                                future = pool.submit(function_meta.func, **kwargs)
+                                result = future.result()
                         
                         # Handle error responses
                         if isinstance(result, dict) and result.get("MCP-ERROR"):

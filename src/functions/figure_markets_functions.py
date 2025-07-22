@@ -12,11 +12,14 @@ import structlog
 # Handle import for both relative and absolute path contexts
 try:
     from ..registry import api_function
+    from ..utils import async_http_get_json
 except ImportError:
     try:
         from registry import api_function
+        from utils import async_http_get_json
     except ImportError:
         from src.registry import api_function
+        from src.utils import async_http_get_json
 
 # Set up logging
 logger = structlog.get_logger()
@@ -24,30 +27,6 @@ logger = structlog.get_logger()
 # Type alias for JSON response
 JSONType = Dict[str, Any]
 
-# Helper function for sync HTTP GET requests (Figure Markets APIs)
-def http_get_json(url: str, params=None) -> JSONType:
-    """
-    Helper function for sync HTTP GET requests with JSON response for Figure Markets APIs.
-    
-    Args:
-        url: The URL to fetch
-        params: Optional query parameters
-        
-    Returns:
-        JSON response as dictionary or error dict
-    """
-    try:
-        with httpx.Client() as client:
-            client.headers['accept-encoding'] = 'identity'
-            response = client.get(url, params=params, timeout=30.0)
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPError as e:
-        logger.error(f"HTTP error fetching {url}: {e}")
-        return {"MCP-ERROR": f"HTTP error: {str(e)}"}
-    except Exception as e:
-        logger.error(f"Unexpected error fetching {url}: {e}")
-        return {"MCP-ERROR": f"Unexpected error: {str(e)}"}
 
 
 #########################################################################################
@@ -78,14 +57,8 @@ async def fetch_current_fm_data() -> JSONType:
     """
     url = 'https://www.figuremarkets.com/service-hft-exchange/api/v1/markets'
     
-    # Run sync HTTP call in thread pool to avoid event loop conflicts
-    import asyncio
-    try:
-        loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(None, http_get_json, url)
-    except RuntimeError:
-        # No event loop - call directly (shouldn't happen in async function)
-        response = http_get_json(url)
+    # Use async HTTP call directly
+    response = await async_http_get_json(url)
     
     if response.get("MCP-ERROR"):
         return response
@@ -120,13 +93,8 @@ async def fetch_last_crypto_token_price(token_pair: str = "HASH-USD", last_numbe
     params = {'size': last_number_of_trades}
     
     # Run sync HTTP call in thread pool to avoid event loop conflicts
-    import asyncio
-    try:
-        loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(None, http_get_json, url, params)
-    except RuntimeError:
-        # No event loop - call directly (shouldn't happen in async function)
-        response = http_get_json(url, params)
+    # Use async HTTP call directly
+    response = await async_http_get_json(url, params=params)
     
     if response.get("MCP-ERROR"):
         return response
@@ -164,13 +132,8 @@ async def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONType
     url = f'https://www.figuremarkets.com/service-account-balance/api/v1/account/{wallet_address}/balance'
     
     # Run sync HTTP call in thread pool to avoid event loop conflicts  
-    import asyncio
-    try:
-        loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(None, http_get_json, url)
-    except RuntimeError:
-        # No event loop - call directly (shouldn't happen in async function)
-        response = http_get_json(url)
+    # Use async HTTP call directly
+    response = await async_http_get_json(url)
     
     if response.get("MCP-ERROR"):
         return response
@@ -202,14 +165,8 @@ async def fetch_current_fm_account_info(wallet_address: str) -> JSONType:
     """
     url = f'https://www.figuremarkets.com/service-account/api/v1/account/{wallet_address}'
     
-    # Run sync HTTP call in thread pool to avoid event loop conflicts
-    import asyncio
-    try:
-        loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(None, http_get_json, url)
-    except RuntimeError:
-        # No event loop - call directly (shouldn't happen in async function)
-        response = http_get_json(url)
+    # Use async HTTP call directly
+    response = await async_http_get_json(url)
     
     if response.get("MCP-ERROR"):
         return response
@@ -243,14 +200,8 @@ async def fetch_figure_markets_assets_info() -> JSONType:
     """
     url = 'https://www.figuremarkets.com/service-hft-exchange/api/v1/assets'
     
-    # Run sync HTTP call in thread pool to avoid event loop conflicts
-    import asyncio
-    try:
-        loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(None, http_get_json, url)
-    except RuntimeError:
-        # No event loop - call directly (shouldn't happen in async function)
-        response = http_get_json(url)
+    # Use async HTTP call directly
+    response = await async_http_get_json(url)
     
     if isinstance(response, dict) and response.get("MCP-ERROR"):
         return response

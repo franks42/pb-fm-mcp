@@ -19,13 +19,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
+### 🚨 CRITICAL: Function Naming Standards
+**NEVER change existing function names without explicit user approval. This breaks integrations.**
+- **Standard**: Use snake_case (e.g., `fetch_current_hash_statistics`)
+- **Legacy**: Production may have camelCase (e.g., `fetchCurrentHashStatistics`) 
+- **Rule**: Always ask before renaming ANY function - this is a breaking change
+
+### 🚨 IMPORTANT: Always use `uv` for Python execution
+**ALWAYS use `uv run python` instead of `python` or `python3` for all Python scripts and commands.**
+
 ### AWS Lambda Development (Current)
 - **Local Testing**: `sam build && sam local start-api --port 3000`
 - **Deploy Production**: `sam build && sam deploy --resolve-s3`
 - **Deploy Development**: `sam build && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
 - **Testing**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
-- **Equivalence Testing**: `python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
-- **Linting**: `uv ruff check .`
+- **Equivalence Testing**: `uv run python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
+- **Linting**: `uv run ruff check .`
+- **Python Scripts**: `uv run python script.py` (always use uv for dependency management)
 
 ### 🚨 DEPLOYMENT ENVIRONMENTS
 
@@ -117,19 +127,32 @@ The server exposes numerous tools for:
 This eliminates any impedance mismatch between protocols and creates a clean data dictionary where function names directly correspond to API paths and response keys.
 
 ### Current Development Focus
-**Phase 1 Complete**: Dual API architecture (MCP + REST) successfully implemented ✅
+**Phase 1 & 2 Complete**: Unified Function Registry Architecture fully implemented ✅
 
 ✅ **PHASE 1 COMPLETE**: Production/Development Environment Separation  
 - Separate endpoints: Production (stable) + Development (testing) ✅
 - Git branch strategy: `main` (production) vs `dev` (development) ✅  
 - Separate SAM stack deployments: Colleagues' integrations protected ✅
 
-**Phase 2**: Unified Function Registry Architecture
-- Decorator-based function registry with `@api_function` for auto-generation
-- Modular business function structure in domain-specific files
-- Auto-generate both MCP tools and REST endpoints from single function definitions
-- **Single-source documentation**: Function docstrings automatically become both MCP tool descriptions AND OpenAPI documentation
-- Full typing system with automatic validation and OpenAPI schema generation
+✅ **PHASE 2 COMPLETE**: Unified Function Registry Architecture
+- ✅ Decorator-based function registry with `@api_function` for auto-generation
+- ✅ Modular business function structure in domain-specific files
+- ✅ Auto-generate both MCP tools and REST endpoints from single function definitions
+- ✅ **Single-source documentation**: Function docstrings automatically become both MCP tool descriptions AND OpenAPI documentation
+- ✅ Full typing system with automatic validation and OpenAPI schema generation
+
+✅ **PHASE 2.5 COMPLETE**: System Operations & Monitoring
+- ✅ **Version Management**: Automated semantic versioning with build tracking (v0.1.5)
+- ✅ **System Introspection**: Registry analysis tools showing 21 functions, 16 MCP tools, 19 REST endpoints
+- ✅ **Lambda Warming**: Ultra-fast ping function for cold start mitigation (<100ms)
+- ✅ **Cross-Server Testing**: Dev-to-prod MCP communication testing with performance analysis
+- ✅ **Deployment Automation**: One-command deployment scripts with version increment
+- ✅ **Async Issue Resolution**: Permanent fix for recurring Lambda async/thread pool problems
+
+**Phase 3**: Enhanced Integration Capabilities
+- jqpy JSON processing integration (162/193 tests passing - core functionality solid)
+- Base64 data expansion for blockchain data
+- Dynamic query transformation tools
 
 **Key Files to Review:**
 - `docs/development_roadmap.md` - Architecture vision and todo priorities  
@@ -155,4 +178,4 @@ This eliminates any impedance mismatch between protocols and creates a clean dat
 ✅ **Security**: Environment variable protection for sensitive data
 ✅ **Data Standardization**: Consistent asset amount formats
 
-**Current Status**: Production-ready dual-protocol server with comprehensive testing and security.
+**Current Status**: Production-ready dual-protocol server with unified registry architecture, comprehensive system operations, version management, cross-server testing capabilities, and fully resolved async issues. Latest version v0.1.5 deployed to dev environment with 21 functions (16 MCP tools, 19 REST endpoints).

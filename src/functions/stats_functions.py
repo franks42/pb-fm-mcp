@@ -13,11 +13,14 @@ import structlog
 # Handle import for both relative and absolute path contexts
 try:
     from ..registry import api_function
+    from ..utils import async_http_get_json
 except ImportError:
     try:
         from registry import api_function
+        from utils import async_http_get_json
     except ImportError:
         from src.registry import api_function
+        from src.utils import async_http_get_json
 
 # Set up logging
 logger = structlog.get_logger()
@@ -25,29 +28,6 @@ logger = structlog.get_logger()
 # Type alias for JSON response
 JSONType = Dict[str, Any]
 
-
-async def async_http_get_json(url: str, params=None) -> JSONType:
-    """
-    Helper function for async HTTP GET requests with JSON response.
-    
-    Args:
-        url: The URL to fetch
-        params: Optional query parameters
-        
-    Returns:
-        JSON response as dictionary or error dict
-    """
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, timeout=30.0)
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPError as e:
-        logger.error(f"HTTP error fetching {url}: {e}")
-        return {"MCP-ERROR": f"HTTP error: {str(e)}"}
-    except Exception as e:
-        logger.error(f"Unexpected error fetching {url}: {e}")
-        return {"MCP-ERROR": f"Unexpected error: {str(e)}"}
 
 
 @api_function(
@@ -127,22 +107,14 @@ async def get_system_context() -> JSONType:
         url = "https://raw.githubusercontent.com/franks42/FigureMarkets-MCP-Server/refs/heads/main/FigureMarketsContext.md"
         
         # Run sync HTTP call in thread pool to avoid event loop conflicts
-        import asyncio
         import httpx
         
-        def fetch_context():
-            with httpx.Client() as client:
-                client.headers['accept-encoding'] = 'identity'
-                response = client.get(url, timeout=30.0)
-                response.raise_for_status()
-                return response.text
-        
-        try:
-            loop = asyncio.get_running_loop()
-            context_text = await loop.run_in_executor(None, fetch_context)
-        except RuntimeError:
-            # No event loop - call directly (shouldn't happen in async function)
-            context_text = fetch_context()
+        # Fetch context text using async httpx client
+        async with httpx.AsyncClient() as client:
+            client.headers['accept-encoding'] = 'identity'
+            response = await client.get(url, timeout=30.0)
+            response.raise_for_status()
+            context_text = response.text
         
         return {'context': context_text}
         
