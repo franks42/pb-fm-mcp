@@ -343,8 +343,12 @@ async def custom_docs(request: Request):
     base_url = f"{scheme}://{host}/Prod"
     
     # Use thread pool to avoid event loop issues in Lambda
-    loop = asyncio.get_event_loop()
-    html_content = await loop.run_in_executor(None, _generate_docs_html, base_url)
+    try:
+        loop = asyncio.get_running_loop()
+        html_content = await loop.run_in_executor(None, _generate_docs_html, base_url)
+    except RuntimeError:
+        # No event loop - call directly (shouldn't happen in FastAPI context)
+        html_content = _generate_docs_html(base_url)
     return HTMLResponse(content=html_content)
 
 #########################################################################################

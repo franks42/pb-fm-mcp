@@ -147,12 +147,17 @@ class FastAPIIntegration:
                             if param_name not in kwargs and param.default != param.empty:
                                 kwargs[param_name] = param.default
                         
-                        # Call the function
+                        # Call the function with proper async handling
                         if asyncio.iscoroutinefunction(function_meta.func):
                             result = await function_meta.func(**kwargs)
                         else:
-                            loop = asyncio.get_event_loop()
-                            result = await loop.run_in_executor(None, lambda: function_meta.func(**kwargs))
+                            # Sync function - use thread executor if in async context
+                            try:
+                                loop = asyncio.get_running_loop()
+                                result = await loop.run_in_executor(None, lambda: function_meta.func(**kwargs))
+                            except RuntimeError:
+                                # No event loop - call directly (shouldn't happen in FastAPI context)
+                                result = function_meta.func(**kwargs)
                         
                         # Handle error responses
                         if isinstance(result, dict) and result.get("MCP-ERROR"):

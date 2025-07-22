@@ -36,9 +36,19 @@ def sync_wrapper(async_func: Callable) -> Callable:
             return asyncio.run(async_func(*args, **kwargs))
         except RuntimeError as e:
             if "asyncio.run() cannot be called from a running event loop" in str(e):
-                # If we're already in an event loop, use get_event_loop
-                loop = asyncio.get_event_loop()
-                return loop.run_until_complete(async_func(*args, **kwargs))
+                # If we're already in an event loop, use get_running_loop
+                try:
+                    loop = asyncio.get_running_loop()
+                    return loop.run_until_complete(async_func(*args, **kwargs))
+                except RuntimeError:
+                    # No running loop - create a new one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        return loop.run_until_complete(async_func(*args, **kwargs))
+                    finally:
+                        loop.close()
+                        asyncio.set_event_loop(None)
             else:
                 raise
     
