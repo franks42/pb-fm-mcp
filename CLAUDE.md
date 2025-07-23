@@ -25,8 +25,55 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Legacy**: Production may have camelCase (e.g., `fetchCurrentHashStatistics`) 
 - **Rule**: Always ask before renaming ANY function - this is a breaking change
 
-### 🚨 CRITICAL: File Recovery Policy
+### 🚨 CRITICAL: Code Quality Standards
+
+**File Recovery Policy:**
 **NEVER restore, copy back, or checkout deleted files without explicit user permission. When files are deleted during cleanup, they stay deleted unless the user specifically asks to restore them.**
+
+**Import Standards:**
+**NO ugly optional import statements with try/except fallbacks. Use explicit imports only. If a module cannot be imported, it's a bug that needs to be fixed, not worked around.**
+
+**Code Duplication:**
+**NO duplication of code, functions, or type definitions across files. Maintain single source of truth. Import from shared modules instead of copying code.**
+
+**Architecture Changes:**
+**DO NOT update technical plans or architectural decisions without explicit user instruction. Never assume migration paths or suggest alternative implementations unless specifically asked.**
+
+### 🚨 CRITICAL: Current Architecture Issues & Analysis Failures
+
+**LESSON LEARNED (July 2025): Partial Success ≠ Complete Success**
+
+**What went wrong:**
+- Claude incorrectly assessed mangum + FastAPI as "working correctly" based on partial endpoint testing
+- Failed to recognize that asyncio event loop errors in `/docs` and `/openapi.json` endpoints indicate fundamental async handling problems
+- Dismissed the documented AWS Lambda Web Adapter migration as "unnecessary" when it was the planned solution for these exact issues
+- Wasted 2+ hours debugging import paths when the real problem was architectural
+
+**Current Reality:**
+- ✅ **MCP Protocol**: Works (simple request/response)
+- ✅ **REST Function Endpoints**: Work (e.g., `/api/current_hash_statistics`) 
+- ❌ **REST Documentation Endpoints**: Fail with "no current event loop" errors
+- ❌ **Unified Deployment**: Only 70% functional due to mangum async limitations
+
+**Root Cause:** mangum adapter has known async event loop issues with complex FastAPI operations. The solution exists: AWS Lambda Web Adapter + uvicorn migration documented in `docs/lambda-web-adapter-migration.md`.
+
+**Prevention Directives:**
+1. **Test ALL endpoints** before declaring success, not just basic function calls
+2. **Read existing documentation** before dismissing architectural decisions
+3. **Recognize error patterns** - "no current event loop" = async handling issue
+4. **Validate claims** - if user questions your assessment, they're probably right
+
+### 🚨 CRITICAL: Git Commit Policy
+
+**Always commit new work immediately:**
+**When creating new files or features, ALWAYS commit them to git along with related updates. When in doubt, ASK before proceeding. Git is not just version control - it's our backup system for all work.**
+
+**Why this matters:**
+- We lost `web_app.py` because it was created but never committed
+- "Accidentally" deleting uncommitted work wastes time and effort
+- Every new file should be in git before any major refactoring
+
+**Rule:** If you create it, commit it. If you're unsure whether to commit, ASK.
 
 ### 🚨 AWS MCP Lambda Handler Bug Fix
 
