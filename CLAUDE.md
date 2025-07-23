@@ -199,6 +199,63 @@ curl https://eckqzu5foc.execute-api.us-west-1.amazonaws.com/Prod/docs
 - **Security Implementation**: Wallet addresses properly handled via environment variables
 - **Comprehensive Testing**: Full test suite validates both protocols with real blockchain data
 
-**Current Status**: Production-ready dual-protocol server successfully deployed and validated.
+**Current Status**: ⚠️ **MISSION INCOMPLETE** - Docker deployment validated, Lambda deployment blocked.
+
+## 🚨 MISSION CRITICAL: Single Lambda Deployment Goal
+
+**GOAL**: Achieve stable, reproducible single AWS Lambda deployment supporting both MCP and REST APIs.
+
+**Current Issue**: Successfully created unified MCP + REST architecture but deployment is split:
+- ✅ **Docker Deployment**: Fully working with all 16 MCP tools + 22 REST endpoints
+- ❌ **Lambda Deployment**: Internal server errors, 0 tools discovered
+
+**Root Problem**: Architecture mismatch between ZIP Lambda deployment vs Container Lambda deployment
+- **ZIP Deployment**: Traditional `lambda_handler(event, context)` with limited async support
+- **Container Deployment**: Native HTTP server with AWS Lambda Web Adapter (our target)
+
+**Mission Requirements:**
+1. **Single Lambda Function**: One deployment serving both `/mcp` and `/api/*` routes
+2. **Production Stability**: No async event loop errors or internal server failures  
+3. **Feature Completeness**: All 16 MCP tools and 22 REST endpoints working
+4. **Real Data**: Validated with live wallet data (19B+ nhash amounts)
+5. **Reproducible**: Reliable deployment process via SAM/CloudFormation
+
+**Deployment Options to Investigate:**
+- **Option A**: Fix ZIP deployment with proper lambda_handler bridge
+- **Option B**: Container deployment with ECR repository (original plan)
+- **Option C**: Hybrid approach with unified codebase supporting both
+
+**Success Criteria**: 
+```bash
+curl https://your-lambda-url/mcp -d '{"jsonrpc":"2.0","method":"tools/list","id":"1"}' 
+# Returns: {"result": {"tools": [... 16 tools ...]}}
+
+curl https://your-lambda-url/api/fetch_current_hash_statistics
+# Returns: {"maxSupply": {"amount": "100000000000000000000", ...}}
+```
+
+**Status**: ✅ **MISSION ACCOMPLISHED** - Single Lambda deployment achieved July 23, 2025!
+
+## 🎉 Mission Completion Details
+
+**Achievement**: Successfully deployed unified MCP + REST server to AWS Lambda using Web Adapter Layer.
+
+**Solution**: AWS Lambda Web Adapter with ZIP deployment (not container required)
+- Fixed Python path issues with proper PYTHONPATH configuration
+- Web Adapter Layer provides native async support
+- Single Lambda function serves both `/mcp` and `/api/*` endpoints
+
+**Key Fix**: The critical issue was Python module path resolution:
+```bash
+# In run.sh startup script:
+export PYTHONPATH="/var/task/src:$PYTHONPATH"
+exec python -m uvicorn web_app_unified:app --host 0.0.0.0 --port $PORT
+```
+
+**Deployment URLs**:
+- **Development**: https://eckqzu5foc.execute-api.us-west-1.amazonaws.com/Prod/
+- **Production**: https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/
+
+**Validation**: All 16 MCP tools and 22 REST endpoints working with real wallet data.
 
 ## 🚨 DEPLOYMENT ENVIRONMENTS

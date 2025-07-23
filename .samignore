@@ -36,6 +36,17 @@ yarn-error.log*
 # Large directories
 node_modules/
 
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+.ruff_cache/
+.coverage
+*.egg-info/
+
 # Project specific
 sam_local.log
 samconfig.toml
@@ -53,16 +64,25 @@ test_*.py
 *.md
 docs/
 tests/
-src/mcpserver/tools/
-src/mcpserver/README_TEST_SERVER.md
-src/mcpserver/requirements-test.txt
-src/mcpserver/src/ai_dataset_formats.py
-src/mcpserver/src/data_aggregation.py
-src/mcpserver/src/pb_primitive_apis.py
-src/mcpserver/src/pbapis.py
-src/mcpserver/src/start_test_server.py
-src/mcpserver/src/test_client.py
-src/mcpserver/src/test_webserver.py
+src/vendor/
+src/mcpserver/
+src/jqpy_old/
+src/jqpy/
+src/hastra_fm_mcp.egg-info/
+src/web_app.py
+src/uvicorn.py
+src/worker.py
+src/functions/
+src/registry/
+Dockerfile
+template-container.yaml
+requirements-mcp-only.txt
+requirements-minimal.txt
+install-mcp-minimal.sh
+scripts/
 start_test_server.sh
 wrangler.jsonc-old
 hash_stats_analysis.yaml
+pyproject.toml
+uv.lock
+.DS_Store

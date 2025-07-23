@@ -52,27 +52,81 @@ uv run pytest tests/
 
 ### AWS Lambda Deployment
 
-1. Create deployment package:
+This project uses AWS Lambda Web Adapter for unified MCP + REST API deployment with native async support.
+
+#### Architecture
+- **Deployment Type**: ZIP package with AWS Lambda Web Adapter Layer
+- **Runtime**: Python 3.12 with uvicorn ASGI server
+- **Protocols**: Both MCP (`/mcp`) and REST (`/api/*`) in single Lambda
+- **Key Innovation**: Solves async event loop issues via Web Adapter's native HTTP handling
+
+#### Prerequisites
+- AWS SAM CLI installed
+- AWS credentials configured
+- Python 3.12+ with uv package manager
+
+#### Deployment Steps
+
+1. **Build the application**:
 ```bash
-uv run python deploy.py --package-only
+sam build
 ```
 
-2. Deploy to AWS Lambda:
+2. **Deploy to AWS** (development):
 ```bash
-uv run python deploy.py \
-  --function-name pb-fm-mcp-server \
-  --role-arn arn:aws:iam::123456789012:role/lambda-execution-role \
-  --region us-east-1 \
-  --api-gateway
+sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 ```
 
-3. Manual API Gateway setup (if --api-gateway flag used):
-   - Go to AWS Console > API Gateway
-   - Create new HTTP API
-   - Add integration to Lambda function
-   - Add route: `POST /mcp`
-   - Enable CORS if needed
-   - Deploy API
+3. **Deploy to production** (when ready):
+```bash
+sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3
+```
+
+#### Key Configuration Details
+
+The deployment uses AWS Lambda Web Adapter as a Lambda Layer (not embedded in code):
+- **Layer ARN**: `arn:aws:lambda:us-west-1:753240598075:layer:LambdaAdapterLayerX86:25`
+- **Handler**: `run.sh` (startup script, not Python handler)
+- **Environment Variables**:
+  - `AWS_LAMBDA_EXEC_WRAPPER`: `/opt/bootstrap`
+  - `PORT`: `8000`
+  - `PYTHONPATH`: Set in run.sh to `/var/task/src:$PYTHONPATH`
+
+#### Startup Script (`run.sh`)
+```bash
+#!/bin/sh
+export PATH="/var/runtime:/var/task:$PATH"
+export PYTHONPATH="/var/task/src:$PYTHONPATH"
+exec python -m uvicorn web_app_unified:app --host 0.0.0.0 --port $PORT
+```
+
+This script:
+1. Sets up Python paths correctly for Lambda environment
+2. Launches uvicorn with our unified FastAPI application
+3. Web Adapter translates Lambda events ↔ HTTP requests
+
+#### Endpoints
+
+Once deployed, your Lambda function provides:
+- **MCP Protocol**: `https://your-api-url/Prod/mcp`
+- **REST API**: `https://your-api-url/Prod/api/*`
+- **API Documentation**: `https://your-api-url/Prod/docs`
+- **OpenAPI Spec**: `https://your-api-url/Prod/openapi.json`
+
+#### Testing Deployment
+
+```bash
+# Test MCP protocol
+curl -X POST https://your-api-url/Prod/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "method": "tools/list", "id": "1"}'
+
+# Test REST API
+curl https://your-api-url/Prod/api/fetch_current_hash_statistics
+
+# View API docs
+open https://your-api-url/Prod/docs
+```
 
 ## Usage
 

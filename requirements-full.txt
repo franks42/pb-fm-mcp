@@ -1,0 +1,6 @@
+awslabs-mcp-lambda-handler
+httpx
+structlog
+fastapi
+mangum
+uvicorn[standard]==0.30.1

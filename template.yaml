@@ -19,8 +19,14 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: .
-      Handler: lambda_handler.lambda_handler
-      Description: "MCP Server for Provenance Blockchain and Figure Markets APIs"
+      Handler: run.sh
+      Description: "Unified MCP + REST Server with AWS Lambda Web Adapter"
+      Layers:
+        - arn:aws:lambda:us-west-1:753240598075:layer:LambdaAdapterLayerX86:25
+      Environment:
+        Variables:
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
+          PORT: 8000
       Events:
         McpApi:
           Type: Api
