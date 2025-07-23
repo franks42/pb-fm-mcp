@@ -147,17 +147,45 @@ class FastAPIIntegration:
                             if param_name not in kwargs and param.default != param.empty:
                                 kwargs[param_name] = param.default
                         
-                        # Call the function with proper async handling
+                        # Call the function with REST-specific async handling
+                        # For REST endpoints, wrap async functions in sync execution to avoid
+                        # Lambda + FastAPI + Mangum event loop issues
+                        
                         if asyncio.iscoroutinefunction(function_meta.func):
-                            result = await function_meta.func(**kwargs)
-                        else:
-                            # For sync functions in FastAPI async route handler,
-                            # use thread pool executor without checking for event loop
-                            # This avoids the "no current event loop" error in Lambda
+                            # Async function - wrap in sync execution for REST API
+                            # This avoids the "no current event loop" issues in Lambda
                             import concurrent.futures
-                            with concurrent.futures.ThreadPoolExecutor() as pool:
-                                future = pool.submit(function_meta.func, **kwargs)
-                                result = future.result()
+                            
+                            def run_async_in_thread():
+                                """Run async function in dedicated thread with its own event loop."""
+                                try:
+                                    # Create new event loop for this thread
+                                    loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(loop)
+                                    try:
+                                        return loop.run_until_complete(function_meta.func(**kwargs))
+                                    finally:
+                                        loop.close()
+                                except Exception as e:
+                                    print(f"🚨 Error in thread execution: {e}")
+                                    raise
+                            
+                            try:
+                                # Execute async function in thread pool with dedicated event loop
+                                with concurrent.futures.ThreadPoolExecutor() as pool:
+                                    future = pool.submit(run_async_in_thread)
+                                    result = future.result(timeout=30)  # Add timeout
+                            except Exception as e:
+                                print(f"🚨 Thread pool execution failed: {e}")
+                                # Fallback: try sync wrapper approach
+                                try:
+                                    result = asyncio.run(function_meta.func(**kwargs))
+                                except Exception as fallback_error:
+                                    print(f"🚨 Fallback asyncio.run also failed: {fallback_error}")
+                                    raise HTTPException(status_code=500, detail=f"Async execution failed: {str(e)}")
+                        else:
+                            # Sync function - call directly
+                            result = function_meta.func(**kwargs)
                         
                         # Handle error responses
                         if isinstance(result, dict) and result.get("MCP-ERROR"):

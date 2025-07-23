@@ -211,7 +211,38 @@ def http_get_json(
 # Initialize the MCP server with dynamic version
 mcp_server = MCPLambdaHandler(name="pb-fm-mcp", version=get_version_string())
 
-# Initialize FastAPI app for REST endpoints
+# Check if running in Lambda environment for proper configuration
+import os
+import asyncio
+IS_LAMBDA = os.environ.get('AWS_LAMBDA_FUNCTION_NAME') is not None
+
+def ensure_event_loop():
+    """
+    Ensure there's an event loop available for async operations in Lambda.
+    
+    Lambda containers don't always have an event loop available when FastAPI
+    tries to execute async functions, causing "There is no current event loop 
+    in thread MainThread" errors.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        return loop
+    except RuntimeError:
+        # No running loop, try to get the current loop
+        try:
+            loop = asyncio.get_event_loop()
+            return loop
+        except RuntimeError:
+            # No event loop at all, create one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            return loop
+
+# Ensure event loop is available for FastAPI async operations
+if IS_LAMBDA:
+    ensure_event_loop()
+
+# Initialize FastAPI app for REST endpoints with Lambda-specific configuration
 fastapi_app = FastAPI(
     title="PB-FM API",
     description="REST API for Provenance Blockchain and Figure Markets data",
@@ -264,8 +295,17 @@ print(f"🌐 Registered {len(registry.get_rest_functions())} REST routes from fu
 FastAPIIntegration.update_openapi_schema(fastapi_app, registry)
 print("📝 Updated OpenAPI schema with registry-generated documentation")
 
-# Create Mangum handler for FastAPI with proper async support
-fastapi_handler = Mangum(fastapi_app, lifespan="off")
+# Create Mangum handler for FastAPI with Lambda-optimized configuration
+if IS_LAMBDA:
+    # Lambda-specific configuration to handle async properly
+    fastapi_handler = Mangum(
+        fastapi_app, 
+        lifespan="off",
+        api_gateway_base_path="/Prod"
+    )
+else:
+    # Local development configuration
+    fastapi_handler = Mangum(fastapi_app, lifespan="off")
 
 #########################################################################################
 # MCP Tool Functions
@@ -399,20 +439,15 @@ curl -X POST "{base_url}/mcp" \\
     return html_content
 
 @fastapi_app.get("/docs", response_class=HTMLResponse)
-async def custom_docs(request: Request):
+def custom_docs(request: Request):
     """Custom documentation page that works with Lambda async context"""
     # Determine the base URL from the request
     host = request.headers.get("host", "localhost:3000")
     scheme = "https" if "execute-api" in host else "http"
     base_url = f"{scheme}://{host}/Prod"
     
-    # Use thread pool to avoid event loop issues in Lambda
-    try:
-        loop = asyncio.get_running_loop()
-        html_content = await loop.run_in_executor(None, _generate_docs_html, base_url)
-    except RuntimeError:
-        # No event loop - call directly (shouldn't happen in FastAPI context)
-        html_content = _generate_docs_html(base_url)
+    # Call sync function directly to avoid event loop issues
+    html_content = _generate_docs_html(base_url)
     return HTMLResponse(content=html_content)
 
 #########################################################################################

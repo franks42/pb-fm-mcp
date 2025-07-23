@@ -92,7 +92,9 @@
       "Bash(pip show:*)",
       "Bash(pip install:*)",
       "WebFetch(domain:spec.modelcontextprotocol.io)",
-      "Bash(sam local start-api:*)"
+      "Bash(sam local start-api:*)",
+      "WebFetch(domain:mangum.fastapiexpert.com)",
+      "Bash(export TEST_WALLET_ADDRESS=tp1dw4jzxwgynexslqjlr2t3h6gckjj7c0g0l4awr)"
     ],
     "deny": []
   }
