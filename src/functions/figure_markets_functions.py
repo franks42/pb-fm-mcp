@@ -2,30 +2,20 @@
 Figure Markets Exchange Functions
 
 Functions for fetching trading data from Figure Markets exchange.
-All functions are decorated with @api_function to be automatically exposed via MCP and/or REST protocols.
+All functions are decorated with @api_function to be automatically exposed via MCP 
+and/or REST protocols.
 """
 
-from typing import Dict, Any
-import httpx
+from typing import Any
+
 import structlog
 
-# Handle import for both relative and absolute path contexts
-try:
-    from ..registry import api_function
-    from ..utils import async_http_get_json
-except ImportError:
-    try:
-        from registry import api_function
-        from utils import async_http_get_json
-    except ImportError:
-        from src.registry import api_function
-        from src.utils import async_http_get_json
+from registry import api_function
+from utils import async_http_get_json, JSONType
 
 # Set up logging
 logger = structlog.get_logger()
 
-# Type alias for JSON response
-JSONType = Dict[str, Any]
 
 
 
@@ -73,7 +63,9 @@ async def fetch_current_fm_data() -> JSONType:
     tags=["markets", "prices"],
     description="Fetch last crypto token prices from Figure Markets exchange"
 )
-async def fetch_last_crypto_token_price(token_pair: str = "HASH-USD", last_number_of_trades: int = 1) -> JSONType:
+async def fetch_last_crypto_token_price(
+    token_pair: str = "HASH-USD", last_number_of_trades: int = 1
+) -> JSONType:
     """
     For the crypto token_pair, fetch the prices for the last number of trades 
     from the Figure Markets exchange.
@@ -192,7 +184,8 @@ async def fetch_figure_markets_assets_info() -> JSONType:
         - asset_description: Description of the asset
         - asset_display_name: Display name for the asset
         - asset_type: Type of asset (CRYPTO, STABLECOIN, or FUND)
-        - asset_exponent: 10 to the power of asset_exponent multiplied by amount of asset_denom yields the asset amount
+        - asset_exponent: 10 to the power of asset_exponent multiplied by amount 
+          of asset_denom yields the asset amount
         - asset_denom: Asset denomination
         
     Raises:

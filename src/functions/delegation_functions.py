@@ -1,53 +1,24 @@
 """
 Delegation Functions for Provenance Blockchain
 
-Functions for fetching validator delegation data including staking, rewards, unbonding, and redelegation.
-Functions are decorated with @api_function to be automatically exposed via MCP and/or REST protocols.
+Functions for fetching validator delegation data including staking, rewards, 
+unbonding, and redelegation.
+Functions are decorated with @api_function to be automatically exposed via MCP 
+and/or REST protocols.
 """
 
-import asyncio
-from typing import Dict, Any
-import httpx
+from typing import Any
+
 import structlog
 
-# Handle import for both relative and absolute path contexts
-try:
-    from ..registry import api_function
-except ImportError:
-    try:
-        from registry import api_function
-    except ImportError:
-        from src.registry import api_function
+from registry import api_function
+from utils import async_http_get_json, JSONType
 
 # Set up logging
 logger = structlog.get_logger()
 
-# Type alias for JSON response
-JSONType = Dict[str, Any]
 
-# Helper function for async HTTP GET requests (reused from stats_functions)
-async def async_http_get_json(url: str, params=None) -> JSONType:
-    """
-    Helper function for async HTTP GET requests with JSON response.
-    
-    Args:
-        url: The URL to fetch
-        params: Optional query parameters
-        
-    Returns:
-        JSON response as dictionary or error dict
-    """
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, timeout=30.0)
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPError as e:
-        logger.error(f"HTTP error fetching {url}: {e}")
-        return {"MCP-ERROR": f"HTTP error: {str(e)}"}
-    except Exception as e:
-        logger.error(f"Unexpected error fetching {url}: {e}")
-        return {"MCP-ERROR": f"Unexpected error: {str(e)}"}
+# Removed duplicate async_http_get_json - now imported from utils
 
 
 #########################################################################################
@@ -96,7 +67,7 @@ async def fetch_delegated_rewards_amount(wallet_address: str) -> JSONType:
         }
     except (KeyError, ValueError, TypeError) as e:
         logger.warning(f"Could not parse rewards data: {e}")
-        return {"MCP-ERROR": f"Data parsing error: {str(e)}"}
+        return {"MCP-ERROR": f"Data parsing error: {e!s}"}
 
 
 @api_function(
@@ -132,7 +103,10 @@ async def fetch_delegated_staked_amount(wallet_address: str) -> JSONType:
     # Extract delegation data
     try:
         delegations = response.get("results", [])
-        total_staked = sum(int(delegation.get("amount", {}).get("amount", 0)) for delegation in delegations)
+        total_staked = sum(
+            int(delegation.get("amount", {}).get("amount", 0)) 
+            for delegation in delegations
+        )
         validator_count = len(delegations)
         
         return {
@@ -144,7 +118,7 @@ async def fetch_delegated_staked_amount(wallet_address: str) -> JSONType:
         }
     except (KeyError, ValueError, TypeError) as e:
         logger.warning(f"Could not parse delegation data: {e}")
-        return {"MCP-ERROR": f"Data parsing error: {str(e)}"}
+        return {"MCP-ERROR": f"Data parsing error: {e!s}"}
 
 
 @api_function(
@@ -189,7 +163,7 @@ async def fetch_delegated_unbonding_amount(wallet_address: str) -> JSONType:
         }
     except (KeyError, ValueError, TypeError) as e:
         logger.warning(f"Could not parse unbonding data: {e}")
-        return {"MCP-ERROR": f"Data parsing error: {str(e)}"}
+        return {"MCP-ERROR": f"Data parsing error: {e!s}"}
 
 
 @api_function(
@@ -224,7 +198,9 @@ async def fetch_delegated_redelegation_amount(wallet_address: str) -> JSONType:
     # Extract redelegation data
     try:
         rollup_totals = response.get('rollupTotals', {})
-        redelegation_total = rollup_totals.get('redelegationTotal', {'amount': '0', 'denom': 'nhash'})
+        redelegation_total = rollup_totals.get(
+            'redelegationTotal', {'amount': '0', 'denom': 'nhash'}
+        )
         
         return {
             "delegated_redelegated_amount": {
@@ -234,7 +210,7 @@ async def fetch_delegated_redelegation_amount(wallet_address: str) -> JSONType:
         }
     except (KeyError, ValueError, TypeError) as e:
         logger.warning(f"Could not parse redelegation data: {e}")
-        return {"MCP-ERROR": f"Data parsing error: {str(e)}"}
+        return {"MCP-ERROR": f"Data parsing error: {e!s}"}
 
 
 # Note: The comprehensive total delegation function is now in blockchain_functions.py

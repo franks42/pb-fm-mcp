@@ -25,6 +25,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Legacy**: Production may have camelCase (e.g., `fetchCurrentHashStatistics`) 
 - **Rule**: Always ask before renaming ANY function - this is a breaking change
 
+### 🚨 CRITICAL: File Recovery Policy
+**NEVER restore, copy back, or checkout deleted files without explicit user permission. When files are deleted during cleanup, they stay deleted unless the user specifically asks to restore them.**
+
 ### 🚨 AWS MCP Lambda Handler Bug Fix
 
 **Issue**: AWS MCP Lambda Handler (v0.1.6) automatically converts snake_case function names to camelCase, violating MCP community standards (90% use snake_case) and causing confusion.

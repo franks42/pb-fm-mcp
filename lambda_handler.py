@@ -11,9 +11,8 @@ from pathlib import Path
 # Add src directory to path for local imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-import utils
+from utils import JSONType
 from base64expand import base64expand
-from hastra_types import JSONType
 from async_wrapper import sync_wrapper, async_to_sync_mcp_tool
 
 # AWS Lambda MCP Handler

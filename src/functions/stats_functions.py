@@ -6,27 +6,16 @@ All functions are decorated with @api_function to be automatically
 exposed via both MCP and REST protocols.
 """
 
-from typing import Dict, Any
-import httpx
+from typing import Any
+
 import structlog
 
-# Handle import for both relative and absolute path contexts
-try:
-    from ..registry import api_function
-    from ..utils import async_http_get_json
-except ImportError:
-    try:
-        from registry import api_function
-        from utils import async_http_get_json
-    except ImportError:
-        from src.registry import api_function
-        from src.utils import async_http_get_json
+from registry import api_function
+from utils import async_http_get_json, JSONType
 
 # Set up logging
 logger = structlog.get_logger()
 
-# Type alias for JSON response
-JSONType = Dict[str, Any]
 
 
 
@@ -41,7 +30,8 @@ async def fetch_current_hash_statistics() -> JSONType:
     """
     Fetch the current overall statistics for the Provenance Blockchain's utility token HASH.
     
-    Provides comprehensive statistics including supply, circulation, staking, and community pool data.
+    Provides comprehensive statistics including supply, circulation, staking, and 
+    community pool data.
     Pie chart visualization also available at: https://explorer.provenance.io/network/token-stats
     
     Returns:
@@ -120,4 +110,4 @@ async def get_system_context() -> JSONType:
         
     except Exception as e:
         logger.error(f"Could not fetch system context: {e}")
-        return {"MCP-ERROR": f"System context fetch error: {str(e)}"}
+        return {"MCP-ERROR": f"System context fetch error: {e!s}"}

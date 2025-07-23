@@ -6,24 +6,17 @@ All functions are decorated with @api_function to be automatically
 exposed via both MCP and REST protocols.
 """
 
-from typing import Dict, Any, List
-import structlog
 import time
+from typing import Any
 
-# Handle import for both relative and absolute path contexts
-try:
-    from ..registry import api_function, get_registry
-except ImportError:
-    try:
-        from registry import api_function, get_registry
-    except ImportError:
-        from src.registry import api_function, get_registry
+import structlog
+
+from registry import api_function, get_registry
+from utils import JSONType
 
 # Set up logging
 logger = structlog.get_logger()
 
-# Type alias for JSON response
-JSONType = Dict[str, Any]
 
 
 @api_function(
@@ -132,7 +125,7 @@ async def get_registry_introspection() -> JSONType:
         
     except Exception as e:
         logger.error(f"Registry introspection error: {e}")
-        return {"MCP-ERROR": f"Registry introspection failed: {str(e)}"}
+        return {"MCP-ERROR": f"Registry introspection failed: {e!s}"}
 
 
 @api_function(
@@ -200,7 +193,7 @@ async def get_registry_summary() -> JSONType:
         
     except Exception as e:
         logger.error(f"Registry summary error: {e}")
-        return {"MCP-ERROR": f"Registry summary failed: {str(e)}"}
+        return {"MCP-ERROR": f"Registry summary failed: {e!s}"}
 
 
 @api_function(
@@ -268,7 +261,7 @@ async def mcp_warmup_ping() -> JSONType:
 async def mcp_test_server(
     function_name: str,                 # Function to test
     target_url: str = "self",           # "self", full URL, or shortcuts "prod"/"dev"
-    arguments: Dict[str, Any] = {},     # Function arguments
+    arguments: dict[str, Any] | None = None,     # Function arguments
     repeat: int = 1,                    # Number of calls to make
     measure_timing: bool = True,        # Collect performance metrics
     test_warmup: bool = False          # Test warmup sequence first
@@ -314,11 +307,15 @@ async def mcp_test_server(
         - performance_summary: Timing and reliability statistics
         - diagnostics: Error analysis and recommendations
     """
-    import httpx
     import asyncio
-    from typing import List
+
+    import httpx
     
     start_time = time.time()
+    
+    # Handle default arguments
+    if arguments is None:
+        arguments = {}
     
     # Resolve target URL shortcuts
     url_shortcuts = {
@@ -401,7 +398,7 @@ async def mcp_test_server(
                         "error": str(e)
                     })
                     
-                    results["diagnostics"]["errors"].append(f"Call {i+1}: {str(e)}")
+                    results["diagnostics"]["errors"].append(f"Call {i+1}: {e!s}")
         
         else:
             # Handle remote server testing
@@ -434,7 +431,7 @@ async def mcp_test_server(
                             "success": False,
                             "error": str(e)
                         }
-                        results["diagnostics"]["warnings"].append(f"Warmup failed: {str(e)}")
+                        results["diagnostics"]["warnings"].append(f"Warmup failed: {e!s}")
                 
                 # Perform remote tests
                 call_times = []
@@ -481,7 +478,7 @@ async def mcp_test_server(
                             "error": str(e)
                         })
                         
-                        results["diagnostics"]["errors"].append(f"Call {i+1}: {str(e)}")
+                        results["diagnostics"]["errors"].append(f"Call {i+1}: {e!s}")
         
         # Performance analysis
         if call_times and measure_timing:
@@ -508,7 +505,7 @@ async def mcp_test_server(
                 results["diagnostics"]["recommendations"].append("Excellent response time - optimal for Claude.ai")
     
     except Exception as e:
-        results["diagnostics"]["errors"].append(f"Test framework error: {str(e)}")
+        results["diagnostics"]["errors"].append(f"Test framework error: {e!s}")
         logger.error(f"MCP test server error: {e}")
     
     return results
