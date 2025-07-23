@@ -75,6 +75,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Rule:** If you create it, commit it. If you're unsure whether to commit, ASK.
 
+### 📋 AWS Lambda Web Adapter Migration Status (July 2025)
+
+**Current Situation:**
+- Using mangum + FastAPI → causes async event loop errors on /docs and /openapi.json endpoints
+- MCP protocol works, REST functions work, but REST docs/openapi fail with "no current event loop" 
+- Solution exists: AWS Lambda Web Adapter + uvicorn (documented in `docs/lambda-web-adapter-migration.md`)
+
+**Migration Progress:**
+✅ `src/web_app.py` - FastAPI app for Web Adapter (recovered from docs)
+✅ Migration guide - Complete in `docs/lambda-web-adapter-migration.md`
+❌ `Dockerfile` - Needs to be created (template in migration guide)
+❌ `template-container.yaml` - SAM template for container deployment (template in guide)
+❌ Update `src/registry/integrations.py` - Simplify FastAPIIntegration for direct async
+❌ Container build and deployment scripts
+❌ Testing of Web Adapter deployment
+
+**Key Files for Migration:**
+- **Read first**: `docs/lambda-web-adapter-migration.md` (complete migration guide)
+- **FastAPI app**: `src/web_app.py` (ready to use)
+- **Current broken**: `lambda_handler.py` lines ~440-470 (docs endpoint with async issues)
+- **Registry**: `src/registry/integrations.py` (needs simplification per guide)
+
+**Quick Test to Verify Issue:**
+```bash
+curl https://eckqzu5foc.execute-api.us-west-1.amazonaws.com/Prod/docs
+# Returns: {"error": "Internal server error", "message": "There is no current event loop in thread 'MainThread'."}
+```
+
 ### 🚨 AWS MCP Lambda Handler Bug Fix
 
 **Issue**: AWS MCP Lambda Handler (v0.1.6) automatically converts snake_case function names to camelCase, violating MCP community standards (90% use snake_case) and causing confusion.
