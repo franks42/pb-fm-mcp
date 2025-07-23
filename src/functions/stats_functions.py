@@ -21,7 +21,7 @@ logger = structlog.get_logger()
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/current_hash_statistics",
+    path="/api/fetch_current_hash_statistics",
     method="GET",
     tags=["statistics", "blockchain"],
     description="Fetch current HASH token statistics."
@@ -75,7 +75,7 @@ async def fetch_current_hash_statistics() -> JSONType:
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/system_context",
+    path="/api/get_system_context",
     method="GET",
     tags=["system", "context"],
     description="Get essential system context for Figure Markets Exchange and Provenance Blockchain"

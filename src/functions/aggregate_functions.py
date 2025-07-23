@@ -38,7 +38,7 @@ logger = structlog.get_logger()
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/complete_wallet_summary/{wallet_address}",
+    path="/api/fetch_complete_wallet_summary/{wallet_address}",
     description="Get comprehensive wallet summary including blockchain account info, delegation data, vesting info, and Figure Markets balance",
     tags=["aggregates", "wallet", "summary"]
 )
@@ -161,7 +161,7 @@ async def fetch_complete_wallet_summary(wallet_address: str) -> JSONType:
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/market_overview_summary",
+    path="/api/fetch_market_overview_summary",
     description="Get comprehensive market overview including Figure Markets data, HASH statistics, and trading assets",
     tags=["aggregates", "market", "overview"]
 )

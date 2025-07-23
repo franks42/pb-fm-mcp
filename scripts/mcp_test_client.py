@@ -240,35 +240,68 @@ class MCPTestClient:
 
 
 async def run_predefined_tests(client: MCPTestClient):
-    """Run a set of predefined tests."""
+    """Run a set of predefined tests using discovered tool names."""
     print("\n🧪 Running predefined tests...")
+    
+    # First, discover available tools
+    tools = await client.list_tools()
+    if not tools:
+        print("❌ No tools discovered, cannot run tests")
+        return
+    
+    # Create a mapping of tool names for easy lookup
+    tool_names = {tool['name'] for tool in tools}
     
     test_wallet = "pb1mjtshzl0p9w7xztfawg7z86k7m02d8zznp3t6q7l"
     
-    tests = [
-        {
-            "name": "Account Info Test",
-            "tool": "fetch_account_info",
-            "rest": "/api/account_info/pb1mjtshzl0p9w7xztfawg7z86k7m02d8zznp3t6q7l",
-            "args": {"wallet_address": test_wallet}
-        },
-        {
-            "name": "HASH Summary Test", 
-            "tool": "fetch_complete_hash_summary",
-            "rest": "/api/complete_hash_summary/pb1mjtshzl0p9w7xztfawg7z86k7m02d8zznp3t6q7l",
-            "args": {"wallet_address": test_wallet}
-        },
-        {
-            "name": "Delegation Data Test",
-            "tool": "fetch_total_delegation_data", 
-            "rest": "/api/total_delegation_data/pb1mjtshzl0p9w7xztfawg7z86k7m02d8zznp3t6q7l",
-            "args": {"wallet_address": test_wallet}
-        }
-    ]
+    # Helper function to convert between naming conventions
+    def to_snake_case(camel_str: str) -> str:
+        """Convert camelCase to snake_case."""
+        import re
+        return re.sub(r'(?<!^)(?=[A-Z])', '_', camel_str).lower()
     
-    for test in tests:
-        print(f"\n📋 {test['name']}")
-        await client.compare_mcp_vs_rest(test['tool'], test['rest'], test['args'])
+    def to_camel_case(snake_str: str) -> str:
+        """Convert snake_case to camelCase."""
+        components = snake_str.split('_')
+        return components[0] + ''.join(word.capitalize() for word in components[1:])
+    
+    # Dynamically generate test patterns based on discovered tools
+    # Look for tools that likely take a wallet_address parameter
+    wallet_tools = []
+    no_param_tools = []
+    
+    for tool in tools:
+        tool_name = tool['name']
+        
+        # Check if tool takes wallet_address parameter
+        if 'inputSchema' in tool and tool['inputSchema']:
+            properties = tool['inputSchema'].get('properties', {})
+            if 'wallet_address' in properties:
+                wallet_tools.append(tool_name)
+        else:
+            # Tools with no parameters
+            no_param_tools.append(tool_name)
+    
+    # Run tests for a few wallet-based tools (limit to avoid too many API calls)
+    print(f"🔍 Found {len(wallet_tools)} wallet-based tools, testing first 3...")
+    for i, tool_name in enumerate(wallet_tools[:3]):
+        # Convert tool name to REST path format
+        rest_path = f"/api/{tool_name}/{test_wallet}"
+        
+        print(f"\n📋 Wallet Tool Test #{i+1}: {tool_name}")
+        print(f"🔍 Testing tool: {tool_name}")
+        await client.compare_mcp_vs_rest(tool_name, rest_path, {"wallet_address": test_wallet})
+        print()
+    
+    # Run tests for a few no-parameter tools
+    print(f"🔍 Found {len(no_param_tools)} no-parameter tools, testing first 2...")
+    for i, tool_name in enumerate(no_param_tools[:2]):
+        # Convert tool name to REST path format  
+        rest_path = f"/api/{tool_name}"
+        
+        print(f"\n📋 No-Parameter Tool Test #{i+1}: {tool_name}")
+        print(f"🔍 Testing tool: {tool_name}")
+        await client.compare_mcp_vs_rest(tool_name, rest_path, {})
         print()
 
 

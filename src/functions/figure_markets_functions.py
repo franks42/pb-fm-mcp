@@ -25,7 +25,7 @@ logger = structlog.get_logger()
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/figure_markets_data",
+    path="/api/fetch_current_fm_data",
     method="GET",
     tags=["markets", "trading"],
     description="Fetch current market data from Figure Markets exchange"
@@ -58,7 +58,7 @@ async def fetch_current_fm_data() -> JSONType:
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/crypto_token_price/{token_pair}",
+    path="/api/fetch_last_crypto_token_price/{token_pair}",
     method="GET",
     tags=["markets", "prices"],
     description="Fetch last crypto token prices from Figure Markets exchange"
@@ -168,7 +168,7 @@ async def fetch_current_fm_account_info(wallet_address: str) -> JSONType:
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/figure_markets_assets_info",
+    path="/api/fetch_figure_markets_assets_info",
     method="GET",
     tags=["assets", "markets"],
     description="Fetch list of assets traded on Figure Markets exchange"

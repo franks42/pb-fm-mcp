@@ -1,0 +1,17 @@
+# Unified Container Requirements - Clean Web Adapter Deployment
+# No legacy mangum or async wrapper dependencies
+
+# MCP Protocol Support
+awslabs-mcp-lambda-handler
+
+# HTTP Client for API calls
+httpx==0.28.1
+
+# Logging
+structlog==25.4.0
+
+# Web Framework (Web Adapter native async support)
+fastapi
+
+# ASGI Server for Web Adapter
+uvicorn[standard]==0.30.1

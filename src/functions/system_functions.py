@@ -21,7 +21,7 @@ logger = structlog.get_logger()
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/registry_introspection",
+    path="/api/get_registry_introspection",
     method="GET",
     tags=["system", "introspection"],
     description="Get detailed information about all registered functions in the server"
@@ -130,7 +130,7 @@ async def get_registry_introspection() -> JSONType:
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/registry_summary",
+    path="/api/get_registry_summary",
     method="GET",
     tags=["system", "introspection"],
     description="Get a quick summary of registered functions by protocol"

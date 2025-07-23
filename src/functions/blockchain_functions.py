@@ -45,7 +45,7 @@ def amount_denom_add(amount1: dict[str, Any], amount2: dict[str, Any]) -> dict[s
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/account_info/{wallet_address}",
+    path="/api/fetch_account_info/{wallet_address}",
     method="GET",
     tags=["account", "information"],
     description="Fetch account information including vesting status and AUM"
@@ -87,7 +87,7 @@ async def fetch_account_info(wallet_address: str) -> JSONType:
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/account_is_vesting/{wallet_address}",
+    path="/api/fetch_account_is_vesting/{wallet_address}",
     method="GET",
     tags=["account", "vesting"],
     description="Check if wallet address is subject to vesting restrictions"
@@ -313,7 +313,7 @@ async def fetch_delegated_redelegation_amount(wallet_address: str) -> JSONType:
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/total_delegation_data/{wallet_address}",
+    path="/api/fetch_total_delegation_data/{wallet_address}",
     method="GET",
     tags=["delegation", "summary"],
     description="Fetch comprehensive delegation data summary for a wallet address"
@@ -398,7 +398,7 @@ async def fetch_total_delegation_data(wallet_address: str) -> JSONType:
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/vesting_total_unvested_amount/{wallet_address}",
+    path="/api/fetch_vesting_total_unvested_amount/{wallet_address}",
     method="GET",
     tags=["vesting", "blockchain"],
     description="Fetch vesting unvested amount for wallet address at specific date-time"
@@ -547,7 +547,7 @@ async def fetch_wallet_liquid_balance(wallet_address: str) -> JSONType:
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/available_committed_amount/{wallet_address}",
+    path="/api/fetch_available_committed_amount/{wallet_address}",
     method="GET",
     tags=["commitment", "blockchain"],
     description="Fetch committed HASH amount to Figure Markets exchange"
