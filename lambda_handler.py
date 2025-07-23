@@ -82,8 +82,8 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from mangum import Mangum
 
 # Unified Function Registry  
-from src.registry import get_registry, MCPIntegration, FastAPIIntegration
-import src.functions as functions  # This will register all @api_function decorated functions
+from registry import get_registry, MCPIntegration, FastAPIIntegration
+import functions  # This will register all @api_function decorated functions
 
 # Version management
 from version import get_version_string, get_full_version_info
