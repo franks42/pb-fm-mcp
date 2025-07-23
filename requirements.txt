@@ -3,4 +3,3 @@ httpx==0.28.1
 structlog==25.4.0
 fastapi
 mangum
-uvicorn[standard]==0.30.1
