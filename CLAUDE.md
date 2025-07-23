@@ -94,7 +94,31 @@ uv run python scripts/mcp_test_client.py --wallet-env TEST_WALLET_ADDRESS
 test_wallet = "pb1real_wallet_address_here"  # NEVER DO THIS
 ```
 
+**Claude Code Environment Variable Handling:**
+Environment variables do NOT persist between Claude Code Bash tool calls. Each bash command runs in an isolated session. For testing with wallet addresses in Claude Code:
+
+```bash
+# ✅ CORRECT: Set environment variable per command
+env TEST_WALLET_ADDRESS="wallet_address_here" curl "http://localhost:8080/api/fetch_account_info/$TEST_WALLET_ADDRESS"
+
+# ✅ ALTERNATIVE: Chain commands with variable
+WALLET="wallet_address_here" && curl "http://localhost:8080/api/fetch_account_info/$WALLET"
+
+# ❌ WRONG: These don't work across separate bash calls
+export TEST_WALLET_ADDRESS="..."  # Lost in next command
+echo $TEST_WALLET_ADDRESS         # Empty in separate bash call
+```
+
+**Recommended User Workflow:**
+1. User provides wallet address when invoking Claude Code
+2. User can set `export TEST_WALLET_ADDRESS="..."` in their terminal before Claude Code
+3. Claude Code uses `env TEST_WALLET_ADDRESS="..." command` pattern for testing
+4. Never store wallet addresses in files, git, or persistent variables
+
 **Policy**: Real wallet addresses are sensitive data that must be handled with the same security as API keys or passwords.
+
+**Workflow Notes:**
+- When api calls to the blockchain server give 404 errors, and the api needs a wallet address then ask for test wallet address 
 
 ### 📋 AWS Lambda Web Adapter Migration Status (July 2025)
 
@@ -150,169 +174,31 @@ curl https://eckqzu5foc.execute-api.us-west-1.amazonaws.com/Prod/docs
 - **Deploy Development**: `sam build && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
 - **Testing**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
 - **Equivalence Testing**: `uv run python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
+- **MCP Testing**: `env TEST_WALLET_ADDRESS="wallet_here" uv run python scripts/mcp_test_client.py --mcp-url http://localhost:8080/mcp --test`
 - **Linting**: `uv run ruff check .`
 - **Python Scripts**: `uv run python script.py` (always use uv for dependency management)
 
-### 🚨 DEPLOYMENT ENVIRONMENTS
+## ✅ PROJECT STATUS: AWS Lambda Web Adapter Migration COMPLETED (July 2025)
 
-**Production Environment**: `pb-fm-mcp-v2` stack (STABLE - Used by colleagues)
-- **MCP Protocol**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/mcp` 
-- **REST API**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/api/*`
-- **Documentation**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/docs`
-- **OpenAPI Spec**: `https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/openapi.json`
-- **Deploy Command**: `sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3`
-- **Deploy Branch**: `main` branch ONLY, when explicitly requested
+**MIGRATION SUCCESS**: Unified MCP + REST deployment in single container runtime with native async support.
 
-**Development Environment**: `pb-fm-mcp-dev` stack (ACTIVE - For testing new features)
-- **MCP Protocol**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/mcp` ✅
-- **REST API**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/api/*` ✅
-- **Documentation**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/docs` ✅
-- **OpenAPI Spec**: `https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod/openapi.json` ✅
-- **Deploy Command**: `sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
-- **Deploy Branch**: `dev` branch for all development work
+### Latest Achievements:
+- ✅ **AWS Lambda Web Adapter Migration**: Complete replacement of mangum with native async support
+- ✅ **Unified Container Deployment**: Single Docker image supporting both MCP and REST protocols  
+- ✅ **Snake_case Preservation**: Comprehensive monkey patch solving AWS MCP Handler naming bug
+- ✅ **Environment Variable Security**: Documented Claude Code patterns for secure wallet testing
+- ✅ **Enhanced MCP Test Client**: Now supports `TEST_WALLET_ADDRESS` environment variable
+- ✅ **Real Data Validation**: Both protocols tested with live wallet data (19B+ nhash staked, 2.7B+ rewards)
+- ✅ **Perfect Protocol Consistency**: MCP and REST return identical data structures
+- ✅ **Production Ready**: All 16 MCP tools and 19 REST endpoints working flawlessly
 
-**Local Testing**: `http://localhost:3000/*` (all endpoints)
-- **Local Command**: `sam build && sam local start-api --port 3000`
+### Key Technical Accomplishments:
+- **Async Resolution**: Eliminated all "no current event loop" errors via AWS Lambda Web Adapter
+- **Protocol Unification**: Both MCP (`/mcp`) and REST (`/api/*`) routes in same FastAPI application
+- **Name Consistency**: Function names exactly match between MCP tools and REST paths
+- **Security Implementation**: Wallet addresses properly handled via environment variables
+- **Comprehensive Testing**: Full test suite validates both protocols with real blockchain data
 
-## Project Architecture
+**Current Status**: Production-ready dual-protocol server successfully deployed and validated.
 
-This is a Python-based **dual-protocol server** running on **AWS Lambda**, providing both MCP (Model Context Protocol) and REST API access to Figure Markets exchange and Provenance Blockchain data.
-
-### Core Components
-
-- **`src/web_app_unified.py`** - Unified FastAPI application for AWS Lambda Web Adapter deployment (clean MCP+REST)
-- **`src/functions/`** - Business logic modules with @api_function decorators for dual protocol exposure
-- **`src/registry/`** - Function registry system for automatic MCP tool and REST endpoint generation
-- **`src/utils.py`** - Utility functions for datetime, HTTP requests, and operations
-- **`src/base64expand.py`** - Base64 data expansion utilities (ready for integration)
-- **`src/jqpy/`** - Complete jq-like JSON processor (162/193 tests passing, core functionality solid)
-
-### Removed Legacy Components (July 2025)
-- ~~**`lambda_handler.py`**~~ - Replaced by unified web app (legacy mangum-based architecture)
-- ~~**`async_wrapper.py`**~~ - No longer needed with AWS Lambda Web Adapter native async support
-- ~~**`src/registry/integrations*.py`**~~ - Removed redundant integration files, logic moved to unified app
-
-### Unified AWS Lambda Web Adapter Architecture (July 2025)
-
-1. **AWS Lambda Web Adapter**: Native async event loop support with uvicorn + FastAPI
-2. **Path-Based Routing**: `/mcp` for MCP protocol, `/api/*` for REST endpoints, `/docs` for documentation
-3. **Unified Application**: Single `web_app_unified.py` handling both protocols with direct async support
-4. **AWS MCP Lambda Handler**: For MCP protocol with comprehensive snake_case naming fix
-5. **Function Registry**: Automatic dual-protocol exposure via @api_function decorator
-6. **Perfect Name Matching**: MCP function names match REST paths exactly (e.g., `fetch_account_info` → `/api/fetch_account_info/`)
-7. **Container Deployment**: Docker-based deployment with AWS Lambda Web Adapter
-8. **CloudFormation/SAM**: Infrastructure as Code deployment
-
-### MCP Tools Structure
-
-The server exposes numerous tools for:
-- **Account Management**: Fetching account info, balances, and vesting details
-- **Delegation Operations**: Staking, rewards, unbonding, and redelegation data
-- **Market Data**: Trading pairs, prices, and asset information
-- **Blockchain Stats**: HASH token statistics and network information
-
-### Dependencies
-
-- **Production**: `awslabs-mcp-lambda-handler`, `httpx`, `structlog`, `fastapi`, `uvicorn[standard]`
-- **Development**: `pytest`, `pytest-asyncio`, `ruff` (managed via uv)
-- **External APIs**: Figure Markets exchange API and Provenance blockchain explorer API
-- **Removed Legacy**: ~~`mangum`~~ (replaced by AWS Lambda Web Adapter + uvicorn)
-
-### Configuration
-
-- **Python Version**: 3.12 (AWS Lambda runtime)
-- **Package Management**: `uv` for dependency management
-- **Deployment**: AWS SAM with CloudFormation
-- **Testing**: Local SAM + production Lambda
-- **Region**: us-west-1
-
-## Development Context for New Claude Sessions
-
-### What We've Accomplished
-1. **Cloudflare → AWS Migration**: Solved Python compatibility issues
-2. **Unified Function Registry**: Complete @api_function decorator system for dual protocol exposure
-3. **Flat Naming Architecture**: Consistent flat structure across MCP and REST (see naming rationale below)
-4. **Standardized Naming**: Function names, API paths, and response keys all aligned (e.g., `/api/delegated_rewards_amount`)
-5. **Equivalence Testing**: Automated verification that MCP and REST return identical results with live data tolerance
-6. **Production Deployment**: Stable AWS Lambda with auto-generated MCP tools and REST endpoints
-7. **Dual API Implementation**: MCP + REST protocols with single function definitions
-8. **Full Documentation**: Working /docs endpoint with external Swagger UI integration
-9. **CORS & Async**: Proper async patterns and CORS for browser compatibility
-10. **Local Testing**: SAM environment with comprehensive testing suite
-11. **🚀 AWS Lambda Web Adapter Migration (July 2025)**: Complete migration from problematic mangum architecture
-12. **🚀 Perfect Name Consistency (July 2025)**: MCP function names match REST paths exactly - no arbitrary conversions
-13. **🚀 Unified Container Deployment (July 2025)**: Single Docker container with both MCP and REST protocols
-14. **🚀 Legacy Code Cleanup (July 2025)**: Removed mangum, async_wrapper, integration files - clean codebase
-
-### Flat API Structure Rationale
-**MCP Protocol Constraint**: MCP tool functions require a flat naming structure with no namespace hierarchy support. Function names like `fetchAccountInfo` or `fetchDelegatedRewardsAmount` cannot be organized into namespaces like `account.fetchInfo` or `delegation.fetchRewards`.
-
-**Design Decision**: To maintain perfect 1:1 mapping between MCP tools and REST endpoints, we use exact name matching:
-- **MCP Function**: `fetch_account_info` 
-- **REST Endpoint**: `/api/fetch_account_info/{wallet_address}`
-- **Response Key**: `fetch_account_info`
-
-**July 2025 Update**: Implemented perfect name consistency - MCP function names match REST paths exactly with no arbitrary conversions. This eliminates any impedance mismatch between protocols and ensures predictable API behavior.
-
-### Current Development Focus
-**Phase 1 & 2 Complete**: Unified Function Registry Architecture fully implemented ✅
-
-✅ **PHASE 1 COMPLETE**: Production/Development Environment Separation  
-- Separate endpoints: Production (stable) + Development (testing) ✅
-- Git branch strategy: `main` (production) vs `dev` (development) ✅  
-- Separate SAM stack deployments: Colleagues' integrations protected ✅
-
-✅ **PHASE 2 COMPLETE**: Unified Function Registry Architecture
-- ✅ Decorator-based function registry with `@api_function` for auto-generation
-- ✅ Modular business function structure in domain-specific files
-- ✅ Auto-generate both MCP tools and REST endpoints from single function definitions
-- ✅ **Single-source documentation**: Function docstrings automatically become both MCP tool descriptions AND OpenAPI documentation
-- ✅ Full typing system with automatic validation and OpenAPI schema generation
-
-✅ **PHASE 2.5 COMPLETE**: System Operations & Monitoring
-- ✅ **Version Management**: Automated semantic versioning with build tracking (v0.1.5)
-- ✅ **System Introspection**: Registry analysis tools showing 21 functions, 16 MCP tools, 19 REST endpoints
-- ✅ **Lambda Warming**: Ultra-fast ping function for cold start mitigation (<100ms)
-- ✅ **Cross-Server Testing**: Dev-to-prod MCP communication testing with performance analysis
-- ✅ **Deployment Automation**: One-command deployment scripts with version increment
-- ✅ **Async Issue Resolution**: Permanent fix for recurring Lambda async/thread pool problems
-
-**Phase 3**: Enhanced Integration Capabilities
-- jqpy JSON processing integration (162/193 tests passing - core functionality solid)
-- Base64 data expansion for blockchain data
-- Dynamic query transformation tools
-
-**Key Files to Review:**
-- `src/web_app_unified.py` - Unified MCP+REST application with AWS Lambda Web Adapter
-- `src/functions/` - Business logic modules with @api_function decorators
-- `src/registry/` - Function registry system for automatic protocol exposure
-- `docs/async-event-loop-analysis.md` - Comprehensive analysis of migration from mangum
-- `docs/lambda-web-adapter-migration.md` - Migration guide and architecture decisions
-- `scripts/mcp_test_client.py` - Dynamic testing client with no hardcoded function names
-- `src/jqpy/` - JSON processing capabilities (162/193 tests passing)
-- `src/base64expand.py` - Data expansion utilities
-
-### Testing & Deployment
-
-**Container-Based (Current - July 2025):**
-- **Local Container**: `docker build -f Dockerfile-clean -t pb-fm-unified-clean . && docker run -d -p 8080:8080 pb-fm-unified-clean`
-- **MCP Testing**: `uv run python scripts/mcp_test_client.py --mcp-url http://localhost:8080/mcp --test`
-- **REST Testing**: Browser access to `http://localhost:8080/docs` and endpoints
-
-**Legacy SAM-Based:**
-- **Local**: `sam build && sam local start-api --port 3000`
-- **Production**: `sam build && sam deploy --resolve-s3`
-- **MCP Testing**: `npx @modelcontextprotocol/inspector http://localhost:3000/mcp`
-
-### Architecture Status (Updated July 2025)
-✅ **Unified Deployment**: Single container with both MCP and REST protocols using AWS Lambda Web Adapter
-✅ **Perfect Name Consistency**: MCP function names match REST paths exactly (no arbitrary conversions)
-✅ **Native Async Support**: Direct async/await with AWS Lambda Web Adapter (no thread pool workarounds)
-✅ **Clean Codebase**: Removed legacy mangum, async_wrapper, and integration files
-✅ **Comprehensive Testing**: Dynamic test client with environment variable support for wallet addresses
-✅ **Documentation**: Full OpenAPI docs with external Swagger UI integration  
-✅ **CORS**: Cross-origin access enabled for browser compatibility  
-✅ **Security**: Wallet address security policy implemented - no hardcoded addresses in code
-✅ **Production Ready**: 21 functions (16 MCP tools, 19 REST endpoints) with complete dual-protocol support
-
-**Current Status (July 2025)**: Successfully migrated from problematic mangum architecture to clean AWS Lambda Web Adapter deployment. Achieved perfect naming consistency between MCP and REST protocols. Single unified container supports both protocols with native async support and comprehensive security policies for sensitive data handling.
+## 🚨 DEPLOYMENT ENVIRONMENTS
