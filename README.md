@@ -69,7 +69,7 @@ This project uses AWS Lambda Web Adapter for unified MCP + REST API deployment w
 
 1. **Build the application**:
 ```bash
-sam build
+sam build --template-file template-simple.yaml
 ```
 
 2. **Deploy to AWS** (development):
@@ -80,6 +80,43 @@ sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 3. **Deploy to production** (when ready):
 ```bash
 sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3
+```
+
+#### Changing API Stage/Version Prefix
+
+The API Gateway stage determines the URL prefix (e.g., `/v1/`, `/v2/`, `/api/`). To change from `/v1/` to a different version:
+
+1. **Edit `template-simple.yaml`**:
+```yaml
+Resources:
+  MyServerlessApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: v1.1  # Change this value
+```
+
+2. **Update environment variable**:
+```yaml
+Environment:
+  Variables:
+    API_GATEWAY_STAGE_PATH: /v1.1  # Match the StageName
+```
+
+3. **Update all output URLs**:
+```yaml
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v1.1/"
+  OpenApiUrl:
+    Value: !Sub "https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v1.1/openapi.json"
+  SwaggerDocsUrl:
+    Value: !Sub "https://generator3.swagger.io/index.html?url=https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v1.1/openapi.json"
+```
+
+4. **Redeploy**:
+```bash
+sam build --template-file template-simple.yaml
+sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 ```
 
 #### Key Configuration Details
@@ -107,25 +144,35 @@ This script:
 
 #### Endpoints
 
-Once deployed, your Lambda function provides:
-- **MCP Protocol**: `https://your-api-url/Prod/mcp`
-- **REST API**: `https://your-api-url/Prod/api/*`
-- **API Documentation**: `https://your-api-url/Prod/docs`
-- **OpenAPI Spec**: `https://your-api-url/Prod/openapi.json`
+Once deployed, your Lambda function provides clean versioned URLs:
+- **MCP Protocol**: `https://your-api-url/v1/mcp`
+- **REST API**: `https://your-api-url/v1/api/*`
+- **API Documentation**: `https://your-api-url/v1/docs`
+- **OpenAPI Spec**: `https://your-api-url/v1/openapi.json`
+
+**Current Development URLs:**
+- **MCP Protocol**: `https://48fs6126ba.execute-api.us-west-1.amazonaws.com/v1/mcp`
+- **REST API**: `https://48fs6126ba.execute-api.us-west-1.amazonaws.com/v1/api/fetch_current_hash_statistics`
+- **API Documentation**: `https://48fs6126ba.execute-api.us-west-1.amazonaws.com/v1/docs`
 
 #### Testing Deployment
 
 ```bash
 # Test MCP protocol
-curl -X POST https://your-api-url/Prod/mcp \
+curl -X POST https://your-api-url/v1/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "method": "tools/list", "id": "1"}'
 
 # Test REST API
-curl https://your-api-url/Prod/api/fetch_current_hash_statistics
+curl https://your-api-url/v1/api/fetch_current_hash_statistics
 
 # View API docs
-open https://your-api-url/Prod/docs
+open https://your-api-url/v1/docs
+
+# Test current development deployment
+curl -X POST https://48fs6126ba.execute-api.us-west-1.amazonaws.com/v1/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "method": "tools/list", "id": "1"}'
 ```
 
 ## Usage
@@ -234,6 +281,38 @@ Monitor Lambda execution logs in CloudWatch for debugging and performance analys
 ### Cold Start Optimization
 - Function is optimized for minimal cold start times
 - Consider provisioned concurrency for production workloads
+
+## Deployment Size Optimization
+
+### Current Package Size
+- **Compressed**: ~51 MB (just within AWS Lambda 50 MB ZIP upload limit)
+- **Uncompressed**: 146 MB (well within 250 MB Lambda limit)
+- **Status**: ✅ Deployment works, room for growth
+
+### Largest Dependencies
+1. **botocore** (22 MB) - AWS SDK core (required for Lambda environment)
+2. **uvloop** (16 MB) - High-performance async event loop 
+3. **pydantic_core** (4.8 MB) - FastAPI validation (required)
+4. **yaml** (2.6 MB) - YAML parsing
+5. **httptools** (1.7 MB) - Fast HTTP parsing
+
+### Size Reduction Options (if needed)
+```bash
+# Replace uvicorn[standard] with basic uvicorn (saves 16 MB)
+# In requirements.txt, change:
+uvicorn[standard]==0.30.1
+# To:
+uvicorn==0.30.1
+
+# Add to .samignore to exclude development files:
+tests/
+docs/
+.ruff_cache/
+*.md
+old/
+```
+
+**Note**: Current size is acceptable. Only optimize if deployment issues occur or faster deployment is needed.
 
 ## Cost Optimization
 

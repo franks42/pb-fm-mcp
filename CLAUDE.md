@@ -171,12 +171,52 @@ curl https://eckqzu5foc.execute-api.us-west-1.amazonaws.com/Prod/docs
 ### AWS Lambda Development (Current)
 - **Local Testing**: `sam build && sam local start-api --port 3000`
 - **Deploy Production**: `sam build && sam deploy --resolve-s3`
-- **Deploy Development**: `sam build && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
+- **Deploy Development**: `sam build --template-file template-simple.yaml && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
 - **Testing**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
 - **Equivalence Testing**: `uv run python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
 - **MCP Testing**: `env TEST_WALLET_ADDRESS="wallet_here" uv run python scripts/mcp_test_client.py --mcp-url http://localhost:8080/mcp --test`
 - **Linting**: `uv run ruff check .`
 - **Python Scripts**: `uv run python script.py` (always use uv for dependency management)
+
+### 🚨 CRITICAL: API Gateway Stage Management
+
+**Problem Solved**: AWS SAM defaults to ugly `/Prod/` stage prefix. We eliminated this with clean `/v1/` versioning.
+
+**How to Change Stage Prefix** (e.g., from `/v1/` to `/v1.1/` or `/v2/`):
+
+1. **Edit `template-simple.yaml`** - Update 3 places:
+```yaml
+Resources:
+  MyServerlessApi:
+    Properties:
+      StageName: v2  # Change this
+
+  PbFmMcpFunction:
+    Environment:
+      Variables:
+        API_GATEWAY_STAGE_PATH: /v2  # Change this
+
+Outputs:
+  # Update ALL output URLs to use new prefix
+  ApiUrl:
+    Value: !Sub "https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v2/"
+  OpenApiUrl:
+    Value: !Sub "https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v2/openapi.json"
+  SwaggerDocsUrl:
+    Value: !Sub "https://generator3.swagger.io/index.html?url=https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v2/openapi.json"
+```
+
+2. **Deploy**:
+```bash
+sam build --template-file template-simple.yaml
+sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
+```
+
+**Why This Works**: Uses explicit `AWS::Serverless::Api` resource with `RestApiId` references instead of SAM's implicit API creation.
+
+**Critical Files**:
+- **Primary Template**: `template-simple.yaml` (clean v1 deployment)
+- **Legacy Template**: `template.yaml` (complex parameter-based approach that didn't work)
 
 ## ✅ PROJECT STATUS: AWS Lambda Web Adapter Migration COMPLETED (July 2025)
 
@@ -252,9 +292,11 @@ export PYTHONPATH="/var/task/src:$PYTHONPATH"
 exec python -m uvicorn web_app_unified:app --host 0.0.0.0 --port $PORT
 ```
 
-**Deployment URLs**:
-- **Development**: https://eckqzu5foc.execute-api.us-west-1.amazonaws.com/Prod/
-- **Production**: https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/
+**Current Deployment URLs (Clean v1 API Versioning)**:
+- **Development**: https://48fs6126ba.execute-api.us-west-1.amazonaws.com/v1/
+- **Production**: https://869vaymeul.execute-api.us-west-1.amazonaws.com/Prod/ (legacy /Prod prefix)
+
+**Major Update**: Eliminated ugly `/Prod/` prefix in favor of clean `/v1/` API versioning.
 
 **Validation**: All 16 MCP tools and 22 REST endpoints working with real wallet data.
 

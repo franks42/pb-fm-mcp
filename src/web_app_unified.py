@@ -261,12 +261,23 @@ print("🔧 Initializing MCP server...")
 mcp_server = MCPLambdaHandler(name="pb-fm-mcp", version=get_version_string())
 
 # Create FastAPI app
+# Handle API Gateway stage path for proper documentation URLs
+import os
+
+# Get the stage path from environment or use empty string for local development
+stage_path = os.environ.get("API_GATEWAY_STAGE_PATH", "")
+
 app = FastAPI(
     title="PB-FM Unified API",
     description="Unified MCP + REST API for Provenance Blockchain and Figure Markets data",
     version=get_version_string(),
     docs_url="/docs",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
+    root_path=stage_path,  # This ensures Swagger UI uses correct paths
+    servers=[
+        {"url": stage_path, "description": "Current deployment"},
+        {"url": "/", "description": "Local development"}
+    ] if stage_path else None
 )
 
 # Add CORS middleware
