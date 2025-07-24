@@ -179,11 +179,37 @@ curl -X POST https://48fs6126ba.execute-api.us-west-1.amazonaws.com/v1/mcp \
 
 ### MCP Client Connection
 
+#### Claude.ai Configuration
+
+To configure Claude.ai to use this MCP server:
+
+1. **Add MCP Server** in Claude.ai settings
+2. **Server URL**: `https://48fs6126ba.execute-api.us-west-1.amazonaws.com/v1/mcp`
+3. **Connection Method**: HTTP (not WebSocket)
+
+**Important**: The server supports both GET (for connection testing) and POST (for MCP protocol) requests to the same endpoint.
+
+#### Other MCP Clients
+
 Connect to your deployed server using any MCP-compatible client:
 
 ```bash
 # Using MCP client
-mcp connect https://your-api-gateway-url.amazonaws.com/mcp
+mcp connect https://your-api-gateway-url.amazonaws.com/v1/mcp
+```
+
+#### Connection Testing
+
+```bash
+# Test connection (what Claude.ai does)
+curl https://48fs6126ba.execute-api.us-west-1.amazonaws.com/v1/mcp
+# Returns: {"name": "PB-FM MCP Server", "version": "0.1.5", ...}
+
+# Test MCP protocol
+curl -X POST https://48fs6126ba.execute-api.us-west-1.amazonaws.com/v1/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "method": "tools/list", "id": "1"}'
+# Returns: {"result": {"tools": [... 16 tools ...]}}
 ```
 
 ### Available Tools
@@ -323,6 +349,13 @@ old/
 ## Troubleshooting
 
 ### Common Issues
+
+#### MCP Connection Issues
+1. **"Method Not Allowed" in Claude.ai**: Fixed - server now supports both GET and POST methods
+2. **Connection Timeout**: Ensure the server URL uses `/v1/mcp` (not the old `/Prod/mcp`)
+3. **Wrong Protocol**: Use HTTP, not WebSocket for Claude.ai configuration
+
+#### General Lambda Issues
 1. **Import Errors**: Ensure all dependencies are included in deployment package
 2. **Timeout Errors**: Increase Lambda timeout if needed (max 15 minutes)
 3. **Memory Errors**: Increase Lambda memory allocation
