@@ -328,6 +328,19 @@ async def root():
         }
     }
 
+# MCP connection test endpoint for Claude.ai
+@app.get("/mcp")
+async def mcp_connection_test():
+    """Handle MCP connection test requests from Claude.ai"""
+    return {
+        "name": "PB-FM MCP Server",
+        "version": get_version_string(), 
+        "description": "MCP server for Provenance Blockchain and Figure Markets data",
+        "protocol": "Model Context Protocol",
+        "methods": ["POST"],
+        "message": "Send POST requests with JSON-RPC 2.0 format to interact with MCP tools"
+    }
+
 # MCP endpoint - AWS MCP Handler expects sync execution
 @app.post("/mcp")
 async def mcp_endpoint(request: Request):
