@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: pb-fm-mcp - Dual-path MCP + REST Server (MCP direct, REST via Web Adapter)
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.12
+  Api:
+    OpenApiVersion: 3.0.1
+
+Resources:
+  MyServerlessApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: v1
+      Cors:
+        AllowMethods: "'POST,GET,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,Accept'"
+        AllowOrigin: "'*'"
+        MaxAge: "'3600'"
+
+  # MCP Function - Direct AWS Lambda handler (no Web Adapter)
+  McpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: lambda_handler_unified.lambda_handler
+      Description: "MCP Server using direct AWS MCP Handler"
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+      Events:
+        McpApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyServerlessApi
+            Path: /mcp
+            Method: ANY
+    Metadata:
+      BuildMethod: python3.12
+
+  # REST Function - FastAPI via Web Adapter
+  RestApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: run.sh
+      Description: "REST API Server with AWS Lambda Web Adapter"
+      Layers:
+        - arn:aws:lambda:us-west-1:753240598075:layer:LambdaAdapterLayerX86:25
+      Environment:
+        Variables:
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
+          PORT: 8000
+          API_GATEWAY_STAGE_PATH: /v1
+      Events:
+        RestApiRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyServerlessApi
+            Path: /
+            Method: ANY
+        RestApiDocs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyServerlessApi
+            Path: /docs
+            Method: ANY
+        RestApiOpenApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyServerlessApi
+            Path: /openapi.json
+            Method: ANY
+        RestApiRoutes:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyServerlessApi
+            Path: /api/{proxy+}
+            Method: ANY
+        RestApiHealth:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyServerlessApi
+            Path: /health
+            Method: ANY
+    Metadata:
+      BuildMethod: python3.12
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v1/"
+    Export:
+      Name: !Sub "${AWS::StackName}-api-url"
+
+  McpUrl:
+    Description: "MCP Protocol endpoint URL"
+    Value: !Sub "https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v1/mcp"
+    Export:
+      Name: !Sub "${AWS::StackName}-mcp-url"
+
+  OpenApiUrl:
+    Description: "OpenAPI specification URL"
+    Value: !Sub "https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v1/openapi.json"
+    Export:
+      Name: !Sub "${AWS::StackName}-openapi-url"
+
+  SwaggerDocsUrl:
+    Description: "Swagger UI documentation URL"
+    Value: !Sub "https://generator3.swagger.io/index.html?url=https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v1/openapi.json"
+    Export:
+      Name: !Sub "${AWS::StackName}-swagger-docs-url"

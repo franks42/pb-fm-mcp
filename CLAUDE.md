@@ -168,15 +168,41 @@ curl https://eckqzu5foc.execute-api.us-west-1.amazonaws.com/Prod/docs
 ### 🚨 IMPORTANT: Always use `uv` for Python execution
 **ALWAYS use `uv run python` instead of `python` or `python3` for all Python scripts and commands.**
 
+### 🚨 CRITICAL: Dual-Path Architecture for MCP vs REST
+
+**THIS PROJECT REQUIRES SEPARATE LAMBDA FUNCTIONS FOR MCP AND REST PROTOCOLS!**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    API Gateway (v1)                          │
+├─────────────────────────────────────────────────────────────┤
+│  /mcp endpoint          │  /api/*, /docs, /health endpoints │
+└──────────┬──────────────┴─────────────┬─────────────────────┘
+           │                            │
+           ▼                            ▼
+┌──────────────────────────┐  ┌────────────────────────────────┐
+│   McpFunction Lambda     │  │   RestApiFunction Lambda       │
+│ ━━━━━━━━━━━━━━━━━━━━━━━ │  │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│ • Direct AWS MCP Handler │  │ • FastAPI + Web Adapter        │
+│ • lambda_handler.py      │  │ • web_app_unified.py           │
+│ • NO FastAPI wrapper     │  │ • Native async support         │
+└──────────────────────────┘  └────────────────────────────────┘
+```
+
+**❌ NEVER route MCP through FastAPI/Web Adapter - it breaks the protocol!**
+**✅ ALWAYS use separate Lambda functions with proper routing!**
+
 ### AWS Lambda Development (Current)
-- **Local Testing**: `sam build && sam local start-api --port 3000`
-- **Deploy Production**: `sam build && sam deploy --resolve-s3`
-- **Deploy Development**: `sam build --template-file template-simple.yaml && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
+- **Local Testing**: `sam build --template-file template-dual-path.yaml && sam local start-api --port 3000`
+- **Deploy Development**: `sam build --template-file template-dual-path.yaml && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
+- **Deploy Production**: `sam build --template-file template-dual-path.yaml && sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3`
 - **Testing**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
 - **Equivalence Testing**: `uv run python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
 - **MCP Testing**: `env TEST_WALLET_ADDRESS="wallet_here" uv run python scripts/mcp_test_client.py --mcp-url http://localhost:8080/mcp --test`
 - **Linting**: `uv run ruff check .`
 - **Python Scripts**: `uv run python script.py` (always use uv for dependency management)
+
+**⚠️ CRITICAL**: Always use `template-dual-path.yaml` for ALL deployments!
 
 ### 🚨 CRITICAL: API Gateway Stage Management
 
@@ -184,14 +210,14 @@ curl https://eckqzu5foc.execute-api.us-west-1.amazonaws.com/Prod/docs
 
 **How to Change Stage Prefix** (e.g., from `/v1/` to `/v1.1/` or `/v2/`):
 
-1. **Edit `template-simple.yaml`** - Update 3 places:
+1. **Edit `template-dual-path.yaml`** - Update 4 places:
 ```yaml
 Resources:
   MyServerlessApi:
     Properties:
       StageName: v2  # Change this
 
-  PbFmMcpFunction:
+  RestApiFunction:  # NOT McpFunction - only REST needs stage path
     Environment:
       Variables:
         API_GATEWAY_STAGE_PATH: /v2  # Change this
@@ -200,6 +226,8 @@ Outputs:
   # Update ALL output URLs to use new prefix
   ApiUrl:
     Value: !Sub "https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v2/"
+  McpUrl:
+    Value: !Sub "https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v2/mcp"
   OpenApiUrl:
     Value: !Sub "https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v2/openapi.json"
   SwaggerDocsUrl:
@@ -208,19 +236,31 @@ Outputs:
 
 2. **Deploy**:
 ```bash
-sam build --template-file template-simple.yaml
+sam build --template-file template-dual-path.yaml
 sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 ```
 
-**Why This Works**: Uses explicit `AWS::Serverless::Api` resource with `RestApiId` references instead of SAM's implicit API creation.
+**Why This Works**: Uses explicit `AWS::Serverless::Api` resource with `RestApiId` references and proper dual-path routing.
 
 **Critical Files**:
-- **Primary Template**: `template-simple.yaml` (clean v1 deployment)
-- **Legacy Template**: `template.yaml` (complex parameter-based approach that didn't work)
+- **✅ Primary Template**: `template-dual-path.yaml` (dual Lambda functions - ALWAYS USE THIS!)
+- **❌ Wrong Template**: `template-simple.yaml` (single function - BREAKS MCP PROTOCOL!)
+- **❌ Legacy Template**: `template.yaml` (old complex approach - deprecated)
 
-## ✅ PROJECT STATUS: AWS Lambda Web Adapter Migration COMPLETED (July 2025)
+## ✅ PROJECT STATUS: Dual-Path Architecture IMPLEMENTED (July 2025)
 
-**MIGRATION SUCCESS**: Unified MCP + REST deployment in single container runtime with native async support.
+**ARCHITECTURE SUCCESS**: Dual Lambda function deployment with proper protocol separation.
+
+### Why Dual-Path Architecture is REQUIRED
+
+**Initial Attempt**: Tried to route both MCP and REST through single Lambda with Web Adapter
+- ❌ **Result**: MCP protocol failed - "Method Not Allowed", tools not discovered
+- ❌ **Root Cause**: MCP requires direct AWS MCP Handler, incompatible with FastAPI wrapper
+
+**Final Solution**: Separate Lambda functions for each protocol
+- ✅ **McpFunction**: Direct AWS MCP Handler for `/mcp` endpoint
+- ✅ **RestApiFunction**: FastAPI + Web Adapter for `/api/*`, `/docs`, etc.
+- ✅ **Result**: Both protocols working perfectly, Claude.ai connection successful
 
 ### Latest Achievements:
 - ✅ **AWS Lambda Web Adapter Migration**: Complete replacement of mangum with native async support
@@ -299,5 +339,35 @@ exec python -m uvicorn web_app_unified:app --host 0.0.0.0 --port $PORT
 **Major Update**: Eliminated ugly `/Prod/` prefix in favor of clean `/v1/` API versioning.
 
 **Validation**: All 16 MCP tools and 22 REST endpoints working with real wallet data.
+
+## 🗂️ KEY FILES FOR DUAL-PATH ARCHITECTURE
+
+### Critical Implementation Files
+
+1. **`template-dual-path.yaml`** - ✅ THE ONLY TEMPLATE TO USE
+   - Defines two separate Lambda functions (McpFunction + RestApiFunction)
+   - Configures path-based routing at API Gateway level
+   - **ALWAYS use this for deployments**
+
+2. **`lambda_handler_unified.py`** - MCP Protocol Handler
+   - Direct AWS MCP Handler implementation
+   - Handles `/mcp` endpoint without FastAPI
+   - Contains snake_case monkey patch for AWS bug
+
+3. **`src/web_app_unified.py`** - REST API Handler
+   - FastAPI application for REST endpoints
+   - Handles `/api/*`, `/docs`, `/health`
+   - Uses AWS Lambda Web Adapter
+
+4. **`run.sh`** - Startup script for REST function only
+   - Launches uvicorn for FastAPI
+   - Used ONLY by RestApiFunction
+   - NOT used by McpFunction
+
+### Templates to AVOID
+
+- **❌ `template-simple.yaml`** - Single function approach (BREAKS MCP)
+- **❌ `template.yaml`** - Old complex approach (deprecated)
+- **❌ Any template without dual Lambda functions**
 
 ## 🚨 DEPLOYMENT ENVIRONMENTS

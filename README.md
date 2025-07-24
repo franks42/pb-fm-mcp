@@ -19,10 +19,62 @@ A Model Context Protocol (MCP) server providing tools to interact with the Prove
 
 ## Architecture
 
+### 🚨 CRITICAL: Dual-Path Architecture (MCP vs REST)
+
+**This server uses a DUAL-PATH ARCHITECTURE with SEPARATE Lambda functions for MCP and REST protocols.**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    API Gateway (v1)                          │
+├─────────────────────────────────────────────────────────────┤
+│  /mcp endpoint          │  /api/*, /docs, /health endpoints │
+└──────────┬──────────────┴─────────────┬─────────────────────┘
+           │                            │
+           ▼                            ▼
+┌──────────────────────────┐  ┌────────────────────────────────┐
+│   McpFunction Lambda     │  │   RestApiFunction Lambda       │
+│ ━━━━━━━━━━━━━━━━━━━━━━━ │  │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│ • Direct AWS MCP Handler │  │ • FastAPI + Web Adapter        │
+│ • lambda_handler.py      │  │ • web_app_unified.py           │
+│ • NO FastAPI wrapper     │  │ • Native async support         │
+│ • Sync execution model   │  │ • ASGI server (uvicorn)        │
+└──────────────────────────┘  └────────────────────────────────┘
+```
+
+### Why Two Separate Lambda Functions?
+
+**⚠️ CRITICAL LESSON LEARNED**: MCP protocol CANNOT be routed through FastAPI/Web Adapter!
+
+1. **MCP Protocol Requirements**:
+   - Requires direct AWS MCP Handler (`MCPLambdaHandler`)
+   - Uses specific Lambda event/context format
+   - Sync execution model with AWS's internal MCP handling
+   - Direct `handle_request(event, context)` calls
+
+2. **REST API Requirements**:
+   - Benefits from FastAPI's async support
+   - Uses AWS Lambda Web Adapter for native HTTP
+   - ASGI server model with uvicorn
+   - Full OpenAPI documentation support
+
+**❌ WHAT DOESN'T WORK**: Trying to route MCP through FastAPI results in:
+- "Method Not Allowed" errors in Claude.ai
+- Tools not being discovered
+- Protocol negotiation failures
+- Connection timeouts
+
+**✅ WHAT WORKS**: Separate Lambda functions with proper routing:
+- MCP goes directly to AWS MCP Handler
+- REST goes through FastAPI Web Adapter
+- Both share the same API Gateway URL structure
+
+### Technical Stack
+
 - **Runtime**: Python 3.12 on AWS Lambda
-- **Protocol**: Model Context Protocol with streamable HTTP transport
-- **API Gateway**: HTTP API for external access
-- **Dependencies**: AWS Labs MCP Lambda Handler, httpx, structlog
+- **MCP Handler**: AWS Labs MCP Lambda Handler (direct, no wrapper)
+- **REST Handler**: FastAPI + AWS Lambda Web Adapter
+- **API Gateway**: Single gateway with path-based routing
+- **Dependencies**: awslabs-mcp-lambda-handler, httpx, structlog, fastapi, uvicorn
 - **⚠️ AWS Bug Workaround**: Comprehensive monkey patch for AWS MCP Handler's camelCase conversion bug ([Issue #757](https://github.com/awslabs/mcp/issues/757))
   - **Problem**: AWS converts `fetch_account_info` → `fetchAccountInfo` violating MCP standards
   - **Solution**: Runtime patching of both `tools` registry and `tool_implementations` mapping
@@ -52,13 +104,27 @@ uv run pytest tests/
 
 ### AWS Lambda Deployment
 
-This project uses AWS Lambda Web Adapter for unified MCP + REST API deployment with native async support.
+This project uses a **DUAL-PATH ARCHITECTURE** with separate Lambda functions for MCP and REST protocols.
 
-#### Architecture
-- **Deployment Type**: ZIP package with AWS Lambda Web Adapter Layer
-- **Runtime**: Python 3.12 with uvicorn ASGI server
-- **Protocols**: Both MCP (`/mcp`) and REST (`/api/*`) in single Lambda
-- **Key Innovation**: Solves async event loop issues via Web Adapter's native HTTP handling
+#### 🚨 CRITICAL: Use the Correct Template
+
+**ALWAYS use `template-dual-path.yaml` for deployments!**
+
+```bash
+# ✅ CORRECT - Uses dual-path architecture
+sam build --template-file template-dual-path.yaml
+
+# ❌ WRONG - Single function approach doesn't work with MCP
+sam build --template-file template-simple.yaml  # DO NOT USE
+```
+
+#### Architecture Details
+
+- **Deployment Type**: Two separate Lambda functions with shared API Gateway
+- **MCP Function**: Direct AWS MCP Handler (no Web Adapter)
+- **REST Function**: FastAPI with AWS Lambda Web Adapter Layer
+- **Routing**: Path-based routing at API Gateway level
+- **Key Innovation**: Separates MCP protocol handling from REST API handling
 
 #### Prerequisites
 - AWS SAM CLI installed
@@ -67,9 +133,9 @@ This project uses AWS Lambda Web Adapter for unified MCP + REST API deployment w
 
 #### Deployment Steps
 
-1. **Build the application**:
+1. **Build the application** (MUST use dual-path template):
 ```bash
-sam build --template-file template-simple.yaml
+sam build --template-file template-dual-path.yaml
 ```
 
 2. **Deploy to AWS** (development):
@@ -82,11 +148,18 @@ sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3
 ```
 
+#### What Gets Deployed
+
+The dual-path template creates:
+- **McpFunction**: Handles `/mcp` endpoint with direct AWS MCP Handler
+- **RestApiFunction**: Handles `/api/*`, `/docs`, `/health` with FastAPI
+- **Single API Gateway**: Routes requests to appropriate function based on path
+
 #### Changing API Stage/Version Prefix
 
 The API Gateway stage determines the URL prefix (e.g., `/v1/`, `/v2/`, `/api/`). To change from `/v1/` to a different version:
 
-1. **Edit `template-simple.yaml`**:
+1. **Edit `template-dual-path.yaml`**:
 ```yaml
 Resources:
   MyServerlessApi:
@@ -115,21 +188,28 @@ Outputs:
 
 4. **Redeploy**:
 ```bash
-sam build --template-file template-simple.yaml
+sam build --template-file template-dual-path.yaml
 sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 ```
 
 #### Key Configuration Details
 
-The deployment uses AWS Lambda Web Adapter as a Lambda Layer (not embedded in code):
+**MCP Function Configuration**:
+- **Handler**: `lambda_handler_unified.lambda_handler` (direct Python handler)
+- **NO Web Adapter**: Uses direct AWS MCP Handler
+- **Sync Execution**: AWS MCP Handler requires synchronous execution
+- **Direct Protocol**: Handles MCP JSON-RPC 2.0 directly
+
+**REST API Function Configuration**:
+- **Handler**: `run.sh` (startup script for Web Adapter)
 - **Layer ARN**: `arn:aws:lambda:us-west-1:753240598075:layer:LambdaAdapterLayerX86:25`
-- **Handler**: `run.sh` (startup script, not Python handler)
 - **Environment Variables**:
   - `AWS_LAMBDA_EXEC_WRAPPER`: `/opt/bootstrap`
   - `PORT`: `8000`
   - `PYTHONPATH`: Set in run.sh to `/var/task/src:$PYTHONPATH`
+  - `API_GATEWAY_STAGE_PATH`: `/v1` (for proper Swagger UI paths)
 
-#### Startup Script (`run.sh`)
+#### Startup Script (`run.sh`) - REST Function Only
 ```bash
 #!/bin/sh
 export PATH="/var/runtime:/var/task:$PATH"
@@ -137,9 +217,9 @@ export PYTHONPATH="/var/task/src:$PYTHONPATH"
 exec python -m uvicorn web_app_unified:app --host 0.0.0.0 --port $PORT
 ```
 
-This script:
+This script (used ONLY for REST API function):
 1. Sets up Python paths correctly for Lambda environment
-2. Launches uvicorn with our unified FastAPI application
+2. Launches uvicorn with FastAPI application
 3. Web Adapter translates Lambda events ↔ HTTP requests
 
 #### Endpoints
@@ -354,6 +434,17 @@ old/
 1. **"Method Not Allowed" in Claude.ai**: Fixed - server now supports both GET and POST methods
 2. **Connection Timeout**: Ensure the server URL uses `/v1/mcp` (not the old `/Prod/mcp`)
 3. **Wrong Protocol**: Use HTTP, not WebSocket for Claude.ai configuration
+
+#### Dual-Path Architecture Issues
+1. **"Method Not Allowed" in Claude.ai**: You're using the wrong template!
+   - ❌ **Wrong**: Deployed with `template-simple.yaml` (single function)
+   - ✅ **Fix**: Deploy with `template-dual-path.yaml` (dual functions)
+2. **MCP tools not discovered**: MCP is being routed through FastAPI
+   - ❌ **Wrong**: Single Lambda function trying to handle both protocols
+   - ✅ **Fix**: Separate Lambda functions for MCP and REST
+3. **MCP connection errors**: Check that `/mcp` routes to McpFunction
+   - Verify in AWS Console that McpFunction exists
+   - Check CloudWatch logs for McpFunction (not RestApiFunction)
 
 #### General Lambda Issues
 1. **Import Errors**: Ensure all dependencies are included in deployment package

@@ -330,8 +330,20 @@ async def root():
 
 # MCP connection test endpoint for Claude.ai
 @app.get("/mcp")
-async def mcp_connection_test():
-    """Handle MCP connection test requests from Claude.ai"""
+async def mcp_connection_test(request: Request):
+    """Handle MCP connection test requests from Claude.ai with SSE negotiation"""
+    headers = dict(request.headers)
+    accept_header = headers.get('accept', '').lower()
+    
+    # Check for SSE request like the old working version
+    if 'text/event-stream' in accept_header:
+        print("❌ Client requesting SSE - returning 405 like working version")
+        # Client wants SSE - we don't support it, return 405 like the old version
+        raise HTTPException(
+            status_code=405, 
+            detail="Method Not Allowed - SSE not supported, use HTTP POST"
+        )
+    
     return {
         "name": "PB-FM MCP Server",
         "version": get_version_string(), 
@@ -341,48 +353,81 @@ async def mcp_connection_test():
         "message": "Send POST requests with JSON-RPC 2.0 format to interact with MCP tools"
     }
 
-# MCP endpoint - AWS MCP Handler expects sync execution
+# MCP endpoint - Use direct AWS MCP Handler like the working version
 @app.post("/mcp")
 async def mcp_endpoint(request: Request):
-    """Handle MCP protocol requests."""
+    """Handle MCP protocol requests using direct AWS MCP Handler approach."""
     try:
-        body = await request.json()
-        context = MockLambdaContext()
+        # Get raw request data
+        body_bytes = await request.body()
+        body_str = body_bytes.decode('utf-8') if body_bytes else ''
         
-        # AWS MCP Handler expects sync execution, so run in thread
-        import concurrent.futures
-        
-        def sync_mcp_handler():
-            # AWS MCP Handler expects Lambda event format, not direct JSON
-            lambda_event = {
-                "httpMethod": "POST",
-                "headers": dict(request.headers),
-                "body": json.dumps(body),
-                "path": "/mcp",
-                "pathParameters": None,
-                "queryStringParameters": None,
-                "requestContext": {
-                    "requestId": "container-request-id"
+        # Create Lambda event format exactly like the working version
+        lambda_event = {
+            "httpMethod": "POST",
+            "path": "/mcp",
+            "headers": dict(request.headers),
+            "body": body_str,
+            "pathParameters": None,
+            "queryStringParameters": None,
+            "requestContext": {
+                "requestId": "container-request-id",
+                "identity": {
+                    "sourceIp": request.client.host if request.client else "unknown"
                 }
             }
-            return mcp_server.handle_request(lambda_event, context)
+        }
         
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(sync_mcp_handler)
-            aws_response = future.result(timeout=30)
+        context = MockLambdaContext()
         
-        # AWS MCP Handler returns Lambda response format, extract the actual MCP response
-        if isinstance(aws_response, dict) and 'body' in aws_response:
-            # Parse the JSON body from AWS Lambda response format
-            mcp_response = json.loads(aws_response['body'])
-            return mcp_response
+        # Debug headers like the working version
+        headers = dict(request.headers)
+        accept_header = headers.get('accept', '').lower()
+        print(f"🔍 === MCP REQUEST DEBUG ===")
+        print(f"📍 Accept header: {accept_header}")
+        print(f"📍 All headers: {headers}")
+        
+        # Check if client accepts both application/json and text/event-stream (like working version)
+        if 'application/json' in accept_header and 'text/event-stream' in accept_header:
+            print("✅ Proper MCP client detected - using MCP handler")
         else:
-            # Direct response (shouldn't happen but handle gracefully)
-            return aws_response
+            print("⚠️ Non-standard accept header - using MCP handler anyway")
+        
+        # Direct MCP handler call like the working version
+        print(f"🔧 Processing MCP request with direct handler")
+        mcp_response = mcp_server.handle_request(lambda_event, context)
+        
+        # Extract response body and return as JSON
+        if isinstance(mcp_response, dict):
+            if 'body' in mcp_response:
+                # Parse JSON body from Lambda response format
+                response_body = mcp_response['body']
+                if isinstance(response_body, str):
+                    response_data = json.loads(response_body)
+                else:
+                    response_data = response_body
+                
+                # Set response headers if present
+                if 'headers' in mcp_response:
+                    for header_name, header_value in mcp_response['headers'].items():
+                        if header_name.lower() not in ['content-length', 'content-type']:
+                            # Let FastAPI handle content-type and content-length
+                            pass
+                
+                return response_data
+            else:
+                # Direct response
+                return mcp_response
+        else:
+            return {"error": "Invalid MCP response format"}
+            
     except json.JSONDecodeError as e:
+        print(f"🚨 JSON decode error: {e}")
         raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
     except Exception as e:
         print(f"🚨 MCP handler error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"MCP processing error: {str(e)}")
 
 # Register both protocols
