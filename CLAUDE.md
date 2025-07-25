@@ -29,38 +29,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **✅ Both environments tested with 100% MCP protocol success and 100% REST API success.**
 
-### 🚨 URGENT: Certificate Validation & Domain Migration
+### ✅ COMPLETED: Custom Domain Migration Success!
 
-**CRITICAL ISSUE**: Currently using temporary AWS-generated URLs that change with each deployment.
+**🎉 ACHIEVEMENT**: Successfully deployed custom domain with stable URLs that never change!
 
 **Certificate Status**: 
-- **SSL Certificate**: `arn:aws:acm:us-east-1:289426936662:certificate/09a80d0f-1d62-4f1b-b98a-859d8558fb7d`
-- **Status**: ⏳ **PENDING VALIDATION** (waiting for DNS validation for hours)
-- **Target Domains**: 
-  - Production: `pb-fm-mcp.creativeapptitude.com`
-  - Development: `pb-fm-mcp-dev.creativeapptitude.com`
+- **SSL Certificate**: `arn:aws:acm:us-east-1:289426936662:certificate/cb38bb54-6d10-4dd8-991b-9de88dd0efdd`
+- **Status**: ✅ **VALIDATED & DEPLOYED** 
+- **Active Domains**: 
+  - **Development**: `pb-fm-mcp-dev.creativeapptitude.com` ✅ LIVE
+  - **Production**: `pb-fm-mcp.creativeapptitude.com` (ready for production deployment)
 
-**URGENT PRIORITY**: **Move to stable real domain names ASAP!**
+**🚀 STABLE CUSTOM DOMAIN URLS (Never Change):**
 
-**Why This Is Critical**:
-1. **Current URLs change** with each deployment (colleagues lose access)
-2. **External integrations break** when URLs change
-3. **Claude.ai connections** need to be reconfigured after each deployment
-4. **Production users** are dependent on stable URLs
+**Development Environment:**
+- **🔧 MCP Endpoint**: `https://pb-fm-mcp-dev.creativeapptitude.com/mcp`
+- **🌐 REST API**: `https://pb-fm-mcp-dev.creativeapptitude.com/api/*`
+- **📖 Documentation**: `https://pb-fm-mcp-dev.creativeapptitude.com/docs`
+- **🧪 Heartbeat UI**: `https://pb-fm-mcp-dev.creativeapptitude.com/api/heartbeat-test`
+- **💚 Health Check**: `https://pb-fm-mcp-dev.creativeapptitude.com/health`
 
-**Action Required**:
-1. **Monitor certificate validation status** in AWS Certificate Manager (us-east-1 region)
-2. **Once validated**: Redeploy with custom domain parameters
-3. **Update all documentation** with stable domain names
-4. **Notify external users** of permanent URLs
+**Benefits Achieved**:
+1. ✅ **URLs Never Change** - No more broken integrations on deployment
+2. ✅ **Professional Domains** - Clean, memorable URLs for external users
+3. ✅ **SSL Certificates** - Trusted certificate validation for all endpoints
+4. ✅ **Route 53 DNS** - Reliable DNS management and automatic failover
+5. ✅ **Production Ready** - Infrastructure ready for immediate production use
 
-**Deployment Command When Ready**:
-```bash
-sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3 \
-  --parameter-overrides 'Environment=prod HostedZoneId=Z1234567890ABC CertificateArn=arn:aws:acm:us-east-1:289426936662:certificate/09a80d0f-1d62-4f1b-b98a-859d8558fb7d'
-```
-
-**🚨 This is blocking production stability - highest priority item!**
+**Next Step**: Deploy production stack with custom domain using same certificate.
 
 ### Previous Issues with Cloudflare Workers
 - Pyodide WebAssembly environment couldn't handle Rust-based extensions (pydantic v2, rpds, etc.)
@@ -726,19 +722,24 @@ exec python -m uvicorn web_app_unified:app --host 0.0.0.0 --port $PORT
 
 ## 🤖 Claude.ai MCP Configuration
 
-To configure this MCP server with Claude.ai, use one of these stable URLs:
+To configure this MCP server with Claude.ai, use these **STABLE CUSTOM DOMAIN URLs** (never change):
 
-### Production Server (Recommended for External Use)
+### 🚀 Development Server (Latest Features + Heartbeat UI)
 ```
-MCP Server URL: https://4d0i1tqdg4.execute-api.us-west-1.amazonaws.com/v1/mcp
-```
-
-### Development Server (Latest Features)
-```
-MCP Server URL: https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp
+MCP Server URL: https://pb-fm-mcp-dev.creativeapptitude.com/mcp
 ```
 
-**Both URLs are production-ready with 100% MCP protocol success rates.**
+### 🏆 Production Server (Stable Release)
+```
+MCP Server URL: https://pb-fm-mcp.creativeapptitude.com/mcp
+```
+*(Ready for deployment when needed)*
+
+### 📋 Legacy URLs (Still Working)
+- Development: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp`
+- Production: `https://4d0i1tqdg4.execute-api.us-west-1.amazonaws.com/v1/mcp`
+
+**✨ Recommendation**: Use the custom domain URLs for permanent integrations - they never change with deployments!
 
 ### Steps to Add to Claude.ai:
 1. Go to Claude.ai settings
@@ -748,6 +749,7 @@ MCP Server URL: https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp
 5. Tools include blockchain data, account info, delegation data, and market information
 
 ### Available MCP Tools:
+**Blockchain & Market Data (16 tools):**
 - `fetch_current_hash_statistics` - Blockchain statistics
 - `fetch_account_info` - Wallet account information  
 - `fetch_total_delegation_data` - Staking/delegation data
@@ -755,6 +757,15 @@ MCP Server URL: https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp
 - `fetch_complete_wallet_summary` - Comprehensive wallet analysis
 - `fetch_market_overview_summary` - Complete market overview
 - And 10 more specialized tools for blockchain and exchange data
+
+**🫀 Heartbeat Conversation System (4 tools):**
+- `create_new_session` - Start new conversation session
+- `queue_user_message` - Send message to Claude via web interface
+- `get_pending_messages` - Claude polls for new messages (server-directed)
+- `send_response_to_web` - Claude sends responses back to web interface
+
+**🧪 Test the Heartbeat System:**
+Visit: `https://pb-fm-mcp-dev.creativeapptitude.com/api/heartbeat-test`
 
 ### Version Information:
 - **Dynamic Versioning**: Each deployment uses format `{git-commit}-{datetime}`
