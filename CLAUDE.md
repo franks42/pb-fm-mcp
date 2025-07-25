@@ -93,30 +93,38 @@ sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3 \
 
 **MANDATORY TESTING REQUIREMENTS: All Tests Must Pass Before Proceeding**
 
-**Testing Requirements:**
-1. **Local SAM Testing**: Both MCP and REST API endpoints must work in `sam local start-api`
+**🚨 IMPORTANT UPDATE**: **Docker local testing has been ABANDONED due to dual-path architecture complexity.**
+
+**Current Testing Approach:**
+1. **Deploy-First Testing**: Deploy to Lambda first, then test deployed endpoints
 2. **Lambda Deployment Testing**: Both MCP and REST API endpoints must work in deployed Lambda
-3. **Failure Policy**: If ANY test fails (local MCP, local API, Lambda MCP, or Lambda API), the ENTIRE test suite is considered failed
-4. **No Partial Success**: We will NOT proceed with deployment or further development until ALL tests pass
+3. **Failure Policy**: If ANY test fails (Lambda MCP or Lambda API), the ENTIRE test suite is considered failed
+4. **No Partial Success**: We will NOT proceed with further development until ALL tests pass
 5. **Fix Before Proceed**: All test failures must be resolved before moving to next steps
+
+**Why Local Testing Was Abandoned:**
+- **SAM Local Limitations**: Cannot properly handle dual-path Lambda architecture
+- **REST API Failures**: `sam local start-api` returns "illegal instruction" errors for REST endpoints
+- **Architecture Mismatch**: Local environment cannot replicate AWS Lambda Web Adapter behavior
+- **Deploy-First is Faster**: Direct Lambda testing is more reliable and faster than debugging local issues
 
 **Why This Policy Exists:**
 - We previously deployed dual-path architecture without realizing local API testing was broken
 - Partial testing led to incomplete validation and unknown system state
-- Both local and deployed testing are required to ensure system integrity
+- **Direct Lambda testing is the ONLY reliable validation method** for dual-path architecture
 
 **Testing Protocol:**
 ```bash
-# 1. Local Testing (BOTH must pass)
-curl http://localhost:3000/mcp  # Must return MCP server info
-curl http://localhost:3000/health  # Must return health status
+# 1. Deploy to Lambda first
+sam build --template-file template-dual-path.yaml
+sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 
-# 2. Lambda Testing (BOTH must pass) 
-curl https://lambda-url/mcp  # Must return MCP server info
-curl https://lambda-url/api/health  # Must return health status
+# 2. Test deployed Lambda endpoints (BOTH must pass)
+curl https://deployed-lambda-url/mcp  # Must return MCP server info
+curl https://deployed-lambda-url/api/health  # Must return health status
 
-# 3. MCP Test Client Testing (REQUIRED)
-uv run python scripts/mcp_test_client.py --mcp-url <url> --test
+# 3. Comprehensive Function Coverage Testing (REQUIRED)
+TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py --mcp-url <url> --rest-url <url>
 ```
 
 **Critical Testing Requirements:**
@@ -409,12 +417,11 @@ du -sh .aws-sam/build/McpFunction/
 - **Deploy Production**: `./scripts/deploy.sh prod` (requires main branch, production warning)
 
 **🧪 Testing & Development**:
-- **🚨 COMPREHENSIVE TEST SUITE (REQUIRED)**: `uv run python scripts/test_all.py --local` (ALL tests must pass before deployment)
-- **Local Testing**: `sam local start-api --port 3000` (wallet only needed for actual API calls)
+- **🚨 DEPLOY-FIRST TESTING APPROACH**: Deploy to Lambda dev environment first, then test
+- **Function Coverage Testing**: `TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py --mcp-url <URL> --rest-url <URL>`
 - **Core Tests**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
 - **Equivalence Testing**: `uv run python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
-- **MCP Testing**: `env TEST_WALLET_ADDRESS="wallet_here" uv run python scripts/mcp_test_client.py --mcp-url http://localhost:8080/mcp --test`
-- **Deployed Testing**: `uv run python scripts/test_all.py --deployed --mcp-url <URL> --rest-url <URL>`
+- **⚠️ NO LOCAL TESTING**: SAM local abandoned due to dual-path architecture incompatibility
 - **Linting**: `uv run ruff check .`
 - **Python Scripts**: `uv run python script.py` (always use uv for dependency management)
 
@@ -424,14 +431,15 @@ du -sh .aws-sam/build/McpFunction/
 
 **Testing Command Priority (Use FIRST):**
 ```bash
-# 🚨 PRIMARY TEST COMMAND - Use this for all testing
-uv run python scripts/test_all.py --local
+# 🚨 PRIMARY TEST COMMAND - Deploy-first testing approach
+# 1. Deploy first
+sam build --template-file template-dual-path.yaml
+sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 
-# Test deployed Lambda if URLs available
-uv run python scripts/test_all.py --deployed --mcp-url <URL> --rest-url <URL>
-
-# Test both local and deployed in sequence  
-uv run python scripts/test_all.py --local --deployed --mcp-url <URL> --rest-url <URL>
+# 2. Test deployed Lambda (REQUIRED)
+TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py \
+  --mcp-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp \
+  --rest-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1
 ```
 
 **Testing Requirements:**
@@ -469,10 +477,11 @@ export DEPLOYED_REST_URL="https://api.example.com/api"
 - 🚨 **Environment Failure**: Deployed Lambda not responding
 
 **Policy Enforcement:**
-- **Development**: Must pass local tests before any git commit
-- **Deployment**: Must pass local tests before any deployment
-- **Production**: Must pass both local and deployed tests
+- **Development**: Must pass deployed Lambda tests before any git commit
+- **Deployment**: Must pass comprehensive function coverage tests (100% MCP, 100% REST)
+- **Production**: Must pass deployed tests in both dev and production environments
 - **No Exceptions**: Test failures mean stop work and fix issues
+- **⚠️ NO LOCAL TESTING**: Only deployed Lambda testing is reliable for dual-path architecture
 
 ### 🚨 CRITICAL: Deployment Success Criteria
 
