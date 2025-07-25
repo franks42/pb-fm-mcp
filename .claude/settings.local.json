@@ -118,7 +118,13 @@
       "WebFetch(domain:docs.anthropic.com)",
       "Bash(export TEST_VAR=\"hello world\")",
       "Bash(env:*)",
-      "Bash(diff:*)"
+      "Bash(diff:*)",
+      "Bash(true)",
+      "Bash(sam:*)",
+      "Bash(aws route53 list-hosted-zones:*)",
+      "Bash(./scripts/deploy-with-custom-domain.sh:*)",
+      "Bash(aws acm request-certificate:*)",
+      "Bash(aws acm describe-certificate:*)"
     ],
     "deny": []
   }

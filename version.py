@@ -47,9 +47,30 @@ def save_version(version_data: Dict[str, Any]) -> None:
         pass  # Silently fail if we can't write
 
 def get_version_string() -> str:
-    """Get current version as semver string (e.g., '0.1.5')"""
-    version = load_version()
-    return f"{version['major']}.{version['minor']}.{version['patch']}"
+    """Get current version as git commit + ISO datetime string"""
+    # First try to load from saved version file (build-time capture)
+    version_data = load_version()
+    if version_data.get('git_commit') and version_data.get('build_datetime'):
+        # Parse ISO datetime and format as readable local time
+        try:
+            dt = datetime.fromisoformat(version_data['build_datetime'].replace('Z', '+00:00'))
+            # Format as YYYY-MM-DD_HH-MM-SS (readable but filename-safe)
+            build_time = dt.strftime("%Y-%m-%d_%H-%M-%S")
+            return f"{version_data['git_commit']}-{build_time}"
+        except:
+            # Fallback to original if parsing fails
+            build_time = version_data['build_datetime'][:19].replace(':', '-').replace('T', '_')
+            return f"{version_data['git_commit']}-{build_time}"
+    
+    # Fallback: try to get git info directly (development mode)
+    git_info = get_git_info()
+    current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    
+    if git_info.get('commit'):
+        return f"{git_info['commit']}-{current_time}"
+    else:
+        # Last resort fallback
+        return f"unknown-{current_time}"
 
 def get_full_version_info() -> Dict[str, Any]:
     """Get complete version information"""
@@ -116,10 +137,10 @@ def get_git_info() -> Dict[str, str]:
         except:
             pass
             
-        # Get commit hash
+        # Get commit hash (8 characters)
         try:
             result = subprocess.run(
-                ["git", "rev-parse", "--short", "HEAD"], 
+                ["git", "rev-parse", "--short=8", "HEAD"], 
                 capture_output=True, 
                 text=True,
                 cwd=Path(__file__).parent
@@ -136,7 +157,7 @@ def get_git_info() -> Dict[str, str]:
 
 def deployment_hook(environment: str = None) -> str:
     """
-    Hook to call before deployment to increment version
+    Hook to call before deployment to capture git info and set version
     
     Args:
         environment: "prod", "dev", etc.
@@ -155,7 +176,22 @@ def deployment_hook(environment: str = None) -> str:
         else:
             environment = 'local'
     
-    return increment_version("patch", environment)
+    # Capture git information at build time
+    git_info = get_git_info()
+    current_time = datetime.now()
+    
+    version_data = load_version()
+    
+    # Update with current git and build info
+    version_data["build_number"] = version_data.get("build_number", 0) + 1
+    version_data["build_datetime"] = current_time.isoformat()
+    version_data["last_deployment"] = current_time.isoformat()
+    version_data["deployment_environment"] = environment
+    version_data["git_commit"] = git_info.get('commit', 'unknown')
+    version_data["git_branch"] = git_info.get('branch', 'unknown')
+    
+    save_version(version_data)
+    return get_version_string()
 
 if __name__ == "__main__":
     # Command line interface

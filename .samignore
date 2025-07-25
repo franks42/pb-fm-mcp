@@ -1,88 +1,109 @@
-# SAM build ignore patterns
+# SAM Deployment Exclusions - Keep Lambda package small
+# This file prevents unnecessary files from being included in Lambda deployment
+
+# Development and testing
+**/tests/
+**/test_*.py
+**/*_test.py
+**/pytest.ini
+**/.pytest_cache/
+**/__pycache__/
+**/*.pyc
+**/.ruff_cache/
+
+# Virtual environments (especially Cloudflare Workers remnants)
 .venv/
-.aws-sam/
-.git/
-.gitignore
-.claude/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+.venv-*/
+venv/
 env/
-pip-log.txt
-pip-delete-this-directory.txt
-*.egg-info
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.DS_Store
+ENV/
+**/pyodide*
+**/site-packages/
+
+# Documentation
+*.md
+README.*
+LICENSE
+docs/
+doc/
+*.rst
+*.txt
+
+# Development tools and configs
+.git/
+.github/
+.gitignore
+.dockerignore
+Dockerfile*
+Makefile
+*.toml
+!pyproject.toml  # Keep this for dependencies
+
+# IDE and editor files
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-.pytest_cache/
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Large directories
-node_modules/
-
-# Python cache and compiled files
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-.pytest_cache/
-.ruff_cache/
-.coverage
-*.egg-info/
-
-# Project specific
-sam_local.log
-samconfig.toml
-requirements-full.txt
-test_mcp_client.py
-simple_mcp_server.py
-deploy.py
-validate_setup.py
-verify_fix.py
-debug_*.py
-demo_*.py
-convert_*.py
-start_*.py
-test_*.py
-*.md
-docs/
-tests/
-src/vendor/
-src/mcpserver/
-src/jqpy_old/
-src/jqpy/
-src/hastra_fm_mcp.egg-info/
-src/web_app.py
-src/uvicorn.py
-src/worker.py
-src/functions/
-src/registry/
-Dockerfile
-template-container.yaml
-requirements-mcp-only.txt
-requirements-minimal.txt
-install-mcp-minimal.sh
-scripts/
-start_test_server.sh
-wrangler.jsonc-old
-hash_stats_analysis.yaml
-pyproject.toml
-uv.lock
 .DS_Store
+
+# Build artifacts
+.aws-sam/
+.wrangler/
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Cloudflare Workers artifacts (legacy)
+wrangler.toml
+worker.js
+worker.py
+.wrangler/
+
+# Large unnecessary dependencies
+**/uvloop/
+**/uvloop*
+**/httptools/
+**/watchfiles/
+**/websockets/
+
+# Scripts and utilities (not needed at runtime)
+scripts/
+run_*.sh
+install*.sh
+deploy*.sh
+test*.sh
+
+# Logs and temporary files
+*.log
+*.tmp
+temp/
+tmp/
+logs/
+
+# Package files we don't need
+requirements-*.txt
+!requirements.txt  # Keep the main one
+old/
+
+# SAM/AWS artifacts
+packaged*.yaml
+samconfig.toml
+template-*.yaml
+!template-dual-path.yaml  # Keep the one we're using
+
+# Python package metadata we don't need at runtime
+**/*.dist-info/
+**/*.egg-info/
+**/pip/
+**/setuptools/
+**/wheel/
+**/easy_install*
+
+# Test data
+**/*.json
+!version.json  # Keep version file
+
+# Unnecessary binary extensions
+**/*.so
+!**/*cpython*.so  # Keep Python C extensions we actually need

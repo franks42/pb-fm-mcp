@@ -2,6 +2,33 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: pb-fm-mcp - Dual-path MCP + REST Server (MCP direct, REST via Web Adapter)
 
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name (dev or prod)
+  
+  DomainName:
+    Type: String
+    Default: creativeapptitude.com
+    Description: Base domain name for custom domain
+  
+  HostedZoneId:
+    Type: String
+    Description: Route 53 Hosted Zone ID for creativeapptitude.com (e.g., Z1234567890ABC)
+    
+  CertificateArn:
+    Type: String
+    Description: ARN of the SSL certificate from Certificate Manager (optional - leave empty to skip custom domain)
+    Default: ""
+
+Conditions:
+  IsProduction: !Equals [!Ref Environment, prod]
+  HasCustomDomain: !Not [!Equals [!Ref CertificateArn, ""]]
+
 Globals:
   Function:
     Timeout: 30
@@ -31,6 +58,13 @@ Resources:
       Environment:
         Variables:
           LOG_LEVEL: INFO
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowMethods: ["GET", "POST"]
+          AllowHeaders: ["Content-Type", "Authorization", "Accept"]
+          AllowOrigins: ["*"]
+          MaxAge: 3600
       Events:
         McpApi:
           Type: Api
@@ -89,6 +123,43 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
+  # Custom domain for API Gateway (only if certificate provided)
+  ApiCustomDomain:
+    Type: AWS::ApiGateway::DomainName
+    Condition: HasCustomDomain
+    Properties:
+      DomainName: !If 
+        - IsProduction
+        - !Sub "pb-fm-mcp.${DomainName}"
+        - !Sub "pb-fm-mcp-dev.${DomainName}"
+      CertificateArn: !Ref CertificateArn
+      SecurityPolicy: TLS_1_2
+
+  # Base path mapping (only if custom domain exists)
+  ApiBasePathMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Condition: HasCustomDomain
+    Properties:
+      DomainName: !Ref ApiCustomDomain
+      RestApiId: !Ref MyServerlessApi
+      Stage: v1
+
+  # Route 53 record (only if custom domain exists)
+  ApiDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Condition: HasCustomDomain
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !If 
+        - IsProduction
+        - !Sub "pb-fm-mcp.${DomainName}"
+        - !Sub "pb-fm-mcp-dev.${DomainName}"
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt ApiCustomDomain.DistributionDomainName
+        HostedZoneId: !GetAtt ApiCustomDomain.DistributionHostedZoneId
+
+
 Outputs:
   ApiUrl:
     Description: "API Gateway endpoint URL"
@@ -109,7 +180,44 @@ Outputs:
       Name: !Sub "${AWS::StackName}-openapi-url"
 
   SwaggerDocsUrl:
-    Description: "Swagger UI documentation URL"
+    Description: "Swagger UI documentation URL" 
     Value: !Sub "https://generator3.swagger.io/index.html?url=https://${MyServerlessApi}.execute-api.${AWS::Region}.amazonaws.com/v1/openapi.json"
     Export:
       Name: !Sub "${AWS::StackName}-swagger-docs-url"
+
+  # Stable Lambda Function URLs (don't change between deployments)
+  StableMcpUrl:
+    Description: "STABLE MCP Protocol endpoint URL (Lambda Function URL)"
+    Value: !GetAtt McpFunctionUrl.FunctionUrl
+    Export:
+      Name: !Sub "${AWS::StackName}-stable-mcp-url"
+      
+  # Custom domain URLs (only if domain is configured)
+  CustomDomainUrl:
+    Condition: HasCustomDomain
+    Description: "Custom domain base URL"
+    Value: !If
+      - IsProduction
+      - !Sub "https://pb-fm-mcp.${DomainName}/"
+      - !Sub "https://pb-fm-mcp-dev.${DomainName}/"
+    Export:
+      Name: !Sub "${AWS::StackName}-custom-domain-url"
+
+  CustomDomainMcpUrl:
+    Condition: HasCustomDomain
+    Description: "Custom domain MCP endpoint"
+    Value: !If
+      - IsProduction
+      - !Sub "https://pb-fm-mcp.${DomainName}/mcp"
+      - !Sub "https://pb-fm-mcp-dev.${DomainName}/mcp"
+    Export:
+      Name: !Sub "${AWS::StackName}-custom-domain-mcp-url"
+
+  EnvironmentInfo:
+    Description: "Environment and URL information"
+    Value: !Sub |
+      Environment: ${Environment}
+      Stack Name: ${AWS::StackName}
+      Lambda Function URL: ${McpFunctionUrl.FunctionUrl}
+      Custom Domain: !If [HasCustomDomain, !If [IsProduction, !Sub "pb-fm-mcp.${DomainName}", !Sub "pb-fm-mcp-dev.${DomainName}"], "Not configured"]
+      Note: Both Lambda Function URLs and custom domains are stable

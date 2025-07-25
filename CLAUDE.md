@@ -192,17 +192,82 @@ curl https://eckqzu5foc.execute-api.us-west-1.amazonaws.com/Prod/docs
 **❌ NEVER route MCP through FastAPI/Web Adapter - it breaks the protocol!**
 **✅ ALWAYS use separate Lambda functions with proper routing!**
 
+### 🚨 CRITICAL: Always Clean Before Building
+
+**ALWAYS clean build artifacts before every SAM build to prevent poisoned builds:**
+
+```bash
+# ✅ CORRECT: Clean before every build
+rm -rf .aws-sam/
+find . -name "*.pyc" -delete
+find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+sam build --template-file template-dual-path.yaml
+
+# ❌ WRONG: Building without cleaning (leads to internal server errors)
+sam build --template-file template-dual-path.yaml
+```
+
+**Why This Matters:**
+- Previous builds can leave corrupted artifacts in `.aws-sam/` directory
+- Python bytecode files can conflict between different commits
+- "Internal server error" issues are often caused by poisoned build cache
+- Fresh builds from clean state eliminate mysterious deployment failures
+
+### 🚨 CRITICAL: Lambda Package Size Management
+
+**AWS Lambda has a 250 MB unzipped size limit. Our deployment uses `.samignore` for automatic pruning.**
+
+**What Gets Excluded Automatically:**
+- **81 MB** - `.venv-workers/` (Cloudflare Workers remnants with Pyodide)
+- **16 MB** - `uvloop` (not needed for Lambda)
+- **Test files** - All test directories and files
+- **Documentation** - All .md, .rst, .txt files
+- **Build artifacts** - .ruff_cache, __pycache__, etc.
+- **Development tools** - Scripts, Docker files, configs
+- **Unnecessary dependencies** - watchfiles, websockets, httptools
+
+**Manual Cleanup Before First Build:**
+```bash
+# Remove any Cloudflare Workers remnants permanently
+rm -rf .venv-workers/
+rm -rf .wrangler/
+rm -f tests/test_worker*.py
+
+# Then proceed with clean build
+rm -rf .aws-sam/
+sam build --template-file template-dual-path.yaml
+```
+
+**Size Verification:**
+```bash
+# Check build size before deployment
+du -sh .aws-sam/build/McpFunction/
+# Should be well under 250 MB unzipped (typically ~50-70 MB)
+```
+
 ### AWS Lambda Development (Current)
-- **Local Testing**: `sam build --template-file template-dual-path.yaml && sam local start-api --port 3000`
-- **Deploy Development**: `sam build --template-file template-dual-path.yaml && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
-- **Deploy Production**: `sam build --template-file template-dual-path.yaml && sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3`
-- **Testing**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
+
+**🚀 Automated Deployment (Recommended)**:
+- **Deploy Development**: `./scripts/deploy.sh dev` (includes clean build, versioning, pruning)
+- **Deploy Production**: `./scripts/deploy.sh prod` (requires main branch, production warning)
+
+**🧪 Testing & Development**:
+- **Local Testing**: `sam local start-api --port 3000` (wallet only needed for actual API calls)
+- **Core Tests**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
 - **Equivalence Testing**: `uv run python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
 - **MCP Testing**: `env TEST_WALLET_ADDRESS="wallet_here" uv run python scripts/mcp_test_client.py --mcp-url http://localhost:8080/mcp --test`
 - **Linting**: `uv run ruff check .`
 - **Python Scripts**: `uv run python script.py` (always use uv for dependency management)
 
-**⚠️ CRITICAL**: Always use `template-dual-path.yaml` for ALL deployments!
+**🔧 Manual Deployment (Advanced)**:
+- **Build**: `rm -rf .aws-sam/ && sam build --template-file template-dual-path.yaml` (no wallet needed for build)
+- **Deploy Development**: `sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
+- **Deploy Production**: `sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3`
+- **⚠️ Warning**: Manual deployment requires manual pruning to stay under Lambda size limits
+
+**⚠️ CRITICAL**: 
+- Always use `template-dual-path.yaml` for ALL deployments
+- Use automated `./scripts/deploy.sh` for best results (includes automatic versioning and pruning)
 
 ### 🚨 CRITICAL: API Gateway Stage Management
 
@@ -371,3 +436,50 @@ exec python -m uvicorn web_app_unified:app --host 0.0.0.0 --port $PORT
 - **❌ Any template without dual Lambda functions**
 
 ## 🚨 DEPLOYMENT ENVIRONMENTS
+
+**Current Deployment URLs (after July 24, 2025 update with dynamic versioning):**
+
+**Development Environment**: `pb-fm-mcp-dev` stack (ACTIVE - For testing new features)
+- **STABLE Lambda Function URL**: `https://x2jhgtntjmnxw7hpqbouf3os240dipub.lambda-url.us-west-1.on.aws/` ✅ **USE THIS FOR CLAUDE.AI**
+- **API Gateway MCP**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp` ✅
+- **API Gateway REST**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/api/*` ✅
+- **Documentation**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/docs` ✅
+- **OpenAPI Spec**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/openapi.json` ✅
+- **Deploy Command**: `./scripts/deploy.sh dev`
+- **Deploy Branch**: `dev` branch for all development work
+
+**Note**: The Lambda Function URL is stable and won't change between deployments!
+
+## 🤖 Claude.ai MCP Configuration
+
+To configure this MCP server with Claude.ai:
+
+### Development Server (Latest) - STABLE URL
+```
+MCP Server URL: https://x2jhgtntjmnxw7hpqbouf3os240dipub.lambda-url.us-west-1.on.aws/
+```
+
+**This is a Lambda Function URL that is stable and won't change between deployments!**
+
+### Steps to Add to Claude.ai:
+1. Go to Claude.ai settings
+2. Navigate to MCP Servers or External Tools
+3. Add new MCP server with the URL above
+4. Test connection - it should discover 16 MCP tools
+5. Tools include blockchain data, account info, delegation data, and market information
+
+### Available MCP Tools:
+- `fetch_current_hash_statistics` - Blockchain statistics
+- `fetch_account_info` - Wallet account information  
+- `fetch_total_delegation_data` - Staking/delegation data
+- `fetch_current_fm_data` - Figure Markets exchange data
+- `fetch_complete_wallet_summary` - Comprehensive wallet analysis
+- `fetch_market_overview_summary` - Complete market overview
+- And 10 more specialized tools for blockchain and exchange data
+
+### Version Information:
+- **Dynamic Versioning**: Each deployment uses format `{git-commit}-{datetime}`
+- **Current Version**: Check via `curl https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp`
+- **Auto-Update**: Version updates automatically on every deployment via `./scripts/deploy.sh`
+
+## 🚨 ORIGINAL DEPLOYMENT ENVIRONMENTS (Legacy)
