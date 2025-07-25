@@ -60,11 +60,14 @@ Resources:
           LOG_LEVEL: INFO
           SESSIONS_TABLE: !Ref ConversationSessionsTable
           MESSAGES_TABLE: !Ref ConversationMessagesTable
+          DASHBOARDS_TABLE: !Ref PersonalizedDashboardsTable
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ConversationSessionsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref ConversationMessagesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PersonalizedDashboardsTable
       FunctionUrlConfig:
         AuthType: NONE
         Cors:
@@ -98,11 +101,14 @@ Resources:
           API_GATEWAY_STAGE_PATH: !If [HasCustomDomain, "", "/v1"]
           SESSIONS_TABLE: !Ref ConversationSessionsTable
           MESSAGES_TABLE: !Ref ConversationMessagesTable
+          DASHBOARDS_TABLE: !Ref PersonalizedDashboardsTable
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ConversationSessionsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref ConversationMessagesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PersonalizedDashboardsTable
       Events:
         RestApiRoot:
           Type: Api
@@ -133,6 +139,12 @@ Resources:
           Properties:
             RestApiId: !Ref MyServerlessApi
             Path: /health
+            Method: ANY
+        RestApiDashboard:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyServerlessApi
+            Path: /dashboard/{proxy+}
             Method: ANY
     Metadata:
       BuildMethod: python3.12
@@ -232,6 +244,41 @@ Resources:
           Value: !Ref Environment
         - Key: Application
           Value: pb-fm-mcp
+
+  PersonalizedDashboardsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-personalized-dashboards"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: dashboard_id
+          AttributeType: S
+        - AttributeName: ai_session_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: dashboard_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: AISessionIndex
+          KeySchema:
+            - AttributeName: ai_session_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: pb-fm-mcp
+        - Key: Purpose
+          Value: personalized-dashboards
 
 
 Outputs:

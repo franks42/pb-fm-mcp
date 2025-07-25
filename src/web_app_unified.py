@@ -316,6 +316,361 @@ async def heartbeat_test_interface():
             status_code=404
         )
 
+# Personalized Dashboard endpoint
+@app.get("/dashboard/{dashboard_id}")
+async def serve_personalized_dashboard(dashboard_id: str):
+    """Serve personalized dashboard HTML with Plotly.js integration."""
+    from fastapi.responses import HTMLResponse
+    import boto3
+    
+    try:
+        # Get dashboard configuration from DynamoDB
+        dynamodb = boto3.resource('dynamodb')
+        table_name = os.environ.get('DASHBOARDS_TABLE')
+        if not table_name:
+            raise HTTPException(status_code=500, detail="Dashboard service not configured")
+        
+        dashboards_table = dynamodb.Table(table_name)
+        response = dashboards_table.get_item(Key={'dashboard_id': dashboard_id})
+        
+        if 'Item' not in response:
+            return HTMLResponse(
+                content=f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Dashboard Not Found</title>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; margin: 40px; text-align: center; }}
+                        .error {{ color: #e74c3c; }}
+                    </style>
+                </head>
+                <body>
+                    <h1 class="error">Dashboard Not Found</h1>
+                    <p>Dashboard ID: {dashboard_id}</p>
+                    <p>This dashboard may have expired or never existed.</p>
+                    <p><a href="/">← Back to API Home</a></p>
+                </body>
+                </html>
+                """,
+                status_code=404
+            )
+        
+        dashboard_config = response['Item']
+        
+        # Generate dashboard HTML with Plotly.js integration
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>{dashboard_config['dashboard_name']} - PB-FM Dashboard</title>
+            
+            <!-- Plotly.js CDN -->
+            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+            
+            <style>
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+                    color: #ffffff;
+                    min-height: 100vh;
+                }}
+                
+                .dashboard-header {{
+                    text-align: center;
+                    margin-bottom: 30px;
+                    padding: 20px;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 12px;
+                    backdrop-filter: blur(10px);
+                }}
+                
+                .dashboard-title {{
+                    font-size: 2.5em;
+                    margin: 0;
+                    background: linear-gradient(45deg, #00ff88, #00ccff);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                }}
+                
+                .dashboard-info {{
+                    color: #888;
+                    margin-top: 10px;
+                }}
+                
+                .visualization-container {{
+                    background: rgba(255, 255, 255, 0.02);
+                    border-radius: 12px;
+                    padding: 20px;
+                    margin-bottom: 30px;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                }}
+                
+                .loading-spinner {{
+                    display: inline-block;
+                    width: 20px;
+                    height: 20px;
+                    border: 3px solid rgba(255, 255, 255, 0.3);
+                    border-radius: 50%;
+                    border-top-color: #00ff88;
+                    animation: spin 1s ease-in-out infinite;
+                }}
+                
+                @keyframes spin {{
+                    to {{ transform: rotate(360deg); }}
+                }}
+                
+                .status-message {{
+                    text-align: center;
+                    padding: 20px;
+                    background: rgba(0, 255, 136, 0.1);
+                    border-radius: 8px;
+                    border-left: 4px solid #00ff88;
+                }}
+                
+                .control-panel {{
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: rgba(0, 0, 0, 0.8);
+                    padding: 15px;
+                    border-radius: 8px;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                }}
+                
+                .control-button {{
+                    display: block;
+                    width: 100%;
+                    padding: 8px 16px;
+                    margin: 5px 0;
+                    background: linear-gradient(45deg, #00ff88, #00ccff);
+                    color: #000;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: bold;
+                    transition: transform 0.2s;
+                }}
+                
+                .control-button:hover {{
+                    transform: translateY(-2px);
+                }}
+                
+                #plotly-div {{
+                    width: 100%;
+                    height: 600px;
+                    background: #2a2a2a;
+                    border-radius: 8px;
+                }}
+                
+                .ai-insights {{
+                    background: rgba(0, 255, 136, 0.05);
+                    border-left: 4px solid #00ff88;
+                    padding: 15px;
+                    margin-top: 20px;
+                    border-radius: 0 8px 8px 0;
+                }}
+                
+                .footer {{
+                    text-align: center;
+                    margin-top: 40px;
+                    padding: 20px;
+                    color: #666;
+                    border-top: 1px solid rgba(255, 255, 255, 0.1);
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="dashboard-header">
+                <h1 class="dashboard-title">{dashboard_config['dashboard_name']}</h1>
+                <div class="dashboard-info">
+                    Created: {dashboard_config['created_at']}<br>
+                    {'Wallet: ' + dashboard_config.get('wallet_address', 'Not specified') if dashboard_config.get('wallet_address') else ''}
+                    Dashboard ID: {dashboard_id}
+                </div>
+            </div>
+            
+            <div class="control-panel">
+                <button class="control-button" onclick="refreshDashboard()">🔄 Refresh</button>
+                <button class="control-button" onclick="loadHashPriceChart()">📈 HASH Price</button>
+                <button class="control-button" onclick="toggleTheme()">🌙 Theme</button>
+            </div>
+            
+            <div class="visualization-container">
+                <div id="status" class="status-message">
+                    <div class="loading-spinner"></div>
+                    Initializing dashboard...
+                </div>
+                <div id="plotly-div" style="display: none;"></div>
+                <div id="ai-insights" class="ai-insights" style="display: none;">
+                    <h3>🤖 AI Insights</h3>
+                    <p id="insights-content">Analyzing data...</p>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p>🚀 Generated with AI-Driven Dashboard System | PB-FM MCP Server v{get_version_string()}</p>
+                <p><a href="/docs" style="color: #00ff88;">API Documentation</a> | 
+                   <a href="/" style="color: #00ccff;">API Home</a></p>
+            </div>
+            
+            <script>
+                // Dashboard JavaScript functionality
+                const dashboardId = '{dashboard_id}';
+                const apiBase = window.location.origin;
+                
+                // Initialize dashboard
+                async function initializeDashboard() {{
+                    try {{
+                        updateStatus('Loading dashboard configuration...', 'info');
+                        
+                        // Load initial visualization if any
+                        const activeVisualizations = {dashboard_config.get('active_visualizations', [])};
+                        
+                        if (activeVisualizations.length === 0) {{
+                            updateStatus('No visualizations yet - use controls to add charts', 'info');
+                            document.getElementById('plotly-div').style.display = 'none';
+                        }} else {{
+                            updateStatus('Loading visualizations...', 'info');
+                            // TODO: Load saved visualizations
+                            await loadHashPriceChart(); // Default to HASH price chart
+                        }}
+                        
+                    }} catch (error) {{
+                        console.error('Dashboard initialization error:', error);
+                        updateStatus('Failed to initialize dashboard: ' + error.message, 'error');
+                    }}
+                }}
+                
+                // Load HASH price chart
+                async function loadHashPriceChart() {{
+                    try {{
+                        updateStatus('Loading HASH price chart...', 'info');
+                        
+                        const response = await fetch(`${{apiBase}}/api/create_hash_price_chart`, {{
+                            method: 'POST',
+                            headers: {{
+                                'Content-Type': 'application/json',
+                            }},
+                            body: JSON.stringify({{
+                                time_range: '24h',
+                                dashboard_id: dashboardId
+                            }})
+                        }});
+                        
+                        if (!response.ok) {{
+                            throw new Error(`HTTP ${{response.status}}: ${{response.statusText}}`);
+                        }}
+                        
+                        const chartData = await response.json();
+                        
+                        if (chartData.success) {{
+                            // Render Plotly chart
+                            const plotlySpec = chartData.visualization_spec;
+                            await Plotly.newPlot('plotly-div', plotlySpec.data, plotlySpec.layout, {{
+                                responsive: true,
+                                displayModeBar: true,
+                                modeBarButtonsToAdd: ['downloadSVG']
+                            }});
+                            
+                            document.getElementById('plotly-div').style.display = 'block';
+                            updateStatus('HASH price chart loaded successfully', 'success');
+                            
+                            // Show AI insights
+                            if (chartData.ai_insights) {{
+                                showAIInsights(chartData.ai_insights);
+                            }}
+                            
+                        }} else {{
+                            throw new Error(chartData.error || 'Failed to create chart');
+                        }}
+                        
+                    }} catch (error) {{
+                        console.error('Chart loading error:', error);
+                        updateStatus('Failed to load HASH price chart: ' + error.message, 'error');
+                    }}
+                }}
+                
+                // Update status message
+                function updateStatus(message, type = 'info') {{
+                    const statusEl = document.getElementById('status');
+                    const colors = {{
+                        info: 'rgba(0, 255, 136, 0.1)',
+                        success: 'rgba(0, 255, 136, 0.2)', 
+                        error: 'rgba(231, 76, 60, 0.2)',
+                        warning: 'rgba(255, 193, 7, 0.2)'
+                    }};
+                    
+                    statusEl.style.background = colors[type] || colors.info;
+                    statusEl.innerHTML = type === 'info' && message.includes('Loading') 
+                        ? `<div class="loading-spinner"></div> ${{message}}`
+                        : message;
+                }}
+                
+                // Show AI insights
+                function showAIInsights(insights) {{
+                    const insightsEl = document.getElementById('ai-insights');
+                    const contentEl = document.getElementById('insights-content');
+                    contentEl.textContent = insights;
+                    insightsEl.style.display = 'block';
+                }}
+                
+                // Refresh dashboard
+                async function refreshDashboard() {{
+                    await loadHashPriceChart();
+                }}
+                
+                // Toggle dark/light theme
+                function toggleTheme() {{
+                    const body = document.body;
+                    const isDark = body.style.background.includes('1e1e1e');
+                    
+                    if (isDark) {{
+                        body.style.background = 'linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)';
+                        body.style.color = '#333';
+                    }} else {{
+                        body.style.background = 'linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%)';
+                        body.style.color = '#ffffff';
+                    }}
+                }}
+                
+                // Initialize dashboard when page loads
+                window.addEventListener('load', initializeDashboard);
+            </script>
+        </body>
+        </html>
+        """
+        
+        return HTMLResponse(content=html_content)
+        
+    except Exception as e:
+        print(f"Dashboard serving error: {e}")
+        return HTMLResponse(
+            content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Dashboard Error</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 40px; text-align: center; }}
+                    .error {{ color: #e74c3c; }}
+                </style>
+            </head>
+            <body>
+                <h1 class="error">Dashboard Error</h1>
+                <p>Failed to load dashboard: {str(e)}</p>
+                <p><a href="/">← Back to API Home</a></p>
+            </body>
+            </html>
+            """,
+            status_code=500
+        )
+
 # Root endpoint
 @app.get("/")
 async def root():
