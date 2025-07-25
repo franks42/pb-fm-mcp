@@ -824,4 +824,211 @@ uv run python scripts/heartbeat_poll_once.py <session_id>
 - ✅ Session isolation working perfectly
 - ✅ Server-directed polling instructions functioning as designed
 
+## 🎯 FUTURE VISION: Revolutionary Conversational Blockchain Dashboard
+
+### 🚀 The Next Phase: AI-Driven Creative Visualization System
+
+**CRITICAL CONTEXT**: The heartbeat conversation system is just the **foundational infrastructure** for a much larger revolutionary vision outlined in the design documents:
+
+- `docs/claude_mcp_web_architecture.md` - Complete technical architecture
+- `docs/project_context_summary_mcp_web.md` - Project overview and implementation strategy
+
+### Revolutionary Concept Overview
+
+**Vision**: Build the world's first AI-driven visualization designer that combines Claude.ai with MCP servers and web interfaces to create a "conversational dashboard" for blockchain data.
+
+**Key Innovation**: Instead of predefined chart types, Claude analyzes data and creates optimal, custom visualizations using Plotly's declarative JSON system.
+
+### Paradigm Shift
+
+**Traditional Approach**:
+```python
+create_pie_chart(delegation_data)
+create_line_chart(price_data)
+create_bar_chart(performance_data)
+```
+
+**Our Revolutionary Approach**:
+```python
+create_optimal_visualization(data, context, user_goals)
+# Claude analyzes what visualization would be most insightful
+# Claude designs it from scratch using Plotly's universal specification
+# Claude returns a completely custom, purpose-built visualization
+```
+
+### Architecture Vision
+
+```
+User Input (Chat) ←→ Claude.ai ←→ MCP Server ←→ Web Interface ←→ User Interaction (Clicks/Forms)
+                                       ↓
+                               Provenance Blockchain APIs
+                               Figure Markets Data
+                               Database (Sessions/State)
+```
+
+### Creative Visualization Examples
+
+**Emergency Dashboard (Vesting Cliff Detection)**:
+When Claude detects urgent situations, it creates custom alert visualizations:
+- Large countdown displays with red warning colors
+- Action priority treemaps showing "Delegate Now" vs "Transfer Risk" vs "Do Nothing"
+- Automatic annotations with specific recommendations
+- Real-time updates as the cliff approaches
+
+**Exploration Interface (Portfolio Discovery)**:
+For users wanting to explore their portfolio:
+- 3D scatter plots with risk/return/liquidity axes
+- Interactive bubble sizes representing position sizes
+- Color coding for performance scores
+- Perspective switchers for different analytical views
+
+**Decision Support Charts**:
+For strategic investment decisions:
+- Scenario comparison timelines
+- Expected value projections for different strategies
+- Highlighted optimal choices with advantage calculations
+- Interactive what-if analysis
+
+### Technical Foundation
+
+**Plotly Hybrid Approach**:
+- **Python Server**: Generates chart specifications using Plotly.py
+- **JavaScript Client**: Renders with Plotly.js for full interactivity
+- **Benefits**: Python's data processing power + JavaScript's interactive rendering
+
+**Core MCP Functions to Implement**:
+```python
+create_optimal_visualization(data, context, user_goals, canvas_id) -> dict
+analyze_data_narrative(data) -> dict
+get_visualization_capabilities() -> dict
+create_canvas(canvas_id, width, height) -> dict
+update_visualization(canvas_id, updates) -> dict
+```
+
+### Implementation Strategy
+
+**Phase 1: Extend Current Infrastructure**
+- Use existing pb-fm-mcp-dev server as foundation
+- Add creative visualization functions to current codebase
+- Leverage existing Provenance blockchain integration
+
+**Phase 2: Web Interface Development**
+- Create canvas for Plotly rendering
+- Implement WebSocket for real-time updates
+- User context input (goals, screen size, urgency)
+
+**Phase 3: Creative Engine**
+- Data narrative analysis
+- Visualization strategy selection
+- Custom Plotly specification generation
+
+### Current Status vs Vision
+
+**✅ Completed Infrastructure**:
+- Heartbeat conversation system (foundational layer)
+- Custom domain deployment with stable URLs
+- MCP protocol with 20 tools
+- Dual-path Lambda architecture
+- Session management and state persistence
+
+**🚧 Next Phase Implementation**:
+- Creative visualization engine
+- Rich web interface with interactive charts
+- AI-driven chart selection and design
+- Real-time blockchain data visualization
+- Context-aware dashboard generation
+
+### Revolutionary Potential
+
+**What This Enables**:
+1. **AI Visualization Designer**: First system where AI chooses optimal chart types
+2. **Context-Aware Dashboards**: Visualizations that adapt to user goals and urgency
+3. **Narrative-Driven Charts**: Visualizations that tell stories rather than display data
+4. **Conversational Persistence**: Background monitoring through heartbeat patterns
+
+**User Experience Transformation**:
+- **Before**: "Show me a pie chart of my delegation"
+- **After**: "I detected unusual validator performance patterns and created a risk heatmap with correlation analysis. The red zones indicate validators with declining performance that may impact your 12.5% of staked HASH. Consider rebalancing to the green zones."
+
+### Technical Challenges Solved by Heartbeat System
+
+1. **MCP Protocol Limitations**: Heartbeat conversation pattern overcomes Claude's single-threaded nature
+2. **Real-Time Updates**: WebSocket/SSE bridge between MCP server and web interface
+3. **Session Management**: State synchronization across Claude conversations and web interactions
+4. **Creative Freedom**: Plotly's universal JSON specification enables unlimited visualization design
+
+### Blockchain-Specific Applications
+
+**Critical Calculations Enabled**:
+- **Controllable HASH vs Total HASH**: Prevents 10-100x overstatement of market influence
+- **Vesting Coverage Logic**: Prevents negative spendable amount calculations
+- **Delegation Optimization**: ROI maximization through proper reward claiming
+- **Timeline Analysis**: 21-day unbonding periods and redelegation mechanics
+
+**Urgent Scenario Detection**:
+- Vesting cliff alerts with countdown timers
+- Validator performance degradation warnings
+- Unclaimed rewards ROI loss calculations
+- Market correlation risk assessments
+
+### Documentation References
+
+**Complete Technical Specifications**:
+- `docs/claude_mcp_web_architecture.md` - Full architecture with code examples
+- `docs/project_context_summary_mcp_web.md` - Project overview and context
+- `docs/heartbeat-conversation-system.md` - Infrastructure implementation details
+
+**Implementation Roadmap**:
+- **Appendix A**: Dynamic UI generation & MCP interface specifications
+- **Appendix B**: AI-driven creative visualization system with Plotly integration
+- **Appendix C**: Blockchain-specific use cases and calculation requirements
+
+### For Future Claude Instances
+
+**Key Points to Remember**:
+1. The heartbeat system is **foundational infrastructure**, not the end goal
+2. The real vision is **AI-designed visualizations** using Plotly's JSON specifications
+3. Focus on **extending existing pb-fm-mcp-dev server** rather than building from scratch
+4. The **conversational dashboard** concept is revolutionary and unprecedented
+5. **Blockchain context** requires precise calculations for vesting/delegation mechanics
+
+**When Continuing This Work**:
+1. Read the design documents to understand the full vision
+2. Extend the MCP server with creative visualization functions
+3. Create web interface canvas for Plotly rendering
+4. Test the AI-driven chart selection and generation
+5. Implement real-time updates via WebSocket integration
+
+**Success Metrics for Full Vision**:
+- Response time < 2 seconds for wallet analysis
+- Unique, contextual visualizations for each data scenario
+- Seamless conversation flow with web interface updates
+- User engagement > 5 minutes per session
+- AI-generated insights leading to actionable optimization
+
+### Recent Technical Achievements (July 25, 2025)
+
+**✅ Custom Domain Deployment Success**:
+- Successfully migrated from temporary AWS URLs to stable custom domains
+- Fixed documentation endpoint 403 errors with conditional `API_GATEWAY_STAGE_PATH`
+- All endpoints now working perfectly at `pb-fm-mcp-dev.creativeapptitude.com`
+
+**✅ MCP Tool Troubleshooting**:
+- Identified Claude.ai session caching issue causing parameter name confusion
+- Tools work perfectly but Claude.ai caches server configurations during sessions
+- **Solution**: Fresh Claude.ai sessions after server changes resolve tool issues
+- Example: `fetch_last_crypto_token_price` expects `last_number_of_trades`, not `count`
+
+**✅ Production-Ready Infrastructure**:
+- Heartbeat conversation system fully functional and documented
+- Custom domains with SSL certificates working across all environments
+- MCP Inspector compatibility confirmed for all 20 tools
+- Dual-path Lambda architecture stable and scalable
+
+**🚧 Ready for Next Phase**:
+- Infrastructure foundation complete and battle-tested
+- Design documents provide clear roadmap for creative visualization system
+- Existing MCP server ready for extension with Plotly functions
+- All technical prerequisites satisfied for building the conversational dashboard
+
 ## 🚨 ORIGINAL DEPLOYMENT ENVIRONMENTS (Legacy)
