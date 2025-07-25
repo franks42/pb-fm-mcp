@@ -9,55 +9,36 @@ All functions are decorated with @api_function to be automatically exposed via M
 """
 
 import asyncio
-from typing import Dict, Any
+from typing import Any
+
 import structlog
 
-# Handle import for both relative and absolute path contexts
-try:
-    from ..registry import api_function
-    from .blockchain_functions import (
-        fetch_account_info, fetch_account_is_vesting, fetch_total_delegation_data,
-        fetch_vesting_total_unvested_amount, fetch_available_committed_amount
-    )
-    from .figure_markets_functions import (
-        fetch_figure_markets_data, fetch_fm_account_balance, fetch_fm_account_info,
-        fetch_crypto_token_price, fetch_figure_markets_assets_info
-    )
-    from .stats_functions import fetch_current_hash_statistics, get_system_context
-except ImportError:
-    try:
-        from registry import api_function
-        from blockchain_functions import (
-            fetch_account_info, fetch_account_is_vesting, fetch_total_delegation_data,
-            fetch_vesting_total_unvested_amount, fetch_available_committed_amount
-        )
-        from figure_markets_functions import (
-            fetch_figure_markets_data, fetch_fm_account_balance, fetch_fm_account_info,
-            fetch_crypto_token_price, fetch_figure_markets_assets_info
-        )
-        from stats_functions import fetch_current_hash_statistics, get_system_context
-    except ImportError:
-        from src.registry import api_function
-        from src.functions.blockchain_functions import (
-            fetch_account_info, fetch_account_is_vesting, fetch_total_delegation_data,
-            fetch_vesting_total_unvested_amount, fetch_available_committed_amount
-        )
-        from src.functions.figure_markets_functions import (
-            fetch_figure_markets_data, fetch_fm_account_balance, fetch_fm_account_info,
-            fetch_crypto_token_price, fetch_figure_markets_assets_info
-        )
-        from src.functions.stats_functions import fetch_current_hash_statistics, get_system_context
+from functions.blockchain_functions import (
+    fetch_account_info,
+    fetch_account_is_vesting,
+    fetch_available_committed_amount,
+    fetch_total_delegation_data,
+    fetch_vesting_total_unvested_amount,
+)
+from functions.figure_markets_functions import (
+    fetch_current_fm_account_balance_data,
+    fetch_current_fm_account_info,
+    fetch_current_fm_data,
+    fetch_figure_markets_assets_info,
+    fetch_last_crypto_token_price,
+)
+from functions.stats_functions import fetch_current_hash_statistics, get_system_context
+from registry import api_function
+from utils import JSONType
 
 # Set up logging
 logger = structlog.get_logger()
 
-# Type alias for JSON response
-JSONType = Dict[str, Any]
 
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/complete_wallet_summary/{wallet_address}",
+    path="/api/fetch_complete_wallet_summary/{wallet_address}",
     description="Get comprehensive wallet summary including blockchain account info, delegation data, vesting info, and Figure Markets balance",
     tags=["aggregates", "wallet", "summary"]
 )
@@ -90,8 +71,8 @@ async def fetch_complete_wallet_summary(wallet_address: str) -> JSONType:
         fetch_account_info(wallet_address),
         fetch_account_is_vesting(wallet_address), 
         fetch_total_delegation_data(wallet_address),
-        fetch_fm_account_balance(wallet_address),
-        fetch_fm_account_info(wallet_address)
+        fetch_current_fm_account_balance_data(wallet_address),
+        fetch_current_fm_account_info(wallet_address)
     ]
     
     # Execute all tasks concurrently
@@ -163,7 +144,7 @@ async def fetch_complete_wallet_summary(wallet_address: str) -> JSONType:
                 
         except Exception as e:
             logger.error(f"Error calculating summary totals: {e}")
-            summary_totals = {"MCP-ERROR": f"Error calculating totals: {str(e)}"}
+            summary_totals = {"MCP-ERROR": f"Error calculating totals: {e!s}"}
     
     return {
         "wallet_address": wallet_address,
@@ -180,7 +161,7 @@ async def fetch_complete_wallet_summary(wallet_address: str) -> JSONType:
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/market_overview_summary",
+    path="/api/fetch_market_overview_summary",
     description="Get comprehensive market overview including Figure Markets data, HASH statistics, and trading assets",
     tags=["aggregates", "market", "overview"]
 )
@@ -204,7 +185,7 @@ async def fetch_market_overview_summary() -> JSONType:
     
     # Define concurrent market data tasks
     tasks = [
-        fetch_figure_markets_data(),
+        fetch_current_fm_data(),
         fetch_current_hash_statistics(), 
         fetch_figure_markets_assets_info(),
         get_system_context()
@@ -221,9 +202,9 @@ async def fetch_market_overview_summary() -> JSONType:
     
     # Fetch key token prices concurrently
     price_tasks = [
-        fetch_crypto_token_price("HASH.USD"),
-        fetch_crypto_token_price("BTC.USD"), 
-        fetch_crypto_token_price("ETH.USD")
+        fetch_last_crypto_token_price("HASH-USD", 1),
+        fetch_last_crypto_token_price("BTC-USD", 1), 
+        fetch_last_crypto_token_price("ETH-USD", 1)
     ]
     
     price_results = await asyncio.gather(*price_tasks, return_exceptions=True)
@@ -243,106 +224,4 @@ async def fetch_market_overview_summary() -> JSONType:
     }
 
 
-@api_function(
-    protocols=["mcp", "rest"], 
-    path="/api/complete_portfolio_overview/{wallet_address}",
-    description="Get complete portfolio overview combining delegation portfolio with trading portfolio for comprehensive asset view",
-    tags=["aggregates", "portfolio", "trading"]
-)
-async def fetch_complete_portfolio_overview(wallet_address: str) -> JSONType:
-    """
-    Get complete portfolio overview combining delegation portfolio with trading portfolio
-    to provide a comprehensive view of all assets and activities.
-    
-    This aggregate function provides portfolio managers and AI agents with a complete
-    picture of both staking/delegation activities and trading positions.
-    
-    Args:
-        wallet_address: Wallet's Bech32 address
-        
-    Returns:
-        Dictionary containing complete portfolio information:
-        - delegation_portfolio: Complete delegation data with earning/non-earning breakdown
-        - trading_portfolio: Figure Markets account balance and info
-        - portfolio_totals: Combined totals across both portfolios
-        - portfolio_performance: Key performance indicators
-    """
-    logger.info(f"Fetching complete portfolio overview for {wallet_address}")
-    
-    # Define concurrent portfolio tasks
-    tasks = [
-        fetch_total_delegation_data(wallet_address),
-        fetch_fm_account_balance(wallet_address),
-        fetch_fm_account_info(wallet_address)
-    ]
-    
-    # Execute all tasks concurrently
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    # Extract results with error handling
-    delegation_portfolio = results[0] if not isinstance(results[0], Exception) else {"MCP-ERROR": str(results[0])}
-    trading_balance = results[1] if not isinstance(results[1], Exception) else {"MCP-ERROR": str(results[1])}
-    trading_info = results[2] if not isinstance(results[2], Exception) else {"MCP-ERROR": str(results[2])}
-    
-    # Calculate portfolio totals and performance metrics
-    portfolio_totals = {}
-    portfolio_performance = {}
-    
-    if not delegation_portfolio.get("MCP-ERROR") and not trading_balance.get("MCP-ERROR"):
-        try:
-            # Extract delegation amounts
-            staking_validators = delegation_portfolio.get("staking_validators", 0)
-            delegated_earning = delegation_portfolio.get("delegated_earning_amount", 0)
-            delegated_rewards = delegation_portfolio.get("delegated_rewards_amount", 0)
-            delegated_total = delegation_portfolio.get("delegated_total_delegated_amount", 0)
-            
-            # Extract trading amounts
-            trading_hash_balance = 0
-            trading_usd_value = 0
-            
-            for balance in trading_balance.get("balances", []):
-                if balance.get("denom") == "nhash":
-                    trading_hash_balance = int(balance.get("available", 0))
-                elif balance.get("denom") == "usd":
-                    trading_usd_value = int(balance.get("available", 0))
-            
-            # Calculate totals
-            total_hash_exposure = delegated_total + trading_hash_balance
-            total_earning_hash = delegated_earning  # Only delegation earns rewards
-            total_liquid_hash = trading_hash_balance  # Only trading is liquid
-            
-            portfolio_totals = {
-                "total_hash_exposure": total_hash_exposure,
-                "total_earning_hash": total_earning_hash,
-                "total_liquid_hash": total_liquid_hash,
-                "total_claimable_rewards": delegated_rewards,
-                "total_usd_balance": trading_usd_value
-            }
-            
-            # Calculate performance metrics
-            earning_ratio = (total_earning_hash / total_hash_exposure * 100) if total_hash_exposure > 0 else 0
-            reward_yield_estimate = (delegated_rewards / delegated_earning * 100) if delegated_earning > 0 else 0
-            diversification_score = min(staking_validators / 10 * 100, 100)  # Max score at 10+ validators
-            
-            portfolio_performance = {
-                "earning_asset_ratio_percent": round(earning_ratio, 2),
-                "estimated_reward_yield_percent": round(reward_yield_estimate, 4),
-                "validator_diversification_score": round(diversification_score, 1),
-                "number_of_staking_validators": staking_validators
-            }
-            
-        except Exception as e:
-            logger.error(f"Error calculating portfolio metrics: {e}")
-            portfolio_totals = {"MCP-ERROR": f"Error calculating totals: {str(e)}"}
-            portfolio_performance = {"MCP-ERROR": f"Error calculating performance: {str(e)}"}
-    
-    return {
-        "wallet_address": wallet_address,
-        "delegation_portfolio": delegation_portfolio,
-        "trading_portfolio": {
-            "balance": trading_balance,
-            "account_info": trading_info
-        },
-        "portfolio_totals": portfolio_totals,
-        "portfolio_performance": portfolio_performance
-    }
+# Large commented-out function removed to improve code maintainability

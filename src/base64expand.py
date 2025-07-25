@@ -5,7 +5,7 @@ import json
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from hastra_types import JSONType
+    from utils import JSONType
 
 def is_base64(s: str) -> bool:
     # Heuristic: base64 strings are usually longer than 8 chars, only contain base64 chars, and length is a multiple of 4 (with or without padding)

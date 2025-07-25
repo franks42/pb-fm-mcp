@@ -2,52 +2,23 @@
 Comprehensive Blockchain Functions for Provenance Blockchain
 
 Complete set of blockchain API functions with proper async handling and integer values.
-All functions are decorated with @api_function to be automatically exposed via MCP and/or REST protocols.
+All functions are decorated with @api_function to be automatically exposed via MCP 
+and/or REST protocols.
 """
 
 import asyncio
-from typing import Dict, Any
-import httpx
+from typing import Any
+
 import structlog
 
-# Handle import for both relative and absolute path contexts
-try:
-    from ..registry import api_function
-except ImportError:
-    try:
-        from registry import api_function
-    except ImportError:
-        from src.registry import api_function
+from registry import api_function
+from utils import async_http_get_json, JSONType
 
 # Set up logging
 logger = structlog.get_logger()
 
-# Type alias for JSON response
-JSONType = Dict[str, Any]
 
-# Helper function for async HTTP GET requests
-async def async_http_get_json(url: str, params=None) -> JSONType:
-    """
-    Helper function for async HTTP GET requests with JSON response.
-    
-    Args:
-        url: The URL to fetch
-        params: Optional query parameters
-        
-    Returns:
-        JSON response as dictionary or error dict
-    """
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, timeout=30.0)
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPError as e:
-        logger.error(f"HTTP error fetching {url}: {e}")
-        return {"MCP-ERROR": f"HTTP error: {str(e)}"}
-    except Exception as e:
-        logger.error(f"Unexpected error fetching {url}: {e}")
-        return {"MCP-ERROR": f"Unexpected error: {str(e)}"}
+# Removed duplicate async_http_get_json - now imported from utils
 
 # Utility functions for amount handling
 def parse_amount(amount_str) -> int:
@@ -56,7 +27,7 @@ def parse_amount(amount_str) -> int:
         return int(float(amount_str))
     return int(amount_str)
 
-def amount_denom_add(amount1: Dict[str, Any], amount2: Dict[str, Any]) -> Dict[str, Any]:
+def amount_denom_add(amount1: dict[str, Any], amount2: dict[str, Any]) -> dict[str, Any]:
     """Add two amount/denom dictionaries together"""
     if amount1.get("denom") != amount2.get("denom"):
         raise ValueError("Cannot add amounts with different denominations")
@@ -74,7 +45,7 @@ def amount_denom_add(amount1: Dict[str, Any], amount2: Dict[str, Any]) -> Dict[s
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/account_info/{wallet_address}",
+    path="/api/fetch_account_info/{wallet_address}",
     method="GET",
     tags=["account", "information"],
     description="Fetch account information including vesting status and AUM"
@@ -111,12 +82,12 @@ async def fetch_account_info(wallet_address: str) -> JSONType:
         return result
     except (KeyError, TypeError) as e:
         logger.warning(f"Could not parse account info: {e}")
-        return {"MCP-ERROR": f"Data parsing error: {str(e)}"}
+        return {"MCP-ERROR": f"Data parsing error: {e!s}"}
 
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/account_is_vesting/{wallet_address}",
+    path="/api/fetch_account_is_vesting/{wallet_address}",
     method="GET",
     tags=["account", "vesting"],
     description="Check if wallet address is subject to vesting restrictions"
@@ -146,7 +117,7 @@ async def fetch_account_is_vesting(wallet_address: str) -> JSONType:
         return {'wallet_is_vesting': response['flags']['isVesting']}
     except (KeyError, TypeError) as e:
         logger.warning(f"Could not parse vesting status: {e}")
-        return {"MCP-ERROR": f"Data parsing error: {str(e)}"}
+        return {"MCP-ERROR": f"Data parsing error: {e!s}"}
 
 
 #########################################################################################
@@ -199,7 +170,7 @@ async def fetch_delegated_rewards_amount(wallet_address: str) -> JSONType:
             }
     except (KeyError, ValueError, TypeError) as e:
         logger.warning(f"Could not parse rewards data: {e}")
-        return {"MCP-ERROR": f"Data parsing error: {str(e)}"}
+        return {"MCP-ERROR": f"Data parsing error: {e!s}"}
 
 
 @api_function(
@@ -245,7 +216,7 @@ async def fetch_delegated_staked_amount(wallet_address: str) -> JSONType:
         }
     except (KeyError, ValueError, TypeError) as e:
         logger.warning(f"Could not parse delegation data: {e}")
-        return {"MCP-ERROR": f"Data parsing error: {str(e)}"}
+        return {"MCP-ERROR": f"Data parsing error: {e!s}"}
 
 
 @api_function(
@@ -288,7 +259,7 @@ async def fetch_delegated_unbonding_amount(wallet_address: str) -> JSONType:
         }
     except (KeyError, ValueError, TypeError) as e:
         logger.warning(f"Could not parse unbonding data: {e}")
-        return {"MCP-ERROR": f"Data parsing error: {str(e)}"}
+        return {"MCP-ERROR": f"Data parsing error: {e!s}"}
 
 
 @api_function(
@@ -321,7 +292,9 @@ async def fetch_delegated_redelegation_amount(wallet_address: str) -> JSONType:
         
     try:
         rollup_totals = response.get('rollupTotals', {})
-        redelegation_total = rollup_totals.get('redelegationTotal', {'amount': '0', 'denom': 'nhash'})
+        redelegation_total = rollup_totals.get(
+            'redelegationTotal', {'amount': '0', 'denom': 'nhash'}
+        )
         
         return {
             'delegated_redelegated_amount': {
@@ -331,7 +304,7 @@ async def fetch_delegated_redelegation_amount(wallet_address: str) -> JSONType:
         }
     except (KeyError, ValueError, TypeError) as e:
         logger.warning(f"Could not parse redelegation data: {e}")
-        return {"MCP-ERROR": f"Data parsing error: {str(e)}"}
+        return {"MCP-ERROR": f"Data parsing error: {e!s}"}
 
 
 #########################################################################################
@@ -340,7 +313,7 @@ async def fetch_delegated_redelegation_amount(wallet_address: str) -> JSONType:
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/total_delegation_data/{wallet_address}",
+    path="/api/fetch_total_delegation_data/{wallet_address}",
     method="GET",
     tags=["delegation", "summary"],
     description="Fetch comprehensive delegation data summary for a wallet address"
@@ -360,7 +333,8 @@ async def fetch_total_delegation_data(wallet_address: str) -> JSONType:
         Dictionary containing detailed delegation information:
         - staking_validators: Number of validators used for staking
         - delegated_staked_amount: Amount of HASH staked with validators (earns rewards)
-        - delegated_redelegated_amount: Amount of HASH redelegated (earns rewards, 21-day waiting period)
+        - delegated_redelegated_amount: Amount of HASH redelegated (earns rewards, 
+          21-day waiting period)
         - delegated_rewards_amount: Amount of HASH earned as rewards (can be claimed immediately)
         - delegated_unbonding_amount: Amount of HASH unbonding (21-day waiting period, no rewards)
         - delegated_total_delegated_amount: Total HASH delegated (calculated sum of all above)
@@ -419,17 +393,19 @@ async def fetch_total_delegation_data(wallet_address: str) -> JSONType:
         
     except (KeyError, ValueError, TypeError) as e:
         logger.error(f"Could not calculate delegation totals: {e}")
-        return {"MCP-ERROR": f"Calculation error: {str(e)}"}
+        return {"MCP-ERROR": f"Calculation error: {e!s}"}
 
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/vesting_total_unvested_amount/{wallet_address}",
+    path="/api/fetch_vesting_total_unvested_amount/{wallet_address}",
     method="GET",
     tags=["vesting", "blockchain"],
     description="Fetch vesting unvested amount for wallet address at specific date-time"
 )
-async def fetch_vesting_total_unvested_amount(wallet_address: str, date_time: str = None) -> JSONType:
+async def fetch_vesting_total_unvested_amount(
+    wallet_address: str, date_time: str | None = None
+) -> JSONType:
     """
     Fetch the vesting_total_unvested_amount for the given wallet address and date_time.
     
@@ -466,7 +442,7 @@ async def fetch_vesting_total_unvested_amount(wallet_address: str, date_time: st
             from datetime import datetime
             dtms = int(datetime.fromisoformat(date_time).timestamp() * 1000)
         else:
-            from datetime import datetime, UTC
+            from datetime import UTC, datetime
             dtms = int(datetime.now(UTC).timestamp() * 1000)
 
         # Parse vesting schedule dates
@@ -491,7 +467,7 @@ async def fetch_vesting_total_unvested_amount(wallet_address: str, date_time: st
         total_unvested_amount = vesting_original_amount - total_vested_amount
         
         # Build result
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
         result_datetime = datetime.fromtimestamp(dtms / 1000, tz=UTC).isoformat()
         
         vesting_data = {
@@ -508,19 +484,78 @@ async def fetch_vesting_total_unvested_amount(wallet_address: str, date_time: st
         
     except Exception as e:
         logger.error(f"Could not fetch vesting data: {e}")
-        return {"MCP-ERROR": f"Vesting data fetch error: {str(e)}"}
+        return {"MCP-ERROR": f"Vesting data fetch error: {e!s}"}
+
+
+@api_function(
+    protocols=["rest"],
+    path="/api/wallet_liquid_balance/{wallet_address}",
+    method="GET",
+    tags=["balance", "blockchain"],
+    description="Fetch liquid HASH balance available in wallet"
+)
+async def fetch_wallet_liquid_balance(wallet_address: str) -> JSONType:
+    """
+    Fetch the current liquid HASH balance available in the wallet (not delegated or committed).
+    
+    This is the amount that can be immediately spent, transferred, or delegated.
+    
+    Args:
+        wallet_address: Wallet's Bech32 address
+        
+    Returns:
+        Dictionary containing:
+        - wallet_liquid_balance: Available liquid HASH amount with standardized 
+          amount/denom structure
+          - amount: Liquid HASH amount in nhash
+          - denom: Token denomination (nhash)
+        
+    Raises:
+        HTTPError: If the Provenance blockchain API is unavailable
+    """
+    try:
+        url = f"https://service-explorer.provenance.io/api/v2/accounts/{wallet_address}/balances"
+        params = {"count": 20, "page": 1}
+        response = await async_http_get_json(url, params=params)
+        
+        if response.get("MCP-ERROR"):
+            return response
+            
+        # Find HASH balance in the results
+        balance_list = response.get('results', [])
+        for balance in balance_list:
+            if balance.get('denom') == 'nhash':
+                return {
+                    'wallet_liquid_balance': {
+                        'amount': parse_amount(balance['amount']),
+                        'denom': balance['denom']
+                    }
+                }
+        
+        # No HASH found - return zero balance
+        return {
+            'wallet_liquid_balance': {
+                'amount': 0,
+                'denom': 'nhash'
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Could not fetch wallet liquid balance: {e}")
+        return {"MCP-ERROR": f"Wallet balance fetch error: {e!s}"}
 
 
 @api_function(
     protocols=["mcp", "rest"],
-    path="/api/available_committed_amount/{wallet_address}",
+    path="/api/fetch_available_committed_amount/{wallet_address}",
     method="GET",
     tags=["commitment", "blockchain"],
     description="Fetch committed HASH amount to Figure Markets exchange"
 )
 async def fetch_available_committed_amount(wallet_address: str) -> JSONType:
     """
-    Fetch the current committed HASH amount to the Figure Markets exchange for the given wallet address.
+    Fetch the current committed HASH amount to the Figure Markets exchange for the 
+    given wallet address.
     
     API returns amounts in nhash (1 HASH = 1,000,000,000 nhash). Values are converted to integers.
     
@@ -529,8 +564,9 @@ async def fetch_available_committed_amount(wallet_address: str) -> JSONType:
         
     Returns:
         Dictionary containing:
-        - denom: Token/HASH denomination (nhash)
-        - available_committed_amount: Amount of denom committed to the exchange
+        - available_committed_amount: Committed HASH amount with standardized amount/denom structure
+          - amount: HASH amount committed to the exchange in nhash
+          - denom: Token denomination (nhash)
         
     Raises:
         HTTPError: If the Provenance blockchain API is unavailable
@@ -555,12 +591,17 @@ async def fetch_available_committed_amount(wallet_address: str) -> JSONType:
             available_committed_amount = parse_amount(hash_amount_dict_list[0]["amount"])
         
         hash_amount_dict = {
-            "denom": "nhash",
-            "available_committed_amount": available_committed_amount
+            "available_committed_amount": {
+                "amount": available_committed_amount,
+                "denom": "nhash"
+            }
         }
         
         return hash_amount_dict
         
     except Exception as e:
         logger.error(f"Could not fetch committed amount: {e}")
-        return {"MCP-ERROR": f"Committed amount fetch error: {str(e)}"}
+        return {"MCP-ERROR": f"Committed amount fetch error: {e!s}"}
+
+
+# Large commented-out function removed to improve code maintainability

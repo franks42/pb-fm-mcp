@@ -1,40 +1,60 @@
 # Development Roadmap - pb-fm-mcp
 
 ## Current Status
-- ✅ AWS Lambda MCP server with 13 tools
-- ✅ Production deployment working
-- ✅ **Dual API Architecture**: MCP + REST protocols in single Lambda deployment
-- ✅ **Complete Documentation**: Interactive /docs endpoint with external Swagger UI integration
-- ✅ **CORS & Async**: Proper async patterns with thread pool execution and cross-origin support
-- ✅ Local SAM testing environment
-- ✅ jqpy and base64expand preserved for integration
+- ✅ **AWS Lambda MCP server with 21 functions** - 16 MCP tools, 19 REST endpoints ✅ COMPLETE
+- ✅ **Unified Function Registry Architecture**: `@api_function` decorator system ✅ COMPLETE
+- ✅ **Version Management System**: Automated version tracking with deployment hooks ✅ COMPLETE  
+- ✅ **System Introspection Tools**: Registry analysis and Lambda warmup functions ✅ COMPLETE
+- ✅ **Cross-Server MCP Testing**: Dev-to-prod Lambda MCP communication testing ✅ COMPLETE
+- ✅ **Async Event Loop Issue Resolution**: Permanent fix for recurring Lambda async problems ✅ COMPLETE
+- ✅ **Automated Deployment Scripts**: One-command deployment with version increment ✅ COMPLETE
+- ✅ **Dual API Architecture**: MCP + REST protocols in single Lambda deployment ✅ COMPLETE
+- ✅ **Complete Documentation**: Interactive /docs endpoint with external Swagger UI integration ✅ COMPLETE
+- ✅ **CORS & Async**: Proper async patterns with consistent async HTTP calls ✅ COMPLETE  
+- ✅ **Production/Development Separation**: Separate endpoints and deployment stacks ✅ COMPLETE
+- ✅ **Comprehensive Equivalence Testing**: 91% pass rate with automated MCP vs REST validation ✅ COMPLETE
+- ✅ **Security Hardening**: Environment variable protection for sensitive data ✅ COMPLETE
+- ✅ **Asset Amount Standardization**: Consistent `{"amount": int, "denom": "nhash"}` format ✅ COMPLETE
+- ✅ **Figure Markets API Integration**: Public trading and asset data (private APIs disabled) ✅ COMPLETE
+- ✅ **AWS MCP Handler Bug Fix**: Comprehensive monkey patch preserves snake_case naming AND execution (tracking AWS fix in [Issue #757](https://github.com/awslabs/mcp/issues/757)) ✅ COMPLETE
+- ✅ Local SAM testing environment ✅ COMPLETE
+- ✅ jqpy and base64expand preserved for integration ✅ COMPLETE
 
 ## Improvement Priorities
 
 ### 🔴 High Priority
 
-#### 🚨 **CRITICAL: Production/Development Environment Separation**
-- **Create separate production and development endpoints** - Ensure colleagues can use stable MCP server while development continues
-- **Git branch strategy** - Use `main` branch for production, `dev` branch for active development
-- **Separate SAM stack deployments** - `pb-fm-mcp-prod` (stable) and `pb-fm-mcp-dev` (testing)
-- **Environment-based configuration** - Different endpoints, logging levels, and feature flags
+#### ✅ **COMPLETED: Production/Development Environment Separation**
+- ✅ **Separate production and development endpoints** - Colleagues use stable production, development continues on dev stack
+- ✅ **Git branch strategy** - `main` branch for production, `dev` branch for active development
+- ✅ **Separate SAM stack deployments** - `pb-fm-mcp-v2` (stable) and `pb-fm-mcp-dev` (testing)
+- ✅ **Environment-based configuration** - Different endpoints, logging levels, and feature flags
 
-#### 🚀 **NEXT PHASE: Unified Function Registry Architecture**
-- **Create decorator-based function registry** - Single `@api_function` decorator to expose functions via MCP, REST, or both
-- **Implement modular business function structure** - Move functions to domain-specific modules (`account_functions.py`, `market_functions.py`, etc.)
-- **Auto-generate protocol endpoints** - Automatically create MCP tools and FastAPI routes from registry
-- **Separate business logic from protocol handlers** - Pure functions with zero protocol-specific code
-- **Full typing system** - Type hints for automatic validation and OpenAPI schema generation
+#### ✅ **COMPLETED: Unified Function Registry Architecture**
+- ✅ **Created decorator-based function registry** - Single `@api_function` decorator exposes functions via MCP, REST, or both
+- ✅ **Implemented modular business function structure** - Functions organized in domain-specific modules (`stats_functions.py`, `delegation_functions.py`, etc.)
+- ✅ **Auto-generate protocol endpoints** - Automatically create MCP tools and FastAPI routes from registry
+- ✅ **Separated business logic from protocol handlers** - Pure functions with zero protocol-specific code
+- ✅ **Full typing system** - Type hints for automatic validation and OpenAPI schema generation
 
-#### API Architecture Refactoring (Partially Complete)
+#### ✅ **COMPLETED: System Operations & Monitoring**
+- ✅ **Version Management System** - Automated semantic versioning with deployment tracking
+- ✅ **System Introspection Tools** - Registry analysis, function counts, and protocol distribution
+- ✅ **Lambda Container Warming** - Fast ping function for cold start mitigation
+- ✅ **Cross-Server MCP Testing** - Dev/prod MCP server communication testing with performance analysis
+- ✅ **Automated Deployment Scripts** - One-command deployment with version increment and environment validation
+- ✅ **Async Event Loop Resolution** - Permanent fix for recurring Lambda async/thread pool issues
+
+#### ✅ **COMPLETED: API Architecture Refactoring**
 - ✅ **Implement dual API exposure** - Expose both MCP protocol and REST endpoints for the same functionality
 - ✅ **Design REST API endpoints** - Mirror MCP tools as REST endpoints for non-MCP AI agents
-- 🔄 **Refactor PB-API functions into separate async proxy layer** - Create clean separation between raw API calls and data processing
-- 🔄 **Create standardized data transformation layer** - Convert raw PB-API responses into consistent, filtered data structures
+- ✅ **Refactor PB-API functions into async proxy layer** - Clean separation between raw API calls and data processing
+- ✅ **Create standardized data transformation layer** - Consistent async HTTP patterns across all functions
 
-#### Core Integrations
-- **Integrate jqpy JSON processing** - Add jq-like query capabilities to MCP tools
+#### 🚀 **NEXT PHASE: Enhanced Integrations**
+- **Integrate jqpy JSON processing** - Add jq-like query capabilities to MCP tools (162/193 tests passing)
 - **Dynamic JSON transformation tool** - Let users apply jq syntax via MCP for custom data filtering
+- **Base64 data expansion** - Handle encoded blockchain data in responses
 
 ### 🟡 Medium Priority
 

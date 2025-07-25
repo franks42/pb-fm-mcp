@@ -7,6 +7,8 @@ return identical results. This ensures protocol consistency and data integrity.
 
 import asyncio
 import json
+import os
+import sys
 import pytest
 import httpx
 from typing import Dict, Any, Optional
@@ -20,7 +22,11 @@ from src.functions.blockchain_functions import (
 )
 
 # Test configuration
-TEST_WALLET_ADDRESS = "pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8"  # Real test address with actual data
+TEST_WALLET_ADDRESS = os.environ.get("TEST_WALLET_ADDRESS")
+if not TEST_WALLET_ADDRESS:
+    print("❌ ERROR: TEST_WALLET_ADDRESS environment variable is required")
+    print("Please set it with: export TEST_WALLET_ADDRESS=your_wallet_address")
+    sys.exit(1)
 LOCAL_BASE_URL = "http://localhost:3000"
 DEV_BASE_URL = "https://q6302ue9w9.execute-api.us-west-1.amazonaws.com/Prod"
 TIMEOUT = 30.0
