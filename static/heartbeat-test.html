@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heartbeat Conversation System Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        .status.ready { background: #d4edda; color: #155724; }
+        .status.connecting { background: #fff3cd; color: #856404; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .session-info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .conversation {
+            height: 400px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            overflow-y: auto;
+            background: #fafafa;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .message.user {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+        .message.claude {
+            background: #e9ecef;
+            color: #333;
+        }
+        .message.system {
+            background: #fff3cd;
+            color: #856404;
+            font-style: italic;
+            text-align: center;
+            max-width: 100%;
+            font-size: 14px;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+        #messageInput {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            outline: none;
+            font-size: 16px;
+        }
+        #sendButton {
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            min-width: 80px;
+        }
+        #sendButton:hover:not(:disabled) {
+            background: #0056b3;
+        }
+        #sendButton:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .claude-instructions {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        .polling-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #17a2b8;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        .timestamp {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="polling-status" id="pollingStatus">🔄 Initializing...</div>
+    
+    <div class="container">
+        <h1>🫀 Heartbeat Conversation System Test</h1>
+        
+        <div class="status" id="status">🔄 Initializing session...</div>
+        
+        <div class="session-info" id="sessionInfo" style="display: none;">
+            <strong>Session Information:</strong><br>
+            Session ID: <span id="sessionId"></span><br>
+            API Base: <span id="apiBase"></span><br>
+            Created: <span id="sessionCreated"></span>
+        </div>
+        
+        <div class="claude-instructions" id="claudeInstructions" style="display: none;">
+            <strong>📋 Instructions for Claude.ai:</strong><br>
+            <span id="instructionText"></span>
+        </div>
+        
+        <div class="conversation" id="conversation">
+            <div class="message system">
+                Welcome to the Heartbeat Conversation System test interface!<br>
+                This page will create a session and enable real-time communication with Claude.ai.
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="Type your message here..." disabled>
+            <button id="sendButton" disabled>Send</button>
+        </div>
+    </div>
+
+    <script>
+        class HeartbeatConversation {
+            constructor() {
+                this.apiBase = 'https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1';
+                this.sessionId = null;
+                this.polling = false;
+                this.pollCount = 0;
+                
+                this.elements = {
+                    status: document.getElementById('status'),
+                    sessionInfo: document.getElementById('sessionInfo'),
+                    sessionId: document.getElementById('sessionId'),
+                    apiBase: document.getElementById('apiBase'),
+                    sessionCreated: document.getElementById('sessionCreated'),
+                    claudeInstructions: document.getElementById('claudeInstructions'),
+                    instructionText: document.getElementById('instructionText'),
+                    conversation: document.getElementById('conversation'),
+                    messageInput: document.getElementById('messageInput'),
+                    sendButton: document.getElementById('sendButton'),
+                    pollingStatus: document.getElementById('pollingStatus')
+                };
+                
+                this.init();
+            }
+            
+            async init() {
+                try {
+                    await this.createSession();
+                    this.setupEventListeners();
+                    this.startPolling();
+                } catch (error) {
+                    this.showError('Failed to initialize: ' + error.message);
+                }
+            }
+            
+            async createSession() {
+                this.updateStatus('connecting', '🔄 Creating new session...');
+                
+                const response = await fetch(`${this.apiBase}/api/create_new_session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                this.sessionId = data.session_id;
+                
+                // Update UI
+                this.elements.sessionId.textContent = this.sessionId;
+                this.elements.apiBase.textContent = this.apiBase;
+                this.elements.sessionCreated.textContent = data.created_at;
+                this.elements.sessionInfo.style.display = 'block';
+                
+                this.elements.instructionText.textContent = data.claude_instructions;
+                this.elements.claudeInstructions.style.display = 'block';
+                
+                this.updateStatus('ready', '✅ Session ready! You can now send messages.');
+                this.elements.messageInput.disabled = false;
+                this.elements.sendButton.disabled = false;
+                this.elements.messageInput.focus();
+                
+                this.addSystemMessage(`Session created: ${this.sessionId.substring(0, 8)}...`);
+            }
+            
+            setupEventListeners() {
+                this.elements.messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+                
+                this.elements.sendButton.addEventListener('click', () => {
+                    this.sendMessage();
+                });
+            }
+            
+            async sendMessage() {
+                const message = this.elements.messageInput.value.trim();
+                if (!message) return;
+                
+                // Add user message to conversation
+                this.addUserMessage(message);
+                this.elements.messageInput.value = '';
+                this.elements.sendButton.disabled = true;
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/api/queue_user_message?message=${encodeURIComponent(message)}&session_id=${this.sessionId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        this.addSystemMessage(`Message queued (position ${data.queue_position}). Waiting for Claude to respond...`);
+                    } else {
+                        throw new Error(data.error || 'Failed to queue message');
+                    }
+                } catch (error) {
+                    this.addSystemMessage(`❌ Error sending message: ${error.message}`);
+                } finally {
+                    this.elements.sendButton.disabled = false;
+                }
+            }
+            
+            async startPolling() {
+                this.polling = true;
+                this.pollForResponses();
+            }
+            
+            async pollForResponses() {
+                if (!this.polling) return;
+                
+                try {
+                    this.pollCount++;
+                    this.elements.pollingStatus.textContent = `🔍 Polling #${this.pollCount}`;
+                    
+                    const response = await fetch(`${this.apiBase}/api/get_latest_response/${this.sessionId}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.new_response) {
+                        this.addClaudeMessage(data.response, data.original_message);
+                        this.elements.pollingStatus.textContent = `✅ Response received!`;
+                        setTimeout(() => {
+                            this.elements.pollingStatus.textContent = `🔍 Monitoring...`;
+                        }, 2000);
+                    } else {
+                        this.elements.pollingStatus.textContent = `⏳ Waiting... (#${this.pollCount})`;
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                    this.elements.pollingStatus.textContent = `❌ Polling error`;
+                }
+                
+                // Poll again in 2 seconds
+                setTimeout(() => this.pollForResponses(), 2000);
+            }
+            
+            addUserMessage(message) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message user';
+                messageDiv.innerHTML = `
+                    ${message}
+                    <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                `;
+                this.elements.conversation.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+            
+            addClaudeMessage(response, originalMessage) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message claude';
+                messageDiv.innerHTML = `
+                    <strong>Claude:</strong><br>
+                    ${response.replace(/\n/g, '<br>')}
+                    <div class="timestamp">Response to: "${originalMessage.substring(0, 30)}..." • ${new Date().toLocaleTimeString()}</div>
+                `;
+                this.elements.conversation.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+            
+            addSystemMessage(message) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message system';
+                messageDiv.innerHTML = `
+                    ${message}
+                    <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                `;
+                this.elements.conversation.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+            
+            updateStatus(type, message) {
+                this.elements.status.className = `status ${type}`;
+                this.elements.status.textContent = message;
+            }
+            
+            showError(message) {
+                this.updateStatus('error', '❌ ' + message);
+                this.addSystemMessage('Error: ' + message);
+            }
+            
+            scrollToBottom() {
+                this.elements.conversation.scrollTop = this.elements.conversation.scrollHeight;
+            }
+        }
+        
+        // Initialize the conversation system when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new HeartbeatConversation();
+        });
+    </script>
+</body>
+</html>

@@ -295,6 +295,27 @@ async def health_check():
     """Health check endpoint for container readiness."""
     return {"status": "healthy", "version": get_version_string()}
 
+# Static file endpoint for heartbeat test interface
+@app.get("/api/heartbeat-test")
+async def heartbeat_test_interface():
+    """Serve the heartbeat conversation system test interface."""
+    import os
+    from pathlib import Path
+    from fastapi.responses import FileResponse, HTMLResponse
+    
+    # Path to static file
+    static_file = Path(__file__).parent.parent / "static" / "heartbeat-test.html"
+    
+    if static_file.exists():
+        with open(static_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return HTMLResponse(content=content)
+    else:
+        return HTMLResponse(
+            content="<h1>Heartbeat Test Interface Not Found</h1><p>The static file is not available.</p>",
+            status_code=404
+        )
+
 # Root endpoint
 @app.get("/")
 async def root():
