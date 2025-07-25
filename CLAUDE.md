@@ -254,6 +254,50 @@ echo $TEST_WALLET_ADDRESS         # Empty in separate bash call
 - **Overall Functions**: Must achieve 80%+ success rate (accounts for real-time data differences)
 - **Data Equivalence**: MCP and REST must return equivalent data structures
 
+### 🛠️ Build and Test Quick Reference
+
+**Complete Build and Test Sequence:**
+```bash
+# 1. Clean build (ALWAYS clean first)
+rm -rf .aws-sam/
+find . -name "*.pyc" -delete
+find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+
+# 2. Build with dual-path template (THE ONLY TEMPLATE TO USE)
+sam build --template-file template-dual-path.yaml
+
+# 3. Deploy to development
+sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
+
+# 4. Test comprehensive function coverage (MUST PASS 100% MCP and REST)
+TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py \
+  --mcp-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp \
+  --rest-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1
+
+# 5. For production (main branch only, user approval required)
+git checkout main
+sam build --template-file template-dual-path.yaml  
+sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3
+```
+
+**Quick Test Commands:**
+```bash
+# Test current deployments work
+curl https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp
+curl https://4d0i1tqdg4.execute-api.us-west-1.amazonaws.com/v1/mcp
+
+# Run linting
+uv run ruff check .
+
+# Run core tests  
+uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py
+```
+
+**Success Criteria:**
+- ✅ MCP Protocol: 100% success (16/16 tools)
+- ✅ REST API: 100% success (21/21 endpoints)  
+- ✅ Overall: 80%+ success (17+/21 functions)
+
 ### 🛠️ If Something Breaks
 1. Check git status and recent commits
 2. Run the test suite to identify specific failures
