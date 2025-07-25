@@ -360,6 +360,39 @@ pb-fm-mcp/
 ```
 
 ### Testing
+
+#### 🚨 CRITICAL: Deployment Success Criteria
+
+**ALL criteria must be met for successful deployment:**
+
+1. **✅ Deployment to Lambda**: Must complete without errors
+2. **✅ 100% MCP Function Success**: ALL MCP functions must execute without errors
+3. **✅ 100% REST API Success**: ALL REST endpoints must respond without errors  
+4. **✅ Data Equivalence**: MCP and REST must return equivalent data (allows for real-time differences in market/blockchain data)
+
+**Failure Definition:**
+- ANY MCP function returning errors = DEPLOYMENT FAILURE
+- ANY REST API returning HTTP errors = DEPLOYMENT FAILURE  
+- Systematic data format differences = DEPLOYMENT FAILURE
+- Real-time data differences (market prices, blockchain stats) = ACCEPTABLE
+
+#### Comprehensive Function Coverage Testing
+
+```bash
+# REQUIRED test for deployment validation
+uv run python scripts/test_function_coverage.py \
+  --mcp-url <DEPLOYED_MCP_URL> \
+  --rest-url <DEPLOYED_REST_URL> \
+  --wallet <VALID_WALLET_ADDRESS>
+
+# Expected output for successful deployment: 
+# ✅ MCP: 16/16 (100.0%)
+# ✅ REST: 21/21 (100.0%)  
+# ✅ Overall: 21/21 (100.0%)
+```
+
+#### Development Testing
+
 ```bash
 # Dependencies are already installed with uv sync
 

@@ -39,6 +39,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Architecture Changes:**
 **DO NOT make new architectural decisions or start coding in new directions without getting user confirmation. Always discuss and get approval before implementing architectural changes. DO NOT update technical plans or architectural decisions without explicit user instruction. Never assume migration paths or suggest alternative implementations unless specifically asked.**
 
+### 🚨 CRITICAL: Testing Requirements Policy
+
+**MANDATORY TESTING REQUIREMENTS: All Tests Must Pass Before Proceeding**
+
+**Testing Requirements:**
+1. **Local SAM Testing**: Both MCP and REST API endpoints must work in `sam local start-api`
+2. **Lambda Deployment Testing**: Both MCP and REST API endpoints must work in deployed Lambda
+3. **Failure Policy**: If ANY test fails (local MCP, local API, Lambda MCP, or Lambda API), the ENTIRE test suite is considered failed
+4. **No Partial Success**: We will NOT proceed with deployment or further development until ALL tests pass
+5. **Fix Before Proceed**: All test failures must be resolved before moving to next steps
+
+**Why This Policy Exists:**
+- We previously deployed dual-path architecture without realizing local API testing was broken
+- Partial testing led to incomplete validation and unknown system state
+- Both local and deployed testing are required to ensure system integrity
+
+**Testing Protocol:**
+```bash
+# 1. Local Testing (BOTH must pass)
+curl http://localhost:3000/mcp  # Must return MCP server info
+curl http://localhost:3000/health  # Must return health status
+
+# 2. Lambda Testing (BOTH must pass) 
+curl https://lambda-url/mcp  # Must return MCP server info
+curl https://lambda-url/api/health  # Must return health status
+
+# 3. MCP Test Client Testing (REQUIRED)
+uv run python scripts/mcp_test_client.py --mcp-url <url> --test
+```
+
+**Critical Testing Requirements:**
+- **Always use the MCP test client** for comprehensive testing, not constructed JSON-RPC calls
+- **If MCP test client tests fail, the overall test FAILS** regardless of other tests
+- The MCP test client validates both MCP and REST protocols return matching data
+- Manual JSON-RPC construction is insufficient and error-prone
+
+**Enforcement:** Claude Code will NOT proceed with any deployment, architecture changes, or feature development unless ALL test endpoints pass completely, with special emphasis on MCP test client validation.
+
 ### 🚨 CRITICAL: Current Architecture Issues & Analysis Failures
 
 **LESSON LEARNED (July 2025): Partial Success ≠ Complete Success**
@@ -252,12 +290,111 @@ du -sh .aws-sam/build/McpFunction/
 - **Deploy Production**: `./scripts/deploy.sh prod` (requires main branch, production warning)
 
 **🧪 Testing & Development**:
+- **🚨 COMPREHENSIVE TEST SUITE (REQUIRED)**: `uv run python scripts/test_all.py --local` (ALL tests must pass before deployment)
 - **Local Testing**: `sam local start-api --port 3000` (wallet only needed for actual API calls)
 - **Core Tests**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
 - **Equivalence Testing**: `uv run python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
 - **MCP Testing**: `env TEST_WALLET_ADDRESS="wallet_here" uv run python scripts/mcp_test_client.py --mcp-url http://localhost:8080/mcp --test`
+- **Deployed Testing**: `uv run python scripts/test_all.py --deployed --mcp-url <URL> --rest-url <URL>`
 - **Linting**: `uv run ruff check .`
 - **Python Scripts**: `uv run python script.py` (always use uv for dependency management)
+
+### 🚨 CRITICAL: Comprehensive Testing Policy
+
+**ALL TESTS MUST PASS BEFORE ANY DEPLOYMENT!**
+
+**Testing Command Priority (Use FIRST):**
+```bash
+# 🚨 PRIMARY TEST COMMAND - Use this for all testing
+uv run python scripts/test_all.py --local
+
+# Test deployed Lambda if URLs available
+uv run python scripts/test_all.py --deployed --mcp-url <URL> --rest-url <URL>
+
+# Test both local and deployed in sequence  
+uv run python scripts/test_all.py --local --deployed --mcp-url <URL> --rest-url <URL>
+```
+
+**Testing Requirements:**
+1. **Comprehensive Test Suite**: `scripts/test_all.py` runs ALL required tests in sequence
+2. **Failure Policy**: If ANY test fails, the ENTIRE test suite fails (exit code 1)
+3. **No Partial Success**: "Some tests pass" = FAILURE. All tests must pass.
+4. **MCP Test Client**: Always preferred over manual JSON-RPC construction
+5. **Real Data Testing**: Uses live blockchain APIs for authentic validation
+6. **Equivalence Validation**: MCP and REST endpoints must return identical data
+
+**Test Suite Components:**
+- ✅ **SAM Build**: Verifies clean build process
+- ✅ **SAM Local Start**: Ensures local server starts correctly  
+- ✅ **MCP Protocol**: Tests tools/list and tools/call functionality
+- ✅ **REST API**: Tests root, docs, and API endpoints
+- ✅ **Data Equivalence**: Validates MCP vs REST return identical results
+- ✅ **Deployed Testing**: Tests live Lambda deployments
+
+**Test Environment:**
+```bash
+# Optional: Set test wallet for real API calls (uses default safe wallet if not set)
+export TEST_WALLET_ADDRESS="pb1your_test_wallet_here"
+
+# Optional: Set deployed environment URLs
+export DEPLOYED_MCP_URL="https://api.example.com/mcp"
+export DEPLOYED_REST_URL="https://api.example.com/api"
+```
+
+**Test Failure Scenarios:**
+- 🚨 **Build Failure**: SAM build fails
+- 🚨 **Server Start Failure**: Local server won't start
+- 🚨 **MCP Protocol Failure**: Tools not discovered or calls fail
+- 🚨 **REST API Failure**: Endpoints return errors
+- 🚨 **Data Mismatch**: MCP and REST return different data
+- 🚨 **Environment Failure**: Deployed Lambda not responding
+
+**Policy Enforcement:**
+- **Development**: Must pass local tests before any git commit
+- **Deployment**: Must pass local tests before any deployment
+- **Production**: Must pass both local and deployed tests
+- **No Exceptions**: Test failures mean stop work and fix issues
+
+### 🚨 CRITICAL: Deployment Success Criteria
+
+**ALL criteria must be met for successful deployment:**
+
+1. **✅ Deployment to Lambda**: Must complete without errors
+2. **✅ 100% MCP Function Success**: ALL MCP functions must execute without errors
+3. **✅ 100% REST API Success**: ALL REST endpoints must respond without errors  
+4. **✅ Data Equivalence**: MCP and REST must return equivalent data (allows for real-time differences in market/blockchain data)
+
+**Failure Definition:**
+- ANY MCP function returning errors = DEPLOYMENT FAILURE
+- ANY REST API returning HTTP errors = DEPLOYMENT FAILURE  
+- Systematic data format differences = DEPLOYMENT FAILURE
+- Real-time data differences (market prices, blockchain stats) = ACCEPTABLE
+
+**Testing Command for Validation:**
+```bash
+# This command MUST show 100% success for both protocols
+uv run python scripts/test_function_coverage.py \
+  --mcp-url <DEPLOYED_MCP_URL> \
+  --rest-url <DEPLOYED_REST_URL> \
+  --wallet <VALID_WALLET_ADDRESS>
+
+# Expected output: 
+# ✅ MCP: 16/16 (100.0%)
+# ✅ REST: 21/21 (100.0%)  
+# ✅ Overall: 21/21 (100.0%)
+```
+
+**Non-Critical Acceptable Differences:**
+- Market price differences between calls (live trading data)
+- Blockchain statistics differences (block times, circulating supply)
+- Timestamp differences in time-sensitive data
+- Vesting calculations with time-based precision differences
+
+**Critical Unacceptable Failures:**
+- HTTP 500/404/400 errors from any endpoint
+- JSON parsing errors or malformed responses
+- Missing required parameters causing function failures
+- Protocol-specific data format inconsistencies
 
 **🔧 Manual Deployment (Advanced)**:
 - **Build**: `rm -rf .aws-sam/ && sam build --template-file template-dual-path.yaml` (no wallet needed for build)

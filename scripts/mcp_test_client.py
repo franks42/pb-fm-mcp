@@ -22,7 +22,17 @@ class MCPTestClient:
     
     def __init__(self, mcp_url: str, rest_base_url: Optional[str] = None):
         self.mcp_url = mcp_url
-        self.rest_base_url = rest_base_url or mcp_url.replace('/mcp', '')
+        # If no explicit REST base URL provided, derive it from MCP URL
+        # Keep any path prefix (like /v1) when removing /mcp
+        if not rest_base_url:
+            if '/mcp' in mcp_url:
+                # Replace only the last occurrence of /mcp to preserve path prefixes
+                parts = mcp_url.rsplit('/mcp', 1)
+                self.rest_base_url = parts[0]
+            else:
+                self.rest_base_url = mcp_url
+        else:
+            self.rest_base_url = rest_base_url
         
     async def connect(self) -> bool:
         """Connect to the MCP server via HTTP."""
@@ -133,7 +143,10 @@ class MCPTestClient:
     
     async def call_rest_api(self, endpoint: str, method: str = "GET", **kwargs) -> Dict[str, Any]:
         """Call the equivalent REST API endpoint."""
-        url = urljoin(self.rest_base_url, endpoint)
+        # Ensure base URL ends with / and endpoint doesn't start with / for proper joining
+        base = self.rest_base_url.rstrip('/') + '/'
+        endpoint = endpoint.lstrip('/')
+        url = urljoin(base, endpoint)
         
         try:
             print(f"🌐 Calling REST API: {method} {url}")
