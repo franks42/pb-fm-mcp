@@ -37,6 +37,11 @@ try:
 except Exception as e:
     print(f"❌ Failed to import system_functions: {e}")
 
+try:
+    from . import webui_functions
+except Exception as e:
+    print(f"❌ Failed to import webui_functions: {e}")
+
 __all__ = [
     "stats_functions",
     "delegation_functions", 
@@ -44,4 +49,5 @@ __all__ = [
     "figure_markets_functions",
     "aggregate_functions",
     "system_functions",
+    "webui_functions",
 ]
