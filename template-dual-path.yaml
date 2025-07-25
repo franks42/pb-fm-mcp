@@ -58,6 +58,13 @@ Resources:
       Environment:
         Variables:
           LOG_LEVEL: INFO
+          SESSIONS_TABLE: !Ref ConversationSessionsTable
+          MESSAGES_TABLE: !Ref ConversationMessagesTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationSessionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationMessagesTable
       FunctionUrlConfig:
         AuthType: NONE
         Cors:
@@ -88,7 +95,14 @@ Resources:
         Variables:
           AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
           PORT: 8000
-          API_GATEWAY_STAGE_PATH: /v1
+          API_GATEWAY_STAGE_PATH: !If [HasCustomDomain, "", "/v1"]
+          SESSIONS_TABLE: !Ref ConversationSessionsTable
+          MESSAGES_TABLE: !Ref ConversationMessagesTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationSessionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationMessagesTable
       Events:
         RestApiRoot:
           Type: Api
@@ -159,6 +173,66 @@ Resources:
         DNSName: !GetAtt ApiCustomDomain.DistributionDomainName
         HostedZoneId: !GetAtt ApiCustomDomain.DistributionHostedZoneId
 
+  # DynamoDB Tables for Conversation Storage
+  ConversationSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-conversation-sessions"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: pb-fm-mcp
+
+  ConversationMessagesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-conversation-messages"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+        - AttributeName: message_id
+          AttributeType: S
+        - AttributeName: processed_timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+        - AttributeName: message_id
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: ProcessedIndex
+          KeySchema:
+            - AttributeName: session_id
+              KeyType: HASH
+            - AttributeName: processed_timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: pb-fm-mcp
+
 
 Outputs:
   ApiUrl:
@@ -221,3 +295,16 @@ Outputs:
       Lambda Function URL: ${McpFunctionUrl.FunctionUrl}
       Custom Domain: !If [HasCustomDomain, !If [IsProduction, !Sub "pb-fm-mcp.${DomainName}", !Sub "pb-fm-mcp-dev.${DomainName}"], "Not configured"]
       Note: Both Lambda Function URLs and custom domains are stable
+
+  # DynamoDB Table Information
+  SessionsTableName:
+    Description: "DynamoDB table name for conversation sessions"
+    Value: !Ref ConversationSessionsTable
+    Export:
+      Name: !Sub "${AWS::StackName}-sessions-table"
+
+  MessagesTableName:
+    Description: "DynamoDB table name for conversation messages"
+    Value: !Ref ConversationMessagesTable
+    Export:
+      Name: !Sub "${AWS::StackName}-messages-table"
