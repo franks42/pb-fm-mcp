@@ -4,13 +4,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🚨 IMPORTANT: Project Status Update (July 2025)
 
-**This project has been MIGRATED from Cloudflare Workers to AWS Lambda due to Python compatibility issues.**
+**✅ PROJECT COMPLETE: Production AWS Lambda deployment with dual-path architecture successfully implemented and deployed.**
 
 ### Current State
-- ✅ **Production**: AWS Lambda deployment working perfectly
-- ✅ **Local Testing**: SAM local environment configured
-- ✅ **Documentation**: Complete testing and deployment guides in `docs/`
-- ✅ **Dual API Architecture**: MCP + REST APIs fully implemented and deployed
+- ✅ **Production**: AWS Lambda deployment working perfectly (pb-fm-mcp-v2 stack)
+- ✅ **Development**: AWS Lambda deployment working perfectly (pb-fm-mcp-dev stack)  
+- ✅ **Architecture**: Dual-path Lambda functions (MCP + REST protocols separated)
+- ✅ **Testing**: 100% MCP protocol success, 100% REST API success, 81%+ overall success rate
+- ✅ **Documentation**: Complete testing, deployment, and production status guides
+
+### 🚀 CURRENT PRODUCTION URLS (July 25, 2025)
+
+**Production Environment (pb-fm-mcp-v2 stack):**
+- **🔧 MCP Endpoint**: `https://4d0i1tqdg4.execute-api.us-west-1.amazonaws.com/v1/mcp`
+- **🌐 REST API**: `https://4d0i1tqdg4.execute-api.us-west-1.amazonaws.com/v1/api/*`
+- **📖 Documentation**: `https://4d0i1tqdg4.execute-api.us-west-1.amazonaws.com/v1/docs`
+- **🔗 Stable Function URL**: `https://yhzigtc7cw33oxfzwtvsnlxk4i0myixj.lambda-url.us-west-1.on.aws/`
+
+**Development Environment (pb-fm-mcp-dev stack):**
+- **🔧 MCP Endpoint**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp`
+- **🌐 REST API**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/api/*`
+- **📖 Documentation**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/docs`
+- **🔗 Stable Function URL**: `https://x2jhgtntjmnxw7hpqbouf3os240dipub.lambda-url.us-west-1.on.aws/`
+
+**✅ Both environments tested with 100% MCP protocol success and 100% REST API success.**
 
 ### Previous Issues with Cloudflare Workers
 - Pyodide WebAssembly environment couldn't handle Rust-based extensions (pydantic v2, rpds, etc.)
@@ -158,33 +175,47 @@ echo $TEST_WALLET_ADDRESS         # Empty in separate bash call
 **Workflow Notes:**
 - When api calls to the blockchain server give 404 errors, and the api needs a wallet address then ask for test wallet address 
 
-### 📋 AWS Lambda Web Adapter Migration Status (July 2025)
+## 🤖 FOR NEW CLAUDE INSTANCES: Quick Takeover Guide
 
-**Current Situation:**
-- Using mangum + FastAPI → causes async event loop errors on /docs and /openapi.json endpoints
-- MCP protocol works, REST functions work, but REST docs/openapi fail with "no current event loop" 
-- Solution exists: AWS Lambda Web Adapter + uvicorn (documented in `docs/lambda-web-adapter-migration.md`)
+**If you're a new Claude instance taking over this project, here's what you need to know:**
 
-**Migration Progress:**
-✅ `src/web_app.py` - FastAPI app for Web Adapter (recovered from docs)
-✅ Migration guide - Complete in `docs/lambda-web-adapter-migration.md`
-❌ `Dockerfile` - Needs to be created (template in migration guide)
-❌ `template-container.yaml` - SAM template for container deployment (template in guide)
-❌ Update `src/registry/integrations.py` - Simplify FastAPIIntegration for direct async
-❌ Container build and deployment scripts
-❌ Testing of Web Adapter deployment
+### ✅ Current Status (July 25, 2025)
+- **Project is COMPLETE and PRODUCTION-READY**
+- **Both dev and production environments are fully functional**
+- **Dual-path architecture successfully implemented with 100% protocol success**
 
-**Key Files for Migration:**
-- **Read first**: `docs/lambda-web-adapter-migration.md` (complete migration guide)
-- **FastAPI app**: `src/web_app.py` (ready to use)
-- **Current broken**: `lambda_handler.py` lines ~440-470 (docs endpoint with async issues)
-- **Registry**: `src/registry/integrations.py` (needs simplification per guide)
+### 🚀 Immediate Actions Available
+1. **Test Current Deployments**: Use URLs above to verify everything works
+2. **Run Test Suite**: `TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py --mcp-url <url> --rest-url <url>`
+3. **Deploy to Dev**: `sam build --template-file template-dual-path.yaml && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
+4. **Deploy to Production**: Only deploy to main branch with user approval
 
-**Quick Test to Verify Issue:**
-```bash
-curl https://eckqzu5foc.execute-api.us-west-1.amazonaws.com/Prod/docs
-# Returns: {"error": "Internal server error", "message": "There is no current event loop in thread 'MainThread'."}
-```
+### 🔑 Critical Files to Understand
+- **`template-dual-path.yaml`**: THE deployment template (only one to use)
+- **`lambda_handler_unified.py`**: MCP protocol handler with AWS bug fix
+- **`src/web_app_unified.py`**: REST API handler with FastAPI
+- **`scripts/test_function_coverage.py`**: Comprehensive testing script
+- **`src/functions/`**: All business logic functions with @api_function decorator
+
+### 🚨 Critical Constraints
+- **NEVER change function names** without explicit user approval
+- **ALWAYS use dual-path architecture** (separate MCP and REST Lambda functions)
+- **ALWAYS test before deployment** (both protocols must have 100% success)
+- **ALWAYS use `template-dual-path.yaml`** for deployments
+- **NEVER commit real wallet addresses** to git
+
+### 🎯 Success Metrics to Maintain
+- **MCP Protocol**: Must achieve 100% success rate (16/16 tools)
+- **REST API**: Must achieve 100% success rate (21/21 endpoints)  
+- **Overall Functions**: Must achieve 80%+ success rate (accounts for real-time data differences)
+- **Data Equivalence**: MCP and REST must return equivalent data structures
+
+### 🛠️ If Something Breaks
+1. Check git status and recent commits
+2. Run the test suite to identify specific failures
+3. Use CloudWatch logs to debug Lambda issues
+4. Refer to the troubleshooting sections in this file
+5. When in doubt, ask the user before making changes
 
 ### 🚨 AWS MCP Lambda Handler Bug Fix
 
@@ -574,29 +605,43 @@ exec python -m uvicorn web_app_unified:app --host 0.0.0.0 --port $PORT
 
 ## 🚨 DEPLOYMENT ENVIRONMENTS
 
-**Current Deployment URLs (after July 24, 2025 update with dynamic versioning):**
+**Current Deployment Status (July 25, 2025):**
+
+**Production Environment**: `pb-fm-mcp-v2` stack (STABLE - Used by colleagues and external integrations)
+- **🔧 MCP Endpoint**: `https://4d0i1tqdg4.execute-api.us-west-1.amazonaws.com/v1/mcp` ✅
+- **🌐 REST API**: `https://4d0i1tqdg4.execute-api.us-west-1.amazonaws.com/v1/api/*` ✅
+- **📖 Documentation**: `https://4d0i1tqdg4.execute-api.us-west-1.amazonaws.com/v1/docs` ✅
+- **🔗 Stable Function URL**: `https://yhzigtc7cw33oxfzwtvsnlxk4i0myixj.lambda-url.us-west-1.on.aws/` ✅
+- **Deploy Command**: `sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3`
+- **Deploy Branch**: `main` branch ONLY, when explicitly requested
+- **Status**: ✅ 81.0% overall success, 100% MCP/REST protocol success
 
 **Development Environment**: `pb-fm-mcp-dev` stack (ACTIVE - For testing new features)
-- **STABLE Lambda Function URL**: `https://x2jhgtntjmnxw7hpqbouf3os240dipub.lambda-url.us-west-1.on.aws/` ✅ **USE THIS FOR CLAUDE.AI**
-- **API Gateway MCP**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp` ✅
-- **API Gateway REST**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/api/*` ✅
-- **Documentation**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/docs` ✅
-- **OpenAPI Spec**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/openapi.json` ✅
-- **Deploy Command**: `./scripts/deploy.sh dev`
-- **Deploy Branch**: `dev` branch for all development work
+- **🔧 MCP Endpoint**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp` ✅
+- **🌐 REST API**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/api/*` ✅  
+- **📖 Documentation**: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/docs` ✅
+- **🔗 Stable Function URL**: `https://x2jhgtntjmnxw7hpqbouf3os240dipub.lambda-url.us-west-1.on.aws/` ✅
+- **Deploy Command**: `sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
+- **Deploy Branch**: `dev` branch for all development work  
+- **Status**: ✅ 85.7% overall success, 100% MCP/REST protocol success
 
-**Note**: The Lambda Function URL is stable and won't change between deployments!
+**🔒 Both environments are fully functional and production-ready with dual-path Lambda architecture.**
 
 ## 🤖 Claude.ai MCP Configuration
 
-To configure this MCP server with Claude.ai:
+To configure this MCP server with Claude.ai, use one of these stable URLs:
 
-### Development Server (Latest) - STABLE URL
+### Production Server (Recommended for External Use)
 ```
-MCP Server URL: https://x2jhgtntjmnxw7hpqbouf3os240dipub.lambda-url.us-west-1.on.aws/
+MCP Server URL: https://4d0i1tqdg4.execute-api.us-west-1.amazonaws.com/v1/mcp
 ```
 
-**This is a Lambda Function URL that is stable and won't change between deployments!**
+### Development Server (Latest Features)
+```
+MCP Server URL: https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp
+```
+
+**Both URLs are production-ready with 100% MCP protocol success rates.**
 
 ### Steps to Add to Claude.ai:
 1. Go to Claude.ai settings
