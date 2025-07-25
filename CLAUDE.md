@@ -29,6 +29,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **✅ Both environments tested with 100% MCP protocol success and 100% REST API success.**
 
+### 🚨 URGENT: Certificate Validation & Domain Migration
+
+**CRITICAL ISSUE**: Currently using temporary AWS-generated URLs that change with each deployment.
+
+**Certificate Status**: 
+- **SSL Certificate**: `arn:aws:acm:us-east-1:289426936662:certificate/09a80d0f-1d62-4f1b-b98a-859d8558fb7d`
+- **Status**: ⏳ **PENDING VALIDATION** (waiting for DNS validation for hours)
+- **Target Domains**: 
+  - Production: `pb-fm-mcp.creativeapptitude.com`
+  - Development: `pb-fm-mcp-dev.creativeapptitude.com`
+
+**URGENT PRIORITY**: **Move to stable real domain names ASAP!**
+
+**Why This Is Critical**:
+1. **Current URLs change** with each deployment (colleagues lose access)
+2. **External integrations break** when URLs change
+3. **Claude.ai connections** need to be reconfigured after each deployment
+4. **Production users** are dependent on stable URLs
+
+**Action Required**:
+1. **Monitor certificate validation status** in AWS Certificate Manager (us-east-1 region)
+2. **Once validated**: Redeploy with custom domain parameters
+3. **Update all documentation** with stable domain names
+4. **Notify external users** of permanent URLs
+
+**Deployment Command When Ready**:
+```bash
+sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3 \
+  --parameter-overrides 'Environment=prod HostedZoneId=Z1234567890ABC CertificateArn=arn:aws:acm:us-east-1:289426936662:certificate/09a80d0f-1d62-4f1b-b98a-859d8558fb7d'
+```
+
+**🚨 This is blocking production stability - highest priority item!**
+
 ### Previous Issues with Cloudflare Workers
 - Pyodide WebAssembly environment couldn't handle Rust-based extensions (pydantic v2, rpds, etc.)
 - Multiple dependency conflicts and performance issues
@@ -185,10 +218,21 @@ echo $TEST_WALLET_ADDRESS         # Empty in separate bash call
 - **Dual-path architecture successfully implemented with 100% protocol success**
 
 ### 🚀 Immediate Actions Available
-1. **Test Current Deployments**: Use URLs above to verify everything works
-2. **Run Test Suite**: `TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py --mcp-url <url> --rest-url <url>`
-3. **Deploy to Dev**: `sam build --template-file template-dual-path.yaml && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
-4. **Deploy to Production**: Only deploy to main branch with user approval
+1. **🚨 HIGHEST PRIORITY**: Check certificate validation status and implement custom domains
+2. **Test Current Deployments**: Use URLs above to verify everything works
+3. **Run Test Suite**: `TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py --mcp-url <url> --rest-url <url>`
+4. **Deploy to Dev**: `sam build --template-file template-dual-path.yaml && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
+5. **Deploy to Production**: Only deploy to main branch with user approval
+
+### 🚨 CRITICAL URGENCY: Domain Stability Issue
+**Current URLs are temporary and change with deployments!** This breaks:
+- Colleague integrations
+- Claude.ai connections  
+- External production users
+
+**Certificate ARN**: `arn:aws:acm:us-east-1:289426936662:certificate/09a80d0f-1d62-4f1b-b98a-859d8558fb7d`
+**Waiting for**: DNS validation to complete
+**Target**: `pb-fm-mcp.creativeapptitude.com` (prod) and `pb-fm-mcp-dev.creativeapptitude.com` (dev)
 
 ### 🔑 Critical Files to Understand
 - **`template-dual-path.yaml`**: THE deployment template (only one to use)
