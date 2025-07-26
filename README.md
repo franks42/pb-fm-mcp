@@ -2,6 +2,30 @@
 
 A Model Context Protocol (MCP) server providing tools to interact with the Provenance Blockchain and Figure Markets exchange, deployed on AWS Lambda.
 
+## ⚠️ Important: Development Environment Setup
+
+### Critical Lesson Learned: Never Use iCloud for Git Repositories
+
+**DO NOT place this project in iCloud-synced directories** (~/Documents, ~/Desktop). This causes:
+- Git repository corruption
+- Build directory locks (`.aws-sam/` becomes undeletable)
+- File sync conflicts with duplicate files (e.g., "main 2")
+- 99% CPU usage from iCloud trying to sync rapid file changes
+
+**Recommended Setup:**
+```bash
+# Create development directory outside iCloud sync
+mkdir ~/Development
+cd ~/Development
+git clone https://github.com/franks42/pb-fm-mcp.git
+```
+
+**Why This Matters:**
+- Git repositories modify many files rapidly during operations
+- iCloud treats each file individually and cannot handle the pace
+- Build tools create thousands of temporary files that confuse sync
+- **Use Git/GitHub for backups, not iCloud!**
+
 ## Features
 
 ### Provenance Blockchain Tools
