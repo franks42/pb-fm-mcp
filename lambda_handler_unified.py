@@ -226,12 +226,35 @@ def handle_mcp_request(event, context):
         query_params = event.get('queryStringParameters') or {}
         body = event.get('body') or ''
         
-        # Debug logging like the working version
-        print("🔍 === MCP REQUEST DEBUG ===")
+        # Enhanced debug logging to capture AI instance identifiers
+        print("🔍 === MCP REQUEST DEBUG (AI INSTANCE INVESTIGATION) ===")
         print(f"📍 Timestamp: {datetime.now(UTC).isoformat()}")
         print(f"📍 Method: {http_method}")
         print(f"📍 Path: {path}")
-        print(f"📍 Headers: {headers}")
+        print(f"📍 Lambda Request ID: {context.aws_request_id if hasattr(context, 'aws_request_id') else 'N/A'}")
+        
+        # Log ALL headers for AI instance identification
+        print("📍 ALL HEADERS:")
+        for key, value in headers.items():
+            print(f"    {key}: {value}")
+        
+        # Look for specific headers that might identify AI instances
+        potential_identifiers = {
+            'user-agent': headers.get('User-Agent') or headers.get('user-agent'),
+            'mcp-session-id': headers.get('MCP-Session-Id') or headers.get('mcp-session-id'),
+            'x-request-id': headers.get('X-Request-ID') or headers.get('x-request-id'),
+            'x-amzn-trace-id': headers.get('X-Amzn-Trace-Id') or headers.get('x-amzn-trace-id'),
+            'authorization': headers.get('Authorization') or headers.get('authorization'),
+            'x-forwarded-for': headers.get('X-Forwarded-For') or headers.get('x-forwarded-for')
+        }
+        
+        print("📍 POTENTIAL AI IDENTIFIERS:")
+        for key, value in potential_identifiers.items():
+            if value:
+                print(f"    {key}: {value}")
+            else:
+                print(f"    {key}: NOT PRESENT")
+        
         print(f"📍 Body: {body[:200]}{'...' if len(body) > 200 else ''}")
         
         # Check Accept header for proper MCP client detection
