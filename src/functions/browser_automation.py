@@ -25,7 +25,8 @@ except ImportError:
     PLAYWRIGHT_AVAILABLE = False
     print("Playwright not installed. Browser automation functions will return mock responses.")
 
-from src.utils.api_utils import api_function, JSONType
+from registry import api_function
+from utils import JSONType
 
 
 class BrowserSession:

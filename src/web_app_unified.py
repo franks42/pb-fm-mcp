@@ -536,6 +536,7 @@ async def serve_personalized_dashboard(dashboard_id: str):
                 <button class="control-button" onclick="takeScreenshot()">📸 Screenshot</button>
                 <button class="control-button" onclick="uploadScreenshotToServer()">☁️ Upload to Server</button>
                 <button class="control-button" onclick="toggleTheme()">🌙 Theme</button>
+                <button class="control-button" onclick="toggleLiveConfigMode()">✨ Live Config</button>
             </div>
             
             <div class="visualization-container">
@@ -633,7 +634,7 @@ async def serve_personalized_dashboard(dashboard_id: str):
                     }}
                 }}
                 
-                // Load Portfolio Health Dashboard
+                // Load Portfolio Health Dashboard with dynamic config support
                 async function loadPortfolioHealth() {{
                     try {{
                         updateStatus('Loading Portfolio Health Dashboard...', 'info');
@@ -642,6 +643,20 @@ async def serve_personalized_dashboard(dashboard_id: str):
                         const walletAddress = '{dashboard_config.get('wallet_address', '')}';
                         if (!walletAddress) {{
                             throw new Error('No wallet address configured for this dashboard');
+                        }}
+                        
+                        // First check if we have a custom config in DynamoDB
+                        const configResponse = await fetch(`${{apiBase}}/api/get_dashboard_config?dashboard_id=${{dashboardId}}`);
+                        let useCustomConfig = false;
+                        let customConfig = null;
+                        
+                        if (configResponse.ok) {{
+                            const configData = await configResponse.json();
+                            if (configData.success && !configData.is_default) {{
+                                customConfig = configData.config;
+                                useCustomConfig = true;
+                                console.log('Using custom config version:', configData.version);
+                            }}
                         }}
                         
                         const response = await fetch(`${{apiBase}}/api/create_portfolio_health`, {{
@@ -663,8 +678,17 @@ async def serve_personalized_dashboard(dashboard_id: str):
                         const portfolioData = await response.json();
                         
                         if (portfolioData.success) {{
-                            // Render complex multi-chart dashboard
-                            const plotlySpec = portfolioData.visualization_spec;
+                            // Use custom config if available, otherwise use default
+                            let plotlySpec = portfolioData.visualization_spec;
+                            if (useCustomConfig && customConfig) {{
+                                // Merge custom config with data from API
+                                plotlySpec = {{
+                                    data: mergeChartData(plotlySpec.data, customConfig.data),
+                                    layout: {{...plotlySpec.layout, ...customConfig.layout}},
+                                    config: customConfig.config || plotlySpec.config
+                                }};
+                            }}
+                            
                             await Plotly.newPlot('plotly-div', plotlySpec.data, plotlySpec.layout, {{
                                 responsive: true,
                                 displayModeBar: true,
@@ -673,6 +697,11 @@ async def serve_personalized_dashboard(dashboard_id: str):
                             
                             document.getElementById('plotly-div').style.display = 'block';
                             updateStatus(`Portfolio Health Dashboard loaded (Score: ${{Math.round(portfolioData.health_metrics.overall_score)}}/100)`, 'success');
+                            
+                            // Start live config polling if enabled
+                            if (window.enableLiveConfig) {{
+                                startConfigPolling();
+                            }}
                             
                             // Show comprehensive AI insights and recommendations
                             if (portfolioData.ai_insights) {{
@@ -905,6 +934,86 @@ async def serve_personalized_dashboard(dashboard_id: str):
                     }}
                 }}
                 
+                // Live configuration updates
+                let configPollingInterval = null;
+                let lastConfigVersion = 0;
+                
+                async function startConfigPolling() {{
+                    if (configPollingInterval) return;
+                    
+                    configPollingInterval = setInterval(async () => {{
+                        try {{
+                            const response = await fetch(`${{apiBase}}/api/get_dashboard_config?dashboard_id=${{dashboardId}}`);
+                            if (response.ok) {{
+                                const data = await response.json();
+                                
+                                if (data.success && data.version > lastConfigVersion) {{
+                                    console.log('New config version detected:', data.version);
+                                    lastConfigVersion = data.version;
+                                    
+                                    // Update Plotly chart with new config
+                                    const plotlyDiv = document.getElementById('plotly-div');
+                                    if (plotlyDiv && plotlyDiv.data) {{
+                                        // Keep existing data but update styling
+                                        const updatedData = mergeChartData(plotlyDiv.data, data.config.data);
+                                        const updatedLayout = {{...plotlyDiv.layout, ...data.config.layout}};
+                                        
+                                        Plotly.react('plotly-div', updatedData, updatedLayout);
+                                        updateStatus('Chart updated with new configuration (v' + data.version + ')', 'success');
+                                    }}
+                                }}
+                            }}
+                        }} catch (error) {{
+                            console.warn('Config polling error:', error);
+                        }}
+                    }}, 2000); // Poll every 2 seconds for faster feedback
+                }}
+                
+                function stopConfigPolling() {{
+                    if (configPollingInterval) {{
+                        clearInterval(configPollingInterval);
+                        configPollingInterval = null;
+                    }}
+                }}
+                
+                // Merge chart data preserving values but updating styles
+                function mergeChartData(currentData, newConfigData) {{
+                    if (!newConfigData || !Array.isArray(newConfigData)) return currentData;
+                    
+                    return currentData.map((trace, index) => {{
+                        const configTrace = newConfigData[index];
+                        if (!configTrace) return trace;
+                        
+                        // Preserve actual data values
+                        const preserved = {{
+                            x: trace.x,
+                            y: trace.y,
+                            values: trace.values,
+                            labels: trace.labels,
+                            value: trace.value,
+                            text: trace.text,
+                            r: trace.r,
+                            theta: trace.theta
+                        }};
+                        
+                        // Merge with new styling from config
+                        return {{...configTrace, ...preserved}};
+                    }});
+                }}
+                
+                // Enable live config editing mode
+                function toggleLiveConfigMode() {{
+                    window.enableLiveConfig = !window.enableLiveConfig;
+                    
+                    if (window.enableLiveConfig) {{
+                        startConfigPolling();
+                        updateStatus('Live configuration mode enabled - Claude can now update chart styles in real-time!', 'success');
+                    }} else {{
+                        stopConfigPolling();
+                        updateStatus('Live configuration mode disabled', 'info');
+                    }}
+                }}
+                
                 // Toggle dark/light theme
                 function toggleTheme() {{
                     const body = document.body;
@@ -926,7 +1035,10 @@ async def serve_personalized_dashboard(dashboard_id: str):
                 }});
                 
                 // Stop polling when page unloads
-                window.addEventListener('beforeunload', stopScreenshotPolling);
+                window.addEventListener('beforeunload', () => {{
+                    stopScreenshotPolling();
+                    stopConfigPolling();
+                }});
             </script>
         </body>
         </html>
