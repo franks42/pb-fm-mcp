@@ -326,6 +326,53 @@ uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py
 
 **Tracking**: Monitor AWS updates for native snake_case support to eventually remove our patch.
 
+### 🔍 MCP Session Behavior Analysis
+
+**Critical findings about AWS MCP Lambda Handler session management behavior.**
+
+**Server Architecture**: Our MCP server uses **NoOpSessionStore** (stateless session management):
+
+```python
+# From mcp_lambda_handler.py:101-102
+if session_store is None:
+    self.session_store = NoOpSessionStore()
+```
+
+**Key Session Behaviors** (validated July 26, 2025):
+
+1. **✅ Server generates session IDs**: Automatic UUID generation on `initialize` requests
+   - Returns `mcp-session-id` header with new UUID
+   - Format: `a00ea728-1f29-4158-96e5-5bed7da938e1`
+
+2. **⚠️ Server accepts ANY session ID**: No validation of session ID validity
+   - Accepts completely fake session IDs (e.g., `totally-fake-session-12345`)
+   - Returns full functionality regardless of session validity
+   - Confirms NoOpSessionStore behavior (session-less mode)
+
+3. **✅ Sessions persist across calls**: Same session ID works for multiple method calls
+   - `initialize` → `tools/list` → `tools/call` with same session ID
+   - No observed session timeout or expiration
+
+4. **✅ Client session persistence**: MCP test client maintains sessions across invocations
+   - Saves session metadata to file (no sensitive data)
+   - Reloads and reuses session IDs between separate client runs
+   - No artificial expiry - trusts server-side session lifecycle
+
+**Why NoOpSessionStore is Perfect for Our Use Case**:
+- ✅ **Public blockchain data** - no authentication needed
+- ✅ **Infinite scalability** - stateless Lambda functions
+- ✅ **Cost effective** - no DynamoDB session storage
+- ✅ **Stable dashboard URLs** - client-side session consistency
+- ✅ **Zero overhead** - no session tracking/validation
+
+**Session-Based Dashboard System**: Works perfectly through client-side session persistence:
+- Dashboard URLs: `/dashboard/{mcp-session-id}` remain stable across AI interactions
+- Session files maintain only metadata (session ID, timestamp, server URL)
+- Long-term persistence without artificial expiry restrictions
+
+**Documentation**: Complete analysis in `docs/mcp-session-behavior-analysis.md`  
+**Testing**: Reproducible tests in `scripts/test_session_behavior.py`
+
 ### 🚨 IMPORTANT: Always use `uv` for Python execution
 **ALWAYS use `uv run python` instead of `python` or `python3` for all Python scripts and commands.**
 
@@ -417,6 +464,7 @@ du -sh .aws-sam/build/McpFunction/
 - **Function Coverage Testing**: `TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py --mcp-url <URL> --rest-url <URL>`
 - **Core Tests**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
 - **Equivalence Testing**: `uv run python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
+- **Session Behavior Testing**: `uv run python scripts/test_session_behavior.py` (validates MCP session management behavior)
 - **⚠️ NO LOCAL TESTING**: SAM local abandoned due to dual-path architecture incompatibility
 - **Linting**: `uv run ruff check .`
 - **Python Scripts**: `uv run python script.py` (always use uv for dependency management)
