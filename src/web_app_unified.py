@@ -401,6 +401,9 @@ async def serve_personalized_dashboard(dashboard_id: str):
             <!-- Plotly.js CDN -->
             <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
             
+            <!-- html2canvas for client-side screenshots -->
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
             <style>
                 body {{
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -738,6 +741,36 @@ async def serve_personalized_dashboard(dashboard_id: str):
                     try {{
                         updateStatus('Taking screenshot...', 'info');
                         
+                        // Try client-side screenshot first using html2canvas if available
+                        if (typeof html2canvas === 'function') {{
+                            try {{
+                                const canvas = await html2canvas(document.body, {{
+                                    backgroundColor: '#1e1e1e',
+                                    scale: 1,
+                                    useCORS: true,
+                                    allowTaint: false
+                                }});
+                                
+                                canvas.toBlob(function(blob) {{
+                                    const link = document.createElement('a');
+                                    link.href = URL.createObjectURL(blob);
+                                    link.download = `dashboard-screenshot-${{new Date().toISOString().slice(0,19).replace(/:/g,'-')}}.png`;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    URL.revokeObjectURL(link.href);
+                                    
+                                    updateStatus('Screenshot downloaded successfully (client-side)!', 'success');
+                                }}, 'image/png');
+                                
+                                return; // Success, no need to try server-side
+                            }} catch (clientError) {{
+                                console.warn('Client-side screenshot failed:', clientError);
+                                // Continue to server-side approach
+                            }}
+                        }}
+                        
+                        // Fallback to server-side screenshot
                         const response = await fetch(`${{apiBase}}/api/take_screenshot`, {{
                             method: 'POST',
                             headers: {{
@@ -766,14 +799,17 @@ async def serve_personalized_dashboard(dashboard_id: str):
                             link.click();
                             document.body.removeChild(link);
                             
-                            updateStatus('Screenshot downloaded successfully!', 'success');
+                            updateStatus('Screenshot downloaded successfully (server-side)!', 'success');
                         }} else {{
-                            updateStatus(`Screenshot failed: ${{screenshotData.message || screenshotData.error}}`, 'warning');
+                            // Show detailed error information
+                            const errorMsg = screenshotData.message || screenshotData.error || 'Unknown error';
+                            const suggestion = screenshotData.suggestion || 'Try using browser developer tools to capture screenshot manually';
+                            updateStatus(`Screenshot failed: ${{errorMsg}}. Suggestion: ${{suggestion}}`, 'warning');
                         }}
                         
                     }} catch (error) {{
                         console.error('Screenshot error:', error);
-                        updateStatus('Failed to take screenshot: ' + error.message, 'error');
+                        updateStatus('Screenshot failed. Try right-click → Save Page As or browser developer tools to capture manually.', 'error');
                     }}
                 }}
                 

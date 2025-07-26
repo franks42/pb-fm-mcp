@@ -845,32 +845,68 @@ const puppeteer = require('puppeteer');
                 raise Exception(f"Puppeteer failed: {result.stderr}")
                 
         except Exception as node_error:
-            # Fallback: Use curl to get HTML and analyze structure
-            html_result = subprocess.run(
-                ['curl', '-s', '--max-time', '10', url], 
-                capture_output=True, 
-                text=True
-            )
-            
-            if html_result.returncode == 0:
-                html_content = html_result.stdout
-                return {
-                    'success': False,
-                    'screenshot_available': False,
-                    'url': url,
-                    'html_preview': html_content[:1000] + '...' if len(html_content) > 1000 else html_content,
-                    'html_length': len(html_content),
-                    'message': 'Screenshot failed but got HTML content',
-                    'error': str(node_error),
-                    'alternative': 'HTML content retrieved for analysis'
-                }
-            else:
-                return {
-                    'success': False,
-                    'url': url,
-                    'error': f'Both screenshot and HTML retrieval failed: {str(node_error)}',
-                    'message': 'Unable to capture or analyze webpage'
-                }
+            # Fallback 1: Use curl to get HTML and analyze structure
+            try:
+                html_result = subprocess.run(
+                    ['curl', '-s', '--max-time', '10', url], 
+                    capture_output=True, 
+                    text=True,
+                    timeout=15
+                )
+                
+                if html_result.returncode == 0 and html_result.stdout:
+                    html_content = html_result.stdout
+                    return {
+                        'success': False,
+                        'screenshot_available': False,
+                        'url': url,
+                        'html_preview': html_content[:1000] + '...' if len(html_content) > 1000 else html_content,
+                        'html_length': len(html_content),
+                        'message': 'Screenshot failed but retrieved HTML content for analysis',
+                        'error': str(node_error),
+                        'alternative': 'HTML content retrieved for analysis',
+                        'fallback_used': 'curl_html'
+                    }
+                else:
+                    raise Exception(f"Curl failed with return code {html_result.returncode}")
+                    
+            except Exception as curl_error:
+                # Fallback 2: Try with Python requests-like approach using urllib
+                try:
+                    import urllib.request
+                    import urllib.error
+                    
+                    req = urllib.request.Request(url, headers={
+                        'User-Agent': 'Mozilla/5.0 (compatible; Dashboard Screenshot Tool)'
+                    })
+                    
+                    with urllib.request.urlopen(req, timeout=10) as response:
+                        html_content = response.read().decode('utf-8')
+                        
+                    return {
+                        'success': False,
+                        'screenshot_available': False,
+                        'url': url,
+                        'html_preview': html_content[:1000] + '...' if len(html_content) > 1000 else html_content,
+                        'html_length': len(html_content),
+                        'message': 'Screenshot failed but retrieved HTML via urllib',
+                        'error': f'Node: {str(node_error)}, Curl: {str(curl_error)}',
+                        'alternative': 'HTML content retrieved using urllib',
+                        'fallback_used': 'urllib'
+                    }
+                    
+                except Exception as urllib_error:
+                    # Final fallback: Return helpful error with context
+                    return {
+                        'success': False,
+                        'url': url,
+                        'screenshot_available': False,
+                        'error': f'All methods failed - Node: {str(node_error)}, Curl: {str(curl_error)}, Urllib: {str(urllib_error)}',
+                        'message': 'Unable to capture screenshot or retrieve webpage content',
+                        'context': 'Lambda environment may lack necessary tools (node, puppeteer, curl)',
+                        'suggestion': 'Screenshot functionality requires additional Lambda layer or container deployment',
+                        'fallback_used': 'none'
+                    }
         
         finally:
             # Cleanup temp files
