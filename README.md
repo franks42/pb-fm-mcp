@@ -165,6 +165,30 @@ sam build --template-file template-simple.yaml  # DO NOT USE
 
 #### Deployment Steps
 
+##### Pre-Deployment Best Practices 🏷️
+
+**CRITICAL: Always follow these steps for safe, reproducible deployments:**
+
+1. **Commit ALL files** (even unrelated changes):
+```bash
+git add .
+git commit -m "🔧 Pre-deployment: [describe changes]"
+```
+
+2. **Create deployment tag**:
+```bash
+git tag deploy-2025-07-26-1 -m "Deployment: [key features]"
+# Format: deploy-{date}-{sequence}
+```
+
+3. **Push to GitHub** (backup before deploy):
+```bash
+git push origin <branch>
+git push origin deploy-2025-07-26-1
+```
+
+##### Build and Deploy
+
 1. **Build the application** (MUST use dual-path template):
 ```bash
 sam build --template-file template-dual-path.yaml
@@ -174,6 +198,12 @@ sam build --template-file template-dual-path.yaml
 ```bash
 sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 ```
+
+##### Why Tag Deployments?
+- **✅ Easy Rollback**: `git checkout deploy-2025-07-26-1`
+- **✅ Deployment History**: Know what was deployed when
+- **✅ Reproducible State**: Exact code for any deployment
+- **✅ Team Coordination**: Clear deployment tracking
 
 3. **Deploy to production** (when ready):
 ```bash

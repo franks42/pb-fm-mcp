@@ -459,6 +459,74 @@ du -sh .aws-sam/build/McpFunction/
 - **Deploy Development**: `./scripts/deploy.sh dev` (includes clean build, versioning, pruning)
 - **Deploy Production**: `./scripts/deploy.sh prod` (requires main branch, production warning)
 
+### 🏷️ Deployment Best Practices
+
+**CRITICAL: Always follow these deployment practices for safety and reproducibility.**
+
+#### 1. **Pre-Deployment Checklist** ✅
+```bash
+# Before ANY deployment:
+1. Commit ALL files (even unrelated changes)
+2. Create deployment tag
+3. Push to GitHub
+4. Then deploy
+```
+
+#### 2. **Git Tagging Convention** 🏷️
+```bash
+# Always tag deployments with:
+deploy-{date}-{sequence}
+# Example: deploy-2025-07-26-1
+
+# For environment-specific tags:
+deploy-{env}-{date}-{sequence}
+# Example: deploy-dev-2025-07-26-1
+```
+
+#### 3. **Complete Deployment Workflow** 🚀
+```bash
+# 1. Ensure clean working directory
+git status  # Should show no uncommitted changes
+
+# 2. Commit any remaining files
+git add .
+git commit -m "🔧 Pre-deployment cleanup and configuration"
+
+# 3. Create deployment tag
+git tag deploy-2025-07-26-1 -m "Deployment: [describe key features]"
+
+# 4. Push everything to GitHub (backup!)
+git push origin <branch>
+git push origin deploy-2025-07-26-1
+
+# 5. Deploy
+./scripts/deploy.sh dev  # or prod
+```
+
+#### 4. **Why This Matters** 💡
+- **✅ Complete State Capture**: Every deployment is reproducible
+- **✅ Easy Rollback**: `git checkout deploy-2025-07-26-1`
+- **✅ No Lost Work**: Everything committed before deployment
+- **✅ Clear History**: Know exactly what was deployed when
+- **✅ Team Coordination**: Others can see deployment state
+
+#### 5. **Rollback Procedure** 🔄
+```bash
+# If deployment fails or has issues:
+git checkout deploy-2025-07-26-1  # Previous working deployment
+./scripts/deploy.sh dev          # Redeploy known good state
+```
+
+#### 6. **Deployment Documentation** 📝
+Consider maintaining `DEPLOYMENTS.md`:
+```markdown
+## deploy-2025-07-26-1
+- Environment: dev
+- Key Features: MCP session support, dynamic config
+- Known Issues: None
+- Rollback To: deploy-2025-07-25-3
+```
+
 **🧪 Testing & Development**:
 - **🚨 DEPLOY-FIRST TESTING APPROACH**: Deploy to Lambda dev environment first, then test
 - **Function Coverage Testing**: `TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py --mcp-url <URL> --rest-url <URL>`
