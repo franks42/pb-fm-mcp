@@ -2,6 +2,61 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 CRITICAL: Project Location and iCloud Sync Issues (July 2025)
+
+**IMPORTANT: This project may be relocated from `~/Documents/GitHub/` to `~/Development/` due to iCloud sync issues.**
+
+### Known Issues with iCloud + Git
+- **Git Corruption**: iCloud cannot handle rapid file changes in `.git/` directories
+- **Build Failures**: `.aws-sam/` directories become locked/corrupted by iCloud sync
+- **File Conflicts**: iCloud creates duplicate files with number suffixes (e.g., "main 2")
+- **Performance**: iCloud's `bird` process uses 99% CPU trying to sync git operations
+
+### Symptoms Experienced
+1. Git repository corruption requiring fresh clone
+2. Cannot delete `.aws-sam/` build directories (timeout/hang)
+3. File operations on hidden directories fail or timeout
+4. `lsof` hangs when checking directory access
+
+### Recommended Project Location
+```bash
+# Check current location
+pwd
+
+# If in ~/Documents/GitHub/pb-fm-mcp:
+# PROJECT SHOULD BE MOVED TO:
+~/Development/pb-fm-mcp
+
+# Migration command (user must run):
+mv ~/Documents/GitHub/pb-fm-mcp ~/Development/
+```
+
+### After Migration
+- Update any hardcoded paths in scripts
+- Verify git remotes still work
+- Ensure AWS credentials are accessible
+- Continue with normal development
+
+**Note**: NEVER keep git repositories in iCloud-synced directories (Documents, Desktop)!
+
+### Current Deployment Status (July 26, 2025)
+**⚠️ DEPLOYMENT PENDING**: Session-related changes are committed but NOT yet deployed to Lambda.
+
+**Tagged for Deployment**: `deploy-2025-07-26-2`
+- Includes MCP session integration
+- Enhanced debugging for AI instances
+- Dynamic configuration support
+- Complete documentation
+
+**To Complete Deployment After Migration**:
+```bash
+cd ~/Development/pb-fm-mcp  # New location
+./scripts/deploy.sh dev     # or manual SAM deploy
+```
+
+**Currently Deployed Version**: `6a92d26a-2025-07-24_21-34-08` (outdated)
+**Pending Version**: `47deaf7d-2025-07-25_23-37-26` (ready to deploy)
+
 ## 🚨 IMPORTANT: Project Status Update (July 2025)
 
 **✅ PROJECT COMPLETE: Production AWS Lambda deployment with dual-path architecture successfully implemented and deployed.**
