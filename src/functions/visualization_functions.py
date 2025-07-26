@@ -16,6 +16,9 @@ from utils import JSONType
 import subprocess
 import tempfile
 
+# Import for MCP session ID access
+from awslabs.mcp_lambda_handler.mcp_lambda_handler import current_session_id
+
 
 def get_dashboards_table():
     """Get DynamoDB dashboards table"""
@@ -24,6 +27,36 @@ def get_dashboards_table():
     if not table_name:
         raise ValueError("DASHBOARDS_TABLE environment variable not set")
     return dynamodb.Table(table_name)
+
+
+def get_current_mcp_session_id() -> Optional[str]:
+    """
+    Get the current MCP session ID from the context.
+    
+    Returns:
+        The MCP session ID if available, None otherwise
+    """
+    try:
+        return current_session_id.get()
+    except Exception as e:
+        print(f"⚠️ Could not get MCP session ID: {e}")
+        return None
+
+
+def create_session_based_dashboard_url(session_id: str) -> str:
+    """
+    Create a stable, session-based dashboard URL.
+    
+    Args:
+        session_id: The MCP session ID
+        
+    Returns:
+        Full dashboard URL based on the session ID
+    """
+    # Use the appropriate domain based on environment
+    # Default to dev, could be enhanced to detect environment
+    base_url = "https://pb-fm-mcp-dev.creativeapptitude.com"
+    return f"{base_url}/dashboard/{session_id}"
 
 
 def create_demo_wallet_data(wallet_address: str) -> dict:
@@ -56,29 +89,42 @@ def create_demo_wallet_data(wallet_address: str) -> dict:
 async def create_personalized_dashboard(
     wallet_address: str = None,
     dashboard_name: str = "My Blockchain Dashboard",
-    ai_session_id: str = None
+    ai_session_id: str = None  # Deprecated - now uses MCP session ID
 ) -> JSONType:
     """
-    AI can create a unique, personalized web dashboard for the user.
+    🎯 REVOLUTIONARY UPDATE: AI creates stable, session-based dashboard URLs!
     
-    This revolutionary feature allows AI assistants to generate custom
-    dashboard URLs that users can bookmark and return to anytime.
+    Now uses MCP session ID for persistent dashboard access throughout
+    the entire Claude.ai conversation - eliminating copy-paste friction.
     """
     
     try:
-        # Generate unique dashboard ID
-        dashboard_id = f"dash_{uuid.uuid4().hex[:12]}"
+        # 🎯 KEY INNOVATION: Get current MCP session ID
+        mcp_session_id = get_current_mcp_session_id()
+        
+        if not mcp_session_id:
+            # Fallback to old system if MCP session not available
+            dashboard_id = f"dash_{uuid.uuid4().hex[:12]}"
+            session_id_for_url = dashboard_id
+            session_type = "fallback"
+        else:
+            # 🚀 Use MCP session ID as the dashboard identifier
+            dashboard_id = mcp_session_id
+            session_id_for_url = mcp_session_id
+            session_type = "mcp_session"
         
         # Create dashboard configuration
         now = datetime.now()
-        ttl = int((now + timedelta(days=30)).timestamp())  # 30-day expiration
+        ttl = int((now + timedelta(hours=24)).timestamp())  # 24-hour expiration (matches MCP session)
         
         dashboard_config = {
             'dashboard_id': dashboard_id,
+            'mcp_session_id': mcp_session_id,
             'created_by': 'ai_assistant',
-            'ai_session_id': ai_session_id or 'unknown',
+            'ai_session_id': ai_session_id or mcp_session_id or f"fallback_{uuid.uuid4().hex[:8]}",  # Legacy compatibility
             'wallet_address': wallet_address,
             'dashboard_name': dashboard_name,
+            'session_type': session_type,
             'created_at': now.isoformat(),
             'last_updated': now.isoformat(),
             'canvas_layout': 'default',
@@ -92,19 +138,29 @@ async def create_personalized_dashboard(
         dashboards_table = get_dashboards_table()
         dashboards_table.put_item(Item=dashboard_config)
         
-        # Generate URLs
+        # 🎯 Generate stable session-based dashboard URL
+        dashboard_url = create_session_based_dashboard_url(session_id_for_url)
         base_url = "https://pb-fm-mcp-dev.creativeapptitude.com"
-        dashboard_url = f"{base_url}/dashboard/{dashboard_id}"
         
         return {
             'dashboard_id': dashboard_id,
             'dashboard_url': dashboard_url,
             'dashboard_name': dashboard_name,
             'wallet_address': wallet_address,
+            'mcp_session_id': mcp_session_id,
+            'session_type': session_type,
             'ai_session_id': ai_session_id,
             'created_at': dashboard_config['created_at'],
-            'ai_instructions': f"Dashboard created! Share this URL with your user: {dashboard_url}",
+            'ttl_hours': 24,
             'success': True,
+            'revolutionary_features': {
+                'stable_url': 'URL persists throughout your Claude.ai conversation',
+                'no_copy_paste': 'AI can share this URL directly - no manual copying needed',
+                'session_based': 'Tied to your unique Claude conversation for security',
+                'auto_expire': 'Automatically expires in 24 hours for privacy'
+            },
+            'ai_instructions': f"🎉 STABLE URL CREATED! Share this persistent URL: {dashboard_url}",
+            'user_message': '🔗 This is your personal dashboard URL - it stays the same throughout our conversation!',
             'api_endpoints': {
                 'visualizations': f"{base_url}/api/dashboard/{dashboard_id}/visualizations",
                 'update': f"{base_url}/api/dashboard/{dashboard_id}/update",

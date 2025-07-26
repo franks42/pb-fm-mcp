@@ -52,6 +52,16 @@ try:
 except Exception as e:
     print(f"❌ Failed to import browser_automation: {e}")
 
+try:
+    from . import dynamic_visualization
+except Exception as e:
+    print(f"❌ Failed to import dynamic_visualization: {e}")
+
+try:
+    from . import debug_functions
+except Exception as e:
+    print(f"❌ Failed to import debug_functions: {e}")
+
 __all__ = [
     "stats_functions",
     "delegation_functions", 
@@ -62,4 +72,6 @@ __all__ = [
     "webui_functions",
     "visualization_functions",
     "browser_automation",
+    "dynamic_visualization",
+    "debug_functions",
 ]
