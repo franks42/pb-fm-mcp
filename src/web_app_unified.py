@@ -174,7 +174,38 @@ def register_rest_routes(app: FastAPI, registry: FunctionRegistry):
                     for param_name, param_value in request.path_params.items():
                         kwargs[param_name] = param_value
                     
-                    # Query parameters with type conversion
+                    # POST body parameters (for JSON payload)
+                    if request.method == "POST":
+                        try:
+                            body = await request.json()
+                            if isinstance(body, dict):
+                                for param_name, param in meta.signature.parameters.items():
+                                    if param_name in ('self', 'cls') or param_name in kwargs:
+                                        continue
+                                    
+                                    if param_name in body:
+                                        raw_value = body[param_name]
+                                        param_type = meta.type_hints.get(param_name, str)
+                                        
+                                        try:
+                                            if param_type == int:
+                                                kwargs[param_name] = int(raw_value)
+                                            elif param_type == float:
+                                                kwargs[param_name] = float(raw_value)
+                                            elif param_type == bool:
+                                                kwargs[param_name] = raw_value if isinstance(raw_value, bool) else raw_value.lower() in ('true', '1', 'yes', 'on')
+                                            else:
+                                                kwargs[param_name] = raw_value
+                                        except (ValueError, TypeError):
+                                            raise HTTPException(
+                                                status_code=400,
+                                                detail=f"Invalid value for parameter {param_name}: {raw_value}"
+                                            )
+                        except Exception as e:
+                            # If JSON parsing fails, continue to query params
+                            pass
+                    
+                    # Query parameters with type conversion (fallback)
                     for param_name, param in meta.signature.parameters.items():
                         if param_name in ('self', 'cls') or param_name in kwargs:
                             continue
@@ -498,6 +529,7 @@ async def serve_personalized_dashboard(dashboard_id: str):
             <div class="control-panel">
                 <button class="control-button" onclick="refreshDashboard()">🔄 Refresh</button>
                 <button class="control-button" onclick="loadHashPriceChart()">📈 HASH Price</button>
+                <button class="control-button" onclick="loadPortfolioHealth()">🏥 Portfolio Health</button>
                 <button class="control-button" onclick="toggleTheme()">🌙 Theme</button>
             </div>
             
@@ -593,6 +625,81 @@ async def serve_personalized_dashboard(dashboard_id: str):
                     }} catch (error) {{
                         console.error('Chart loading error:', error);
                         updateStatus('Failed to load HASH price chart: ' + error.message, 'error');
+                    }}
+                }}
+                
+                // Load Portfolio Health Dashboard
+                async function loadPortfolioHealth() {{
+                    try {{
+                        updateStatus('Loading Portfolio Health Dashboard...', 'info');
+                        
+                        // Get wallet address from dashboard config
+                        const walletAddress = '{dashboard_config.get('wallet_address', '')}';
+                        if (!walletAddress) {{
+                            throw new Error('No wallet address configured for this dashboard');
+                        }}
+                        
+                        const response = await fetch(`${{apiBase}}/api/create_portfolio_health`, {{
+                            method: 'POST',
+                            headers: {{
+                                'Content-Type': 'application/json',
+                            }},
+                            body: JSON.stringify({{
+                                wallet_address: walletAddress,
+                                dashboard_id: dashboardId,
+                                analysis_depth: 'comprehensive'
+                            }})
+                        }});
+                        
+                        if (!response.ok) {{
+                            throw new Error(`HTTP ${{response.status}}: ${{response.statusText}}`);
+                        }}
+                        
+                        const portfolioData = await response.json();
+                        
+                        if (portfolioData.success) {{
+                            // Render complex multi-chart dashboard
+                            const plotlySpec = portfolioData.visualization_spec;
+                            await Plotly.newPlot('plotly-div', plotlySpec.data, plotlySpec.layout, {{
+                                responsive: true,
+                                displayModeBar: true,
+                                modeBarButtonsToAdd: ['downloadSVG']
+                            }});
+                            
+                            document.getElementById('plotly-div').style.display = 'block';
+                            updateStatus(`Portfolio Health Dashboard loaded (Score: ${{Math.round(portfolioData.health_metrics.overall_score)}}/100)`, 'success');
+                            
+                            // Show comprehensive AI insights and recommendations
+                            if (portfolioData.ai_insights) {{
+                                const insightsHtml = `
+                                    <h3>🤖 AI Portfolio Analysis</h3>
+                                    <p>${{portfolioData.ai_insights}}</p>
+                                    ${{portfolioData.recommendations && portfolioData.recommendations.length > 0 ? `
+                                        <h4>📋 Recommendations:</h4>
+                                        <ul>
+                                            ${{portfolioData.recommendations.map(rec => 
+                                                `<li><strong>${{rec.type.charAt(0).toUpperCase() + rec.type.slice(1)}}:</strong> ${{rec.action}} - ${{rec.impact}}</li>`
+                                            ).join('')}}
+                                        </ul>
+                                    ` : ''}}
+                                    <div style="margin-top: 15px; padding: 10px; background: rgba(0,255,136,0.1); border-radius: 5px;">
+                                        <strong>💰 Portfolio Value:</strong> ~$$${{Math.round(portfolioData.total_value_usd).toLocaleString()}} USD<br>
+                                        <strong>📊 Health Score:</strong> ${{portfolioData.health_metrics.overall_score}}/100<br>
+                                        <strong>🏦 Validators:</strong> ${{portfolioData.health_metrics.validator_count}}<br>
+                                        <strong>🔒 Staking Ratio:</strong> ${{portfolioData.health_metrics.staking_ratio}}%
+                                    </div>
+                                `;
+                                document.getElementById('insights-content').innerHTML = insightsHtml;
+                                document.getElementById('ai-insights').style.display = 'block';
+                            }}
+                            
+                        }} else {{
+                            throw new Error(portfolioData.error || 'Failed to create portfolio health dashboard');
+                        }}
+                        
+                    }} catch (error) {{
+                        console.error('Portfolio health loading error:', error);
+                        updateStatus('Failed to load Portfolio Health Dashboard: ' + error.message, 'error');
                     }}
                 }}
                 
