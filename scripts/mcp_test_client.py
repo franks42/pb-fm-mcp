@@ -18,9 +18,9 @@ MCP_AVAILABLE = True
 
 
 class MCPTestClient:
-    """Simple MCP testing client with command-line interface."""
+    """Session-aware MCP testing client with proper MCP protocol implementation."""
     
-    def __init__(self, mcp_url: str, rest_base_url: Optional[str] = None):
+    def __init__(self, mcp_url: str, rest_base_url: Optional[str] = None, session_file: str = None):
         self.mcp_url = mcp_url
         # If no explicit REST base URL provided, derive it from MCP URL
         # Keep any path prefix (like /v1) when removing /mcp
@@ -33,12 +33,146 @@ class MCPTestClient:
                 self.rest_base_url = mcp_url
         else:
             self.rest_base_url = rest_base_url
+            
+        # 🎯 MCP SESSION MANAGEMENT WITH PERSISTENCE
+        import hashlib
+        url_hash = hashlib.md5(mcp_url.encode()).hexdigest()[:8]
+        self.session_file = session_file or f".mcp_session_{url_hash}"
+        self.session_id: Optional[str] = None
+        self.initialized: bool = False
+        
+        # 🔒 SECURITY: Load existing session (NO SENSITIVE DATA STORED)
+        self._load_stored_session()
+    
+    def _load_stored_session(self) -> None:
+        """🔒 Load session ID from persistent storage (NO SENSITIVE DATA, NO ARTIFICIAL EXPIRY)."""
+        try:
+            import os
+            import json
+            from datetime import datetime, timedelta
+            
+            if os.path.exists(self.session_file):
+                with open(self.session_file, 'r') as f:
+                    data = json.load(f)
+                    
+                # 🔒 SECURITY CHECK: Only load non-sensitive session metadata
+                stored_session_id = data.get('session_id')
+                created_at_str = data.get('created_at')
+                stored_url = data.get('mcp_url')
+                
+                # Load session if URL matches (no artificial expiry for public data)
+                if stored_url == self.mcp_url and stored_session_id:
+                    from datetime import datetime
+                    created_at = datetime.fromisoformat(created_at_str.replace('Z', ''))
+                    age = datetime.now() - created_at
+                    
+                    self.session_id = stored_session_id
+                    print(f"🔄 Loaded existing session: {stored_session_id} (age: {age})")
+                    print("📍 No artificial expiry - letting server manage session lifecycle")
+                        
+        except Exception as e:
+            print(f"⚠️ Could not load stored session: {e}")
+    
+    def _save_session(self) -> None:
+        """🔒 Save session ID for future invocations (NO SENSITIVE DATA)."""
+        try:
+            import json
+            from datetime import datetime
+            
+            # 🔒 SECURITY: ONLY store session metadata, NO wallet addresses or sensitive data
+            session_data = {
+                'session_id': self.session_id,
+                'created_at': datetime.now().isoformat(),
+                'mcp_url': self.mcp_url,
+                # 🚨 CRITICAL: NO wallet addresses, NO sensitive data stored here!
+            }
+            
+            with open(self.session_file, 'w') as f:
+                json.dump(session_data, f, indent=2)
+                
+            print(f"💾 Session saved to {self.session_file}")
+            
+        except Exception as e:
+            print(f"⚠️ Could not save session: {e}")
+    
+    def _delete_session_file(self) -> None:
+        """🔒 Delete invalid session file for clean recovery."""
+        try:
+            import os
+            if os.path.exists(self.session_file):
+                os.remove(self.session_file)
+                print(f"🗑️ Deleted invalid session file: {self.session_file}")
+        except Exception as e:
+            print(f"⚠️ Could not delete session file: {e}")
+    
+    def _get_headers(self) -> Dict[str, str]:
+        """Get headers with optional MCP session ID."""
+        headers = {"Content-Type": "application/json"}
+        if self.session_id:
+            headers["Mcp-Session-Id"] = self.session_id
+        return headers
+    
+    async def initialize(self) -> bool:
+        """🎯 Initialize MCP session and capture session ID (proper MCP protocol)."""
+        try:
+            print(f"🚀 Initializing MCP session: {self.mcp_url}")
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(
+                    self.mcp_url,
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": "init",
+                        "method": "initialize",
+                        "params": {
+                            "protocolVersion": "2024-11-05",
+                            "capabilities": {
+                                "tools": {"list": True, "call": True}
+                            },
+                            "clientInfo": {
+                                "name": "pb-fm-mcp-test-client",
+                                "version": "1.0.0"
+                            }
+                        }
+                    },
+                    headers={"Content-Type": "application/json"}
+                )
+                response.raise_for_status()
+                result = response.json()
+                
+                # 🎯 CAPTURE SESSION ID FROM RESPONSE HEADERS
+                session_id = response.headers.get('Mcp-Session-Id') or response.headers.get('mcp-session-id')
+                if session_id:
+                    self.session_id = session_id
+                    self.initialized = True
+                    print(f"✅ MCP session initialized! Session ID: {session_id}")
+                    
+                    # 🔒 SAVE SESSION FOR FUTURE INVOCATIONS (NO SENSITIVE DATA)
+                    self._save_session()
+                    return True
+                else:
+                    print("⚠️ No session ID returned by server (session-less mode)")
+                    self.initialized = True
+                    return True
+                    
+        except Exception as e:
+            print(f"❌ MCP initialization failed: {e}")
+            return False
         
     async def connect(self) -> bool:
-        """Connect to the MCP server via HTTP."""
+        """🎯 Connect to MCP server with proper session initialization."""
         try:
-            print(f"🔌 Testing MCP server: {self.mcp_url}")
-            # Test with a simple tools/list call
+            print(f"🔌 Connecting to MCP server: {self.mcp_url}")
+            
+            # 🎯 STEP 1: Initialize MCP session (or reuse existing)
+            if self.session_id:
+                print(f"🔄 Using existing session: {self.session_id}")
+                self.initialized = True
+            else:
+                if not await self.initialize():
+                    return False
+            
+            # 🎯 STEP 2: Test with tools/list call using session
+            print("🔧 Testing connection with tools/list...")
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(
                     self.mcp_url,
@@ -48,12 +182,14 @@ class MCPTestClient:
                         "method": "tools/list",
                         "params": {}
                     },
-                    headers={"Content-Type": "application/json"}
+                    headers=self._get_headers()  # 🎯 Now includes session ID!
                 )
                 response.raise_for_status()
                 result = response.json()
                 if "result" in result:
-                    print("✅ Connected successfully!")
+                    print("✅ Connected successfully with session support!")
+                    if self.session_id:
+                        print(f"🎯 Session-based connection established: {self.session_id}")
                     return True
                 else:
                     print(f"❌ Unexpected response: {result}")
@@ -63,12 +199,36 @@ class MCPTestClient:
             return False
     
     async def disconnect(self):
-        """Disconnect from the MCP server."""
+        """🎯 Properly disconnect from MCP server with session cleanup."""
+        if self.session_id:
+            try:
+                print(f"🔌 Terminating MCP session: {self.session_id}")
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    # Send DELETE request to terminate session (per MCP spec)
+                    response = await client.delete(
+                        self.mcp_url,
+                        headers=self._get_headers()
+                    )
+                    if response.status_code == 204:
+                        print("✅ Session terminated successfully")
+                    else:
+                        print(f"⚠️ Session termination response: {response.status_code}")
+            except Exception as e:
+                print(f"⚠️ Session termination failed: {e}")
+        
+        self.session_id = None
+        self.initialized = False
         print("🔌 Disconnected from MCP server")
     
     async def list_tools(self) -> list:
-        """List all available tools on the MCP server."""
+        """🎯 List all available tools on the MCP server with session support."""
         try:
+            # Ensure we're initialized
+            if not self.initialized:
+                print("⚠️ Not initialized - calling initialize first...")
+                if not await self.initialize():
+                    return []
+            
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(
                     self.mcp_url,
@@ -78,7 +238,7 @@ class MCPTestClient:
                         "method": "tools/list",
                         "params": {}
                     },
-                    headers={"Content-Type": "application/json"}
+                    headers=self._get_headers()  # 🎯 Now includes session ID!
                 )
                 response.raise_for_status()
                 result = response.json()
@@ -102,9 +262,17 @@ class MCPTestClient:
             return []
     
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Call a specific tool with given arguments."""
+        """🎯 Call a specific tool with session support for stable dashboards."""
         try:
+            # Ensure we're initialized
+            if not self.initialized:
+                print("⚠️ Not initialized - calling initialize first...")
+                if not await self.initialize():
+                    return {"error": "Failed to initialize MCP session"}
+            
             print(f"🔧 Calling tool: {tool_name}")
+            if self.session_id:
+                print(f"🎯 Using session ID: {self.session_id}")
             print(f"📥 Arguments: {json.dumps(arguments, indent=2)}")
             
             async with httpx.AsyncClient(timeout=120.0) as client:
@@ -119,10 +287,46 @@ class MCPTestClient:
                             "arguments": arguments
                         }
                     },
-                    headers={"Content-Type": "application/json"}
+                    headers=self._get_headers()  # 🎯 Now includes session ID!
                 )
                 response.raise_for_status()
                 result = response.json()
+                
+                # 🎯 CHECK FOR INVALID SESSION ERROR (server-side validation only)
+                if "error" in result and result["error"].get("code") == -32000:
+                    error_msg = result["error"].get("message", "")
+                    if "Invalid or expired session" in error_msg or "Session required" in error_msg:
+                        print(f"🔄 Server rejected session: {self.session_id}")
+                        print("🚀 Auto-recovery: Creating new session...")
+                        
+                        # 🔒 DELETE INVALID SESSION FILE
+                        self._delete_session_file()
+                        
+                        # Reset session state
+                        self.session_id = None
+                        self.initialized = False
+                        
+                        # 🎯 RETRY WITH NEW SESSION
+                        if await self.initialize():
+                            print("✅ New session created successfully!")
+                            # Retry the original request with new session
+                            response = await client.post(
+                                self.mcp_url,
+                                json={
+                                    "jsonrpc": "2.0",
+                                    "id": 1,
+                                    "method": "tools/call",
+                                    "params": {
+                                        "name": tool_name,
+                                        "arguments": arguments
+                                    }
+                                },
+                                headers=self._get_headers()
+                            )
+                            response.raise_for_status()
+                            result = response.json()
+                        else:
+                            return {"error": "Session recovery failed"}
                 
                 if "result" in result:
                     tool_result = result["result"]
