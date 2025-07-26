@@ -534,6 +534,7 @@ async def serve_personalized_dashboard(dashboard_id: str):
                 <button class="control-button" onclick="loadHashPriceChart()">📈 HASH Price</button>
                 <button class="control-button" onclick="loadPortfolioHealth()">🏥 Portfolio Health</button>
                 <button class="control-button" onclick="takeScreenshot()">📸 Screenshot</button>
+                <button class="control-button" onclick="uploadScreenshotToServer()">☁️ Upload to Server</button>
                 <button class="control-button" onclick="toggleTheme()">🌙 Theme</button>
             </div>
             
@@ -813,6 +814,97 @@ async def serve_personalized_dashboard(dashboard_id: str):
                     }}
                 }}
                 
+                // Upload screenshot to server for Claude's analysis
+                async function uploadScreenshotToServer(context = 'user_screenshot') {{
+                    try {{
+                        updateStatus('Capturing screenshot for server upload...', 'info');
+                        
+                        if (typeof html2canvas !== 'undefined') {{
+                            const canvas = await html2canvas(document.body, {{
+                                backgroundColor: '#1e1e1e',
+                                scale: 1,
+                                useCORS: true,
+                                allowTaint: false,
+                                width: 1400,
+                                height: 900
+                            }});
+                            
+                            const base64Data = canvas.toDataURL('image/png').split(',')[1];
+                            
+                            const response = await fetch(`${{apiBase}}/api/upload_screenshot`, {{
+                                method: 'POST', 
+                                headers: {{
+                                    'Content-Type': 'application/json',
+                                }},
+                                body: JSON.stringify({{
+                                    screenshot_base64: base64Data,
+                                    dashboard_id: dashboardId,
+                                    context: context
+                                }})
+                            }});
+                            
+                            if (!response.ok) {{
+                                throw new Error(`HTTP ${{response.status}}: ${{response.statusText}}`);
+                            }}
+                            
+                            const result = await response.json();
+                            
+                            if (result.success) {{
+                                updateStatus(`Screenshot uploaded successfully! Claude can now analyze it via: ${{result.screenshot_id}}`, 'success');
+                                return result.screenshot_id;
+                            }} else {{
+                                throw new Error(result.error || 'Upload failed');
+                            }}
+                        }} else {{
+                            throw new Error('html2canvas not available');
+                        }}
+                        
+                    }} catch (error) {{
+                        console.error('Screenshot upload error:', error);
+                        updateStatus('Failed to upload screenshot: ' + error.message, 'error');
+                        return null;
+                    }}
+                }}
+                
+                // Poll for screenshot requests from server (Claude)
+                let screenshotPollingInterval = null;
+                
+                function startScreenshotPolling() {{
+                    if (screenshotPollingInterval) return; // Already polling
+                    
+                    screenshotPollingInterval = setInterval(async () => {{
+                        try {{
+                            const response = await fetch(`${{apiBase}}/api/check_screenshot_requests`, {{
+                                method: 'POST',
+                                headers: {{
+                                    'Content-Type': 'application/json',
+                                }},
+                                body: JSON.stringify({{
+                                    dashboard_id: dashboardId
+                                }})
+                            }});
+                            
+                            if (response.ok) {{
+                                const data = await response.json();
+                                
+                                if (data.screenshot_requested) {{
+                                    console.log('Claude requested screenshot, capturing...');
+                                    await uploadScreenshotToServer('claude_debug_request');
+                                }}
+                            }}
+                        }} catch (error) {{
+                            console.warn('Screenshot polling error:', error);
+                        }}
+                    }}, 3000); // Poll every 3 seconds
+                }}
+                
+                function stopScreenshotPolling() {{
+                    if (screenshotPollingInterval) {{
+                        clearInterval(screenshotPollingInterval);
+                        screenshotPollingInterval = null;
+                    }}
+                }}
+                
                 // Toggle dark/light theme
                 function toggleTheme() {{
                     const body = document.body;
@@ -828,7 +920,13 @@ async def serve_personalized_dashboard(dashboard_id: str):
                 }}
                 
                 // Initialize dashboard when page loads
-                window.addEventListener('load', initializeDashboard);
+                window.addEventListener('load', () => {{
+                    initializeDashboard();
+                    startScreenshotPolling(); // Start polling for Claude's screenshot requests
+                }});
+                
+                // Stop polling when page unloads
+                window.addEventListener('beforeunload', stopScreenshotPolling);
             </script>
         </body>
         </html>

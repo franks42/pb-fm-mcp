@@ -982,3 +982,203 @@ async def claude_take_screenshot(
             'error': f'Claude screenshot failed: {str(e)}',
             'message': 'Automatic screenshot capture encountered an error'
         }
+
+
+@api_function(
+    protocols=["mcp", "rest"],
+    path="/api/upload_screenshot",
+    method="POST",
+    tags=["utility", "debugging"],
+    description="Upload browser-captured screenshot to server for Claude to analyze"
+)
+async def upload_screenshot(
+    screenshot_base64: str,
+    dashboard_id: str = None,
+    context: str = "user_screenshot"
+) -> JSONType:
+    """
+    Receive browser-captured screenshot and save it for Claude to analyze.
+    
+    This allows the browser to take a high-quality html2canvas screenshot
+    and upload it to the server where Claude can access it via the Read tool.
+    """
+    
+    try:
+        import base64
+        import uuid
+        
+        # Decode the base64 image
+        img_data = base64.b64decode(screenshot_base64)
+        
+        # Create a unique filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        screenshot_id = str(uuid.uuid4())[:8]
+        filename = f"dashboard_screenshot_{timestamp}_{screenshot_id}.png"
+        
+        # Save to temporary file that Claude can read
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False, prefix='claude_') as tmp_file:
+            tmp_file.write(img_data)
+            screenshot_path = tmp_file.name
+        
+        return {
+            'success': True,
+            'screenshot_path': screenshot_path,
+            'screenshot_id': screenshot_id,
+            'filename': filename,
+            'file_size_bytes': len(img_data),
+            'dashboard_id': dashboard_id,
+            'context': context,
+            'message': 'Screenshot uploaded successfully - Claude can now analyze it',
+            'claude_note': f'Screenshot saved to {screenshot_path} - use Read tool to view it'
+        }
+        
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f'Failed to upload screenshot: {str(e)}',
+            'message': 'Screenshot upload failed'
+        }
+
+
+@api_function(
+    protocols=["mcp", "rest"],
+    path="/api/trigger_browser_screenshot",
+    method="POST",
+    tags=["utility", "debugging"],
+    description="Claude can trigger browser to take screenshot and upload it automatically"
+)
+async def trigger_browser_screenshot(
+    dashboard_id: str,
+    context: str = "claude_debug_request",
+    wait_seconds: int = 2
+) -> JSONType:
+    """
+    Trigger the browser to take a screenshot and upload it to the server.
+    
+    This works by setting a flag that the browser polls for, then the browser
+    takes the screenshot using html2canvas and uploads it back to the server.
+    """
+    
+    try:
+        # Store the screenshot request in DynamoDB for the browser to poll
+        dynamodb = boto3.resource('dynamodb')
+        table_name = os.environ.get('DASHBOARDS_TABLE')
+        if not table_name:
+            return {
+                'success': False,
+                'error': 'Dashboard service not configured',
+                'message': 'Cannot trigger browser screenshot - no dashboard table'
+            }
+        
+        dashboards_table = dynamodb.Table(table_name)
+        
+        # Create screenshot request record
+        request_id = str(uuid.uuid4())
+        screenshot_request = {
+            'dashboard_id': f"screenshot_request_{dashboard_id}",
+            'request_id': request_id,
+            'status': 'pending',
+            'context': context,
+            'wait_seconds': wait_seconds,
+            'created_at': datetime.now().isoformat(),
+            'ttl': int((datetime.now() + timedelta(minutes=5)).timestamp())  # 5 min expiry
+        }
+        
+        dashboards_table.put_item(Item=screenshot_request)
+        
+        return {
+            'success': True,
+            'request_id': request_id,
+            'dashboard_id': dashboard_id,
+            'context': context,
+            'message': f'Screenshot request sent to browser - waiting {wait_seconds} seconds',
+            'status': 'Browser will poll for this request and take screenshot automatically',
+            'poll_key': f"screenshot_request_{dashboard_id}"
+        }
+        
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f'Failed to trigger browser screenshot: {str(e)}',
+            'message': 'Could not send screenshot request to browser'
+        }
+
+
+@api_function(
+    protocols=["mcp", "rest"],
+    path="/api/check_screenshot_requests",
+    method="POST",
+    tags=["utility", "debugging"],
+    description="Check if there are pending screenshot requests for a dashboard (browser polling endpoint)"
+)
+async def check_screenshot_requests(
+    dashboard_id: str
+) -> JSONType:
+    """
+    Check for pending screenshot requests from Claude.
+    
+    This endpoint is polled by the browser to see if Claude has requested a screenshot.
+    If there's a pending request, the response tells the browser to take and upload a screenshot.
+    """
+    
+    try:
+        dynamodb = boto3.resource('dynamodb')
+        table_name = os.environ.get('DASHBOARDS_TABLE')
+        if not table_name:
+            return {
+                'success': False,
+                'screenshot_requested': False,
+                'error': 'Dashboard service not configured'
+            }
+        
+        dashboards_table = dynamodb.Table(table_name)
+        
+        # Check for pending screenshot requests
+        request_key = f"screenshot_request_{dashboard_id}"
+        
+        try:
+            response = dashboards_table.get_item(
+                Key={'dashboard_id': request_key}
+            )
+            
+            if 'Item' in response:
+                request_item = response['Item']
+                
+                if request_item.get('status') == 'pending':
+                    # Mark request as processed to avoid duplicate screenshots
+                    dashboards_table.update_item(
+                        Key={'dashboard_id': request_key},
+                        UpdateExpression='SET #status = :status, processed_at = :processed_at',
+                        ExpressionAttributeNames={'#status': 'status'},
+                        ExpressionAttributeValues={
+                            ':status': 'processing',
+                            ':processed_at': datetime.now().isoformat()
+                        }
+                    )
+                    
+                    return {
+                        'success': True,
+                        'screenshot_requested': True,
+                        'request_id': request_item.get('request_id'),
+                        'context': request_item.get('context', 'claude_debug_request'),
+                        'wait_seconds': request_item.get('wait_seconds', 2),
+                        'message': 'Screenshot requested by Claude - please capture and upload'
+                    }
+            
+        except Exception as db_error:
+            print(f"Database error checking screenshot requests: {db_error}")
+        
+        # No pending requests found
+        return {
+            'success': True,
+            'screenshot_requested': False,
+            'message': 'No pending screenshot requests'
+        }
+        
+    except Exception as e:
+        print(f"Error checking screenshot requests: {e}")
+        return {
+            'success': False,
+            'screenshot_requested': False,
+            'error': f'Failed to check screenshot requests: {str(e)}'
+        }
