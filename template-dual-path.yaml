@@ -19,15 +19,28 @@ Parameters:
   HostedZoneId:
     Type: String
     Description: Route 53 Hosted Zone ID for creativeapptitude.com (e.g., Z1234567890ABC)
+    Default: ""
     
   CertificateArn:
     Type: String
     Description: ARN of the SSL certificate from Certificate Manager (optional - leave empty to skip custom domain)
     Default: ""
+  
+  ExistingWebAssetsBucket:
+    Type: String
+    Description: Name of existing S3 bucket for web assets (optional - leave empty to create new)
+    Default: ""
+  
+  ExistingScreenshotsBucket:
+    Type: String
+    Description: Name of existing S3 bucket for screenshots (optional - leave empty to create new)
+    Default: ""
 
 Conditions:
   IsProduction: !Equals [!Ref Environment, prod]
   HasCustomDomain: !Not [!Equals [!Ref CertificateArn, ""]]
+  CreateWebAssetsBucket: !Equals [!Ref ExistingWebAssetsBucket, ""]
+  CreateScreenshotsBucket: !Equals [!Ref ExistingScreenshotsBucket, ""]
 
 Globals:
   Function:
@@ -61,8 +74,8 @@ Resources:
           SESSIONS_TABLE: !Ref ConversationSessionsTable
           MESSAGES_TABLE: !Ref ConversationMessagesTable
           DASHBOARDS_TABLE: !Ref PersonalizedDashboardsTable
-          SCREENSHOTS_BUCKET: !Ref ScreenshotBucket
-          WEB_ASSETS_BUCKET: !Ref WebAssetsBucket
+          SCREENSHOTS_BUCKET: !If [CreateScreenshotsBucket, !Ref ScreenshotBucket, !Ref ExistingScreenshotsBucket]
+          WEB_ASSETS_BUCKET: !If [CreateWebAssetsBucket, !Ref WebAssetsBucket, !Ref ExistingWebAssetsBucket]
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ConversationSessionsTable
@@ -71,9 +84,9 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref PersonalizedDashboardsTable
         - S3CrudPolicy:
-            BucketName: !Ref ScreenshotBucket
+            BucketName: !If [CreateScreenshotsBucket, !Ref ScreenshotBucket, !Ref ExistingScreenshotsBucket]
         - S3CrudPolicy:
-            BucketName: !Ref WebAssetsBucket
+            BucketName: !If [CreateWebAssetsBucket, !Ref WebAssetsBucket, !Ref ExistingWebAssetsBucket]
       FunctionUrlConfig:
         AuthType: NONE
         Cors:
@@ -108,8 +121,8 @@ Resources:
           SESSIONS_TABLE: !Ref ConversationSessionsTable
           MESSAGES_TABLE: !Ref ConversationMessagesTable
           DASHBOARDS_TABLE: !Ref PersonalizedDashboardsTable
-          SCREENSHOTS_BUCKET: !Ref ScreenshotBucket
-          WEB_ASSETS_BUCKET: !Ref WebAssetsBucket
+          SCREENSHOTS_BUCKET: !If [CreateScreenshotsBucket, !Ref ScreenshotBucket, !Ref ExistingScreenshotsBucket]
+          WEB_ASSETS_BUCKET: !If [CreateWebAssetsBucket, !Ref WebAssetsBucket, !Ref ExistingWebAssetsBucket]
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ConversationSessionsTable
@@ -118,9 +131,9 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref PersonalizedDashboardsTable
         - S3CrudPolicy:
-            BucketName: !Ref ScreenshotBucket
+            BucketName: !If [CreateScreenshotsBucket, !Ref ScreenshotBucket, !Ref ExistingScreenshotsBucket]
         - S3CrudPolicy:
-            BucketName: !Ref WebAssetsBucket
+            BucketName: !If [CreateWebAssetsBucket, !Ref WebAssetsBucket, !Ref ExistingWebAssetsBucket]
       Events:
         RestApiRoot:
           Type: Api
@@ -292,11 +305,12 @@ Resources:
         - Key: Purpose
           Value: personalized-dashboards
 
-  # S3 Bucket for Screenshots (fallback for large images)
+  # S3 Bucket for Screenshots (only create if not provided)
   ScreenshotBucket:
     Type: AWS::S3::Bucket
+    Condition: CreateScreenshotsBucket
+    DeletionPolicy: Retain
     Properties:
-      BucketName: !Sub "${AWS::StackName}-screenshots-${AWS::AccountId}"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -315,11 +329,12 @@ Resources:
         - Key: Purpose
           Value: screenshot-storage
 
-  # S3 Bucket for Live Web Assets (HTML, CSS, JavaScript)
+  # S3 Bucket for Live Web Assets (only create if not provided)
   WebAssetsBucket:
     Type: AWS::S3::Bucket
+    Condition: CreateWebAssetsBucket
+    DeletionPolicy: Retain
     Properties:
-      BucketName: !Sub "${AWS::StackName}-web-assets-${AWS::AccountId}"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: false
         BlockPublicPolicy: false  
@@ -341,10 +356,10 @@ Resources:
         - Key: Purpose
           Value: live-web-assets
 
-  # Bucket policy to allow public read access for web assets
+  # Bucket policy to allow public read access for web assets (only if we created bucket)
   WebAssetsBucketPolicy:
     Type: AWS::S3::BucketPolicy
-    DependsOn: WebAssetsBucket
+    Condition: CreateWebAssetsBucket
     Properties:
       Bucket: !Ref WebAssetsBucket
       PolicyDocument:
@@ -434,12 +449,14 @@ Outputs:
   # S3 Bucket Information
   WebAssetsBucketName:
     Description: "S3 bucket name for live web assets"
-    Value: !Ref WebAssetsBucket
+    Value: !If [CreateWebAssetsBucket, !Ref WebAssetsBucket, !Ref ExistingWebAssetsBucket]
     Export:
       Name: !Sub "${AWS::StackName}-web-assets-bucket"
 
   WebAssetsBucketUrl:
     Description: "S3 bucket URL for live web assets"
-    Value: !Sub "https://${WebAssetsBucket}.s3.${AWS::Region}.amazonaws.com"
+    Value: !Sub 
+      - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com"
+      - BucketName: !If [CreateWebAssetsBucket, !Ref WebAssetsBucket, !Ref ExistingWebAssetsBucket]
     Export:
       Name: !Sub "${AWS::StackName}-web-assets-url"
