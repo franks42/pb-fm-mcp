@@ -125,7 +125,12 @@
       "Bash(./scripts/deploy-with-custom-domain.sh:*)",
       "Bash(aws acm request-certificate:*)",
       "Bash(aws acm describe-certificate:*)",
-      "Bash(aws logs tail:*)"
+      "Bash(aws logs tail:*)",
+      "WebFetch(domain:7fucgrbd16.execute-api.us-west-1.amazonaws.com)",
+      "Bash(PYTHONPATH=src uv run python -c \"\nimport os\nos.environ[''DASHBOARDS_TABLE''] = ''test-table''\ntry:\n    from functions import dynamic_visualization\n    print(''✅ dynamic_visualization imported successfully'')\n    print(''Available functions:'', [name for name in dir(dynamic_visualization) if ''update'' in name or ''config'' in name])\nexcept Exception as e:\n    print(f''❌ Import error: {e}'')\n\")",
+      "Bash(TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/mcp_test_client.py --mcp-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp --test)",
+      "Bash(aws lambda list-tags:*)",
+      "Bash(TZ=UTC git log --since=\"2025-07-26 05:32:02\" --oneline)"
     ],
     "deny": []
   }
