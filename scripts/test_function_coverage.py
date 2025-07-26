@@ -483,6 +483,8 @@ class ExhaustiveFunctionTester:
                 if result.rest_error == "MCP-only function (intentional)":
                     result.data_equivalent = True  # Don't compare MCP-only functions
                     result.data_differences = []
+                    is_equivalent = True
+                    differences = []
                 else:
                     is_equivalent, differences = self.compare_data_structures(result.mcp_data, result.rest_data)
                     result.data_equivalent = is_equivalent
