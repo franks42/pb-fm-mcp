@@ -62,3 +62,4 @@ src/vendor/
 # Misc
 .ruff_cache/
 .mypy_cache/
+.mcp_session_*
