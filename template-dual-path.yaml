@@ -61,6 +61,8 @@ Resources:
           SESSIONS_TABLE: !Ref ConversationSessionsTable
           MESSAGES_TABLE: !Ref ConversationMessagesTable
           DASHBOARDS_TABLE: !Ref PersonalizedDashboardsTable
+          SCREENSHOTS_BUCKET: !Ref ScreenshotBucket
+          WEB_ASSETS_BUCKET: !Ref WebAssetsBucket
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ConversationSessionsTable
@@ -68,6 +70,10 @@ Resources:
             TableName: !Ref ConversationMessagesTable
         - DynamoDBCrudPolicy:
             TableName: !Ref PersonalizedDashboardsTable
+        - S3CrudPolicy:
+            BucketName: !Ref ScreenshotBucket
+        - S3CrudPolicy:
+            BucketName: !Ref WebAssetsBucket
       FunctionUrlConfig:
         AuthType: NONE
         Cors:
@@ -102,6 +108,8 @@ Resources:
           SESSIONS_TABLE: !Ref ConversationSessionsTable
           MESSAGES_TABLE: !Ref ConversationMessagesTable
           DASHBOARDS_TABLE: !Ref PersonalizedDashboardsTable
+          SCREENSHOTS_BUCKET: !Ref ScreenshotBucket
+          WEB_ASSETS_BUCKET: !Ref WebAssetsBucket
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ConversationSessionsTable
@@ -109,6 +117,10 @@ Resources:
             TableName: !Ref ConversationMessagesTable
         - DynamoDBCrudPolicy:
             TableName: !Ref PersonalizedDashboardsTable
+        - S3CrudPolicy:
+            BucketName: !Ref ScreenshotBucket
+        - S3CrudPolicy:
+            BucketName: !Ref WebAssetsBucket
       Events:
         RestApiRoot:
           Type: Api
@@ -280,6 +292,69 @@ Resources:
         - Key: Purpose
           Value: personalized-dashboards
 
+  # S3 Bucket for Screenshots (fallback for large images)
+  ScreenshotBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-screenshots-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldScreenshots
+            Status: Enabled
+            ExpirationInDays: 7  # Auto-delete after 7 days
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: pb-fm-mcp
+        - Key: Purpose
+          Value: screenshot-storage
+
+  # S3 Bucket for Live Web Assets (HTML, CSS, JavaScript)
+  WebAssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-web-assets-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false  
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: [GET, HEAD]
+            AllowedOrigins: ["*"]
+            MaxAge: 3600
+      VersioningConfiguration:
+        Status: Enabled  # Keep versions for rollback
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: pb-fm-mcp
+        - Key: Purpose
+          Value: live-web-assets
+
+  # Bucket policy to allow public read access for web assets
+  WebAssetsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DependsOn: WebAssetsBucket
+    Properties:
+      Bucket: !Ref WebAssetsBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "${WebAssetsBucket}/*"
+
 
 Outputs:
   ApiUrl:
@@ -355,3 +430,16 @@ Outputs:
     Value: !Ref ConversationMessagesTable
     Export:
       Name: !Sub "${AWS::StackName}-messages-table"
+
+  # S3 Bucket Information
+  WebAssetsBucketName:
+    Description: "S3 bucket name for live web assets"
+    Value: !Ref WebAssetsBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-web-assets-bucket"
+
+  WebAssetsBucketUrl:
+    Description: "S3 bucket URL for live web assets"
+    Value: !Sub "https://${WebAssetsBucket}.s3.${AWS::Region}.amazonaws.com"
+    Export:
+      Name: !Sub "${AWS::StackName}-web-assets-url"

@@ -389,7 +389,11 @@ async def serve_personalized_dashboard(dashboard_id: str):
         
         dashboard_config = response['Item']
         
-        # Generate dashboard HTML with Plotly.js integration
+        # Get WebAssets S3 bucket URL from environment
+        web_assets_bucket = os.environ.get('WEB_ASSETS_BUCKET')
+        assets_base_url = f"https://{web_assets_bucket}.s3.us-west-1.amazonaws.com" if web_assets_bucket else ""
+        
+        # Generate dashboard HTML with S3-hosted assets
         html_content = f"""
         <!DOCTYPE html>
         <html lang="en">
@@ -404,119 +408,18 @@ async def serve_personalized_dashboard(dashboard_id: str):
             <!-- html2canvas for client-side screenshots -->
             <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
             
+            <!-- S3-hosted dashboard styles -->
+            <link rel="stylesheet" href="{assets_base_url}/css/dashboard.css">
+            
+            <!-- Minimal fallback styles (main styles loaded from S3) -->
             <style>
-                body {{
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    margin: 0;
-                    padding: 20px;
-                    background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
-                    color: #ffffff;
-                    min-height: 100vh;
+                /* Fallback only if S3 fails to load */
+                body {{ 
+                    font-family: Arial, sans-serif; 
+                    color: white; 
+                    margin: 20px; 
                 }}
-                
-                .dashboard-header {{
-                    text-align: center;
-                    margin-bottom: 30px;
-                    padding: 20px;
-                    background: rgba(255, 255, 255, 0.05);
-                    border-radius: 12px;
-                    backdrop-filter: blur(10px);
-                }}
-                
-                .dashboard-title {{
-                    font-size: 2.5em;
-                    margin: 0;
-                    background: linear-gradient(45deg, #00ff88, #00ccff);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                }}
-                
-                .dashboard-info {{
-                    color: #888;
-                    margin-top: 10px;
-                }}
-                
-                .visualization-container {{
-                    background: rgba(255, 255, 255, 0.02);
-                    border-radius: 12px;
-                    padding: 20px;
-                    margin-bottom: 30px;
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                }}
-                
-                .loading-spinner {{
-                    display: inline-block;
-                    width: 20px;
-                    height: 20px;
-                    border: 3px solid rgba(255, 255, 255, 0.3);
-                    border-radius: 50%;
-                    border-top-color: #00ff88;
-                    animation: spin 1s ease-in-out infinite;
-                }}
-                
-                @keyframes spin {{
-                    to {{ transform: rotate(360deg); }}
-                }}
-                
-                .status-message {{
-                    text-align: center;
-                    padding: 20px;
-                    background: rgba(0, 255, 136, 0.1);
-                    border-radius: 8px;
-                    border-left: 4px solid #00ff88;
-                }}
-                
-                .control-panel {{
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    background: rgba(0, 0, 0, 0.8);
-                    padding: 15px;
-                    border-radius: 8px;
-                    border: 1px solid rgba(255, 255, 255, 0.2);
-                }}
-                
-                .control-button {{
-                    display: block;
-                    width: 100%;
-                    padding: 8px 16px;
-                    margin: 5px 0;
-                    background: linear-gradient(45deg, #00ff88, #00ccff);
-                    color: #000;
-                    border: none;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-weight: bold;
-                    transition: transform 0.2s;
-                }}
-                
-                .control-button:hover {{
-                    transform: translateY(-2px);
-                }}
-                
-                #plotly-div {{
-                    width: 100%;
-                    height: 600px;
-                    background: #2a2a2a;
-                    border-radius: 8px;
-                }}
-                
-                .ai-insights {{
-                    background: rgba(0, 255, 136, 0.05);
-                    border-left: 4px solid #00ff88;
-                    padding: 15px;
-                    margin-top: 20px;
-                    border-radius: 0 8px 8px 0;
-                }}
-                
-                .footer {{
-                    text-align: center;
-                    margin-top: 40px;
-                    padding: 20px;
-                    color: #666;
-                    border-top: 1px solid rgba(255, 255, 255, 0.1);
-                }}
+                .loading {{ text-align: center; padding: 20px; }}
             </style>
         </head>
         <body>
@@ -529,7 +432,8 @@ async def serve_personalized_dashboard(dashboard_id: str):
                 </div>
             </div>
             
-            <div class="control-panel">
+            <div class="control-panel" id="controlPanel">
+                <div class="panel-header">🎛️ DRAG TO MOVE</div>
                 <button class="control-button" onclick="refreshDashboard()">🔄 Refresh</button>
                 <button class="control-button" onclick="loadHashPriceChart()">📈 HASH Price</button>
                 <button class="control-button" onclick="loadPortfolioHealth()">🏥 Portfolio Health</button>
@@ -557,10 +461,13 @@ async def serve_personalized_dashboard(dashboard_id: str):
                    <a href="/" style="color: #00ccff;">API Home</a></p>
             </div>
             
+            <!-- S3-hosted dashboard JavaScript -->
+            <script src="{assets_base_url}/js/dashboard.js"></script>
+            
             <script>
-                // Dashboard JavaScript functionality
-                const dashboardId = '{dashboard_id}';
-                const apiBase = window.location.origin;
+                // Set global variables for S3-hosted script
+                window.dashboardIdFromServer = '{dashboard_id}';
+                window.dashboardConfig = {dashboard_config};
                 
                 // Initialize dashboard
                 async function initializeDashboard() {{
@@ -617,6 +524,12 @@ async def serve_personalized_dashboard(dashboard_id: str):
                             }});
                             
                             document.getElementById('plotly-div').style.display = 'block';
+                            
+                            // Force chart to resize to fill available canvas space
+                            setTimeout(() => {{
+                                Plotly.Plots.resize('plotly-div');
+                            }}, 100);
+                            
                             updateStatus('HASH price chart loaded successfully', 'success');
                             
                             // Show AI insights
@@ -696,6 +609,12 @@ async def serve_personalized_dashboard(dashboard_id: str):
                             }});
                             
                             document.getElementById('plotly-div').style.display = 'block';
+                            
+                            // Force chart to resize to fill available canvas space
+                            setTimeout(() => {{
+                                Plotly.Plots.resize('plotly-div');
+                            }}, 100);
+                            
                             updateStatus(`Portfolio Health Dashboard loaded (Score: ${{Math.round(portfolioData.health_metrics.overall_score)}}/100)`, 'success');
                             
                             // Start live config polling if enabled
@@ -844,7 +763,7 @@ async def serve_personalized_dashboard(dashboard_id: str):
                 }}
                 
                 // Upload screenshot to server for Claude's analysis
-                async function uploadScreenshotToServer(context = 'user_screenshot') {{
+                async function uploadScreenshotToServer(context = 'user_screenshot', screenshotId = null) {{
                     try {{
                         updateStatus('Capturing screenshot for server upload...', 'info');
                         
@@ -868,7 +787,8 @@ async def serve_personalized_dashboard(dashboard_id: str):
                                 body: JSON.stringify({{
                                     screenshot_base64: base64Data,
                                     dashboard_id: dashboardId,
-                                    context: context
+                                    context: context,
+                                    screenshot_id: screenshotId  // Use provided screenshot_id if available
                                 }})
                             }});
                             
@@ -917,8 +837,9 @@ async def serve_personalized_dashboard(dashboard_id: str):
                                 const data = await response.json();
                                 
                                 if (data.screenshot_requested) {{
-                                    console.log('Claude requested screenshot, capturing...');
-                                    await uploadScreenshotToServer('claude_debug_request');
+                                    console.log('Claude requested screenshot, capturing...', data);
+                                    // Pass the screenshot_id from the request data to the upload function
+                                    await uploadScreenshotToServer('claude_debug_request', data.screenshot_id);
                                 }}
                             }}
                         }} catch (error) {{
@@ -1033,6 +954,87 @@ async def serve_personalized_dashboard(dashboard_id: str):
                     initializeDashboard();
                     startScreenshotPolling(); // Start polling for Claude's screenshot requests
                 }});
+                
+                // Make control panel draggable
+                function makePanelDraggable() {{
+                    const panel = document.getElementById('controlPanel');
+                    let isDragging = false;
+                    let currentX;
+                    let currentY;
+                    let initialX;
+                    let initialY;
+                    let xOffset = 0;
+                    let yOffset = 0;
+                    
+                    panel.addEventListener('mousedown', dragStart);
+                    document.addEventListener('mousemove', drag);
+                    document.addEventListener('mouseup', dragEnd);
+                    
+                    // Touch events for mobile
+                    panel.addEventListener('touchstart', dragStart);
+                    document.addEventListener('touchmove', drag);
+                    document.addEventListener('touchend', dragEnd);
+                    
+                    function dragStart(e) {{
+                        if (e.target.classList.contains('control-button')) return; // Don't drag on buttons
+                        
+                        if (e.type === 'touchstart') {{
+                            initialX = e.touches[0].clientX - xOffset;
+                            initialY = e.touches[0].clientY - yOffset;
+                        }} else {{
+                            initialX = e.clientX - xOffset;
+                            initialY = e.clientY - yOffset;
+                        }}
+                        
+                        if (e.target === panel || e.target.classList.contains('panel-header')) {{
+                            isDragging = true;
+                            panel.classList.add('dragging');
+                        }}
+                    }}
+                    
+                    function drag(e) {{
+                        if (isDragging) {{
+                            e.preventDefault();
+                            
+                            if (e.type === 'touchmove') {{
+                                currentX = e.touches[0].clientX - initialX;
+                                currentY = e.touches[0].clientY - initialY;
+                            }} else {{
+                                currentX = e.clientX - initialX;
+                                currentY = e.clientY - initialY;
+                            }}
+                            
+                            xOffset = currentX;
+                            yOffset = currentY;
+                            
+                            // Constrain to viewport (allow some off-screen movement)
+                            const rect = panel.getBoundingClientRect();
+                            const panelWidth = rect.width;
+                            const panelHeight = rect.height;
+                            const margin = 50; // Allow 50px off-screen
+                            
+                            const minX = -panelWidth + margin; // Allow panel to go mostly off-screen left
+                            const maxX = window.innerWidth - margin; // Keep small part visible on right
+                            const minY = 0; // Don't allow above viewport
+                            const maxY = window.innerHeight - panelHeight; // Keep fully visible vertically
+                            
+                            xOffset = Math.max(minX, Math.min(maxX, xOffset));
+                            yOffset = Math.max(minY, Math.min(maxY, yOffset));
+                            
+                            panel.style.transform = `translate(${{xOffset}}px, ${{yOffset}}px)`;
+                        }}
+                    }}
+                    
+                    function dragEnd(e) {{
+                        initialX = currentX;
+                        initialY = currentY;
+                        isDragging = false;
+                        panel.classList.remove('dragging');
+                    }}
+                }}
+                
+                // Initialize draggable panel
+                makePanelDraggable();
                 
                 // Stop polling when page unloads
                 window.addEventListener('beforeunload', () => {{

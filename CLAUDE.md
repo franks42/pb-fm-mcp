@@ -120,6 +120,46 @@ cd ~/Development/pb-fm-mcp  # New location
 
 ## Development Commands
 
+### 🚨 CRITICAL: MCP Server Communication Policy
+
+**ALWAYS use the MCP test client for MCP protocol communication:**
+```bash
+# ✅ CORRECT: For MCP protocol (tools/list, tools/call)
+uv run python scripts/mcp_test_client.py --mcp-url <URL> --interactive
+
+# ❌ WRONG: Direct curl to MCP endpoints (requires permission for each call)
+curl -X POST <MCP_URL> -d '{"jsonrpc":"2.0","method":"tools/call",...}'
+```
+
+**Why This Matters:**
+- **No Permission Required**: The test client batches MCP requests efficiently
+- **Session Management**: Handles MCP session lifecycle automatically  
+- **Better Error Handling**: Provides clear feedback on MCP protocol issues
+- **Consistent Testing**: Standardized way to test all MCP functions
+
+**When to use direct curl/HTTP requests:**
+- **✅ REST API endpoints**: `/api/*` endpoints are fine to curl directly
+- **✅ Non-MCP protocols**: Standard HTTP REST calls don't need the test client
+- **⚠️ MCP test client fails**: If the test client doesn't work, report the issue immediately
+
+**Clear Distinction:**
+```bash
+# ✅ MCP Protocol - USE TEST CLIENT
+uv run python scripts/mcp_test_client.py --mcp-url https://example.com/v1/mcp
+
+# ✅ REST API - CURL IS FINE  
+curl https://example.com/v1/api/some_endpoint
+```
+
+**Usage Examples:**
+```bash
+# Interactive mode for manual testing
+uv run python scripts/mcp_test_client.py --mcp-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp --interactive
+
+# Automated testing mode
+uv run python scripts/mcp_test_client.py --mcp-url <URL> --test
+```
+
 ### 🚨 CRITICAL: Function Naming Standards
 **NEVER change existing function names without explicit user approval. This breaks integrations.**
 - **Standard**: Use snake_case (e.g., `fetch_current_hash_statistics`)
