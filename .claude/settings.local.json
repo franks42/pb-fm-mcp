@@ -124,7 +124,8 @@
       "Bash(aws route53 list-hosted-zones:*)",
       "Bash(./scripts/deploy-with-custom-domain.sh:*)",
       "Bash(aws acm request-certificate:*)",
-      "Bash(aws acm describe-certificate:*)"
+      "Bash(aws acm describe-certificate:*)",
+      "Bash(aws logs tail:*)"
     ],
     "deny": []
   }
