@@ -160,3 +160,22 @@ body {
     background: rgba(255, 0, 0, 0.1);
     border-left: 4px solid #ff0000;
 }
+
+/* Footer link styles */
+.doc-link {
+    color: #00ff88;
+    text-decoration: none;
+}
+
+.doc-link:hover {
+    text-decoration: underline;
+}
+
+.home-link {
+    color: #00ccff;
+    text-decoration: none;
+}
+
+.home-link:hover {
+    text-decoration: underline;
+}

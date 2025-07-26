@@ -8,6 +8,7 @@ and AI-driven visualization templates for blockchain data.
 import os
 import uuid
 import boto3
+import tempfile
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -1050,7 +1051,8 @@ async def claude_take_screenshot(
 async def upload_screenshot(
     screenshot_base64: str,
     dashboard_id: str = None,
-    context: str = "user_screenshot"
+    context: str = "user_screenshot",
+    screenshot_id: str = None
 ) -> JSONType:
     """
     Receive browser-captured screenshot and save it for Claude to analyze.
@@ -1062,30 +1064,117 @@ async def upload_screenshot(
     try:
         import base64
         import uuid
+        import boto3
+        import os
         
         # Decode the base64 image
         img_data = base64.b64decode(screenshot_base64)
+        file_size = len(img_data)
         
-        # Create a unique filename with timestamp
+        # Create unique identifiers
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        screenshot_id = str(uuid.uuid4())[:8]
-        filename = f"dashboard_screenshot_{timestamp}_{screenshot_id}.png"
+        # Use provided screenshot_id or generate one
+        final_screenshot_id = screenshot_id or str(uuid.uuid4())[:8]
+        filename = f"dashboard_screenshot_{timestamp}_{final_screenshot_id}.png"
         
-        # Save to temporary file that Claude can read
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False, prefix='claude_') as tmp_file:
-            tmp_file.write(img_data)
-            screenshot_path = tmp_file.name
+        # DynamoDB size limit: 400KB, but we'll use 300KB to be safe for base64 overhead
+        MAX_DYNAMODB_SIZE = 300 * 1024  # 300KB
+        
+        # Create metadata record
+        screenshot_metadata = {
+            'screenshot_id': final_screenshot_id,
+            'dashboard_id': dashboard_id or 'unknown',
+            'filename': filename,
+            'file_size_bytes': file_size,
+            'context': context,
+            'created_at': datetime.now().isoformat(),
+            'ttl': int((datetime.now() + timedelta(days=7)).timestamp()),  # Auto-expire in 7 days
+            'storage_type': 'dynamodb' if file_size <= MAX_DYNAMODB_SIZE else 's3'
+        }
+        
+        if file_size <= MAX_DYNAMODB_SIZE:
+            # Small screenshot: Store directly in DynamoDB
+            try:
+                dynamodb = boto3.resource('dynamodb')
+                table_name = os.environ.get('DASHBOARDS_TABLE')
+                if not table_name:
+                    raise Exception("DASHBOARDS_TABLE environment variable not set")
+                
+                table = dynamodb.Table(table_name)
+                
+                # Store screenshot data directly in DynamoDB
+                screenshot_metadata['screenshot_data'] = screenshot_base64
+                screenshot_metadata['dashboard_id'] = f"screenshot_{final_screenshot_id}"  # Use as primary key
+                
+                table.put_item(Item=screenshot_metadata)
+                
+                storage_info = {
+                    'storage_type': 'dynamodb',
+                    'storage_location': f"DynamoDB table: {table_name}",
+                    'retrieval_method': 'direct_access'
+                }
+                
+            except Exception as e:
+                # Fall back to S3 if DynamoDB fails
+                raise Exception(f"DynamoDB storage failed: {str(e)}")
+        else:
+            # Large screenshot: Store in S3 with metadata in DynamoDB
+            try:
+                s3_client = boto3.client('s3')
+                bucket_name = os.environ.get('SCREENSHOTS_BUCKET')
+                if not bucket_name:
+                    raise Exception("SCREENSHOTS_BUCKET environment variable not set")
+                
+                # Generate S3 key with date partitioning
+                s3_key = f"screenshots/{timestamp[:8]}/{screenshot_id}/{filename}"
+                
+                # Upload to S3
+                s3_client.put_object(
+                    Bucket=bucket_name,
+                    Key=s3_key,
+                    Body=img_data,
+                    ContentType='image/png',
+                    Metadata={
+                        'dashboard_id': dashboard_id or 'unknown',
+                        'context': context,
+                        'original_filename': filename
+                    }
+                )
+                
+                # Store metadata in DynamoDB
+                dynamodb = boto3.resource('dynamodb')
+                table_name = os.environ.get('DASHBOARDS_TABLE')
+                if table_name:
+                    table = dynamodb.Table(table_name)
+                    screenshot_metadata['s3_bucket'] = bucket_name
+                    screenshot_metadata['s3_key'] = s3_key
+                    screenshot_metadata['dashboard_id'] = f"screenshot_{final_screenshot_id}"  # Use as primary key
+                    
+                    table.put_item(Item=screenshot_metadata)
+                
+                storage_info = {
+                    'storage_type': 's3',
+                    'storage_location': f"s3://{bucket_name}/{s3_key}",
+                    'retrieval_method': 'download_required'
+                }
+                
+            except Exception as e:
+                raise Exception(f"S3 storage failed: {str(e)}")
         
         return {
             'success': True,
-            'screenshot_path': screenshot_path,
-            'screenshot_id': screenshot_id,
+            'screenshot_id': final_screenshot_id,
             'filename': filename,
-            'file_size_bytes': len(img_data),
+            'file_size_bytes': file_size,
             'dashboard_id': dashboard_id,
             'context': context,
-            'message': 'Screenshot uploaded successfully - Claude can now analyze it',
-            'claude_note': f'Screenshot saved to {screenshot_path} - use Read tool to view it'
+            'storage_info': storage_info,
+            'message': f'Screenshot uploaded successfully via {storage_info["storage_type"].upper()}',
+            'claude_access': {
+                'method': 'Use download_screenshot MCP function',
+                'screenshot_id': final_screenshot_id,
+                'command': f'download_screenshot("{screenshot_id}")'
+            }
         }
         
     except Exception as e:
@@ -1106,7 +1195,8 @@ async def upload_screenshot(
 async def trigger_browser_screenshot(
     dashboard_id: str,
     context: str = "claude_debug_request",
-    wait_seconds: int = 2
+    wait_seconds: int = 2,
+    screenshot_id: str = None
 ) -> JSONType:
     """
     Trigger the browser to take a screenshot and upload it to the server.
@@ -1130,9 +1220,13 @@ async def trigger_browser_screenshot(
         
         # Create screenshot request record
         request_id = str(uuid.uuid4())
+        # Use provided screenshot_id or generate one
+        final_screenshot_id = screenshot_id or str(uuid.uuid4())[:8]
+        
         screenshot_request = {
             'dashboard_id': f"screenshot_request_{dashboard_id}",
             'request_id': request_id,
+            'screenshot_id': final_screenshot_id,  # Include the screenshot ID for browser
             'status': 'pending',
             'context': context,
             'wait_seconds': wait_seconds,
@@ -1145,11 +1239,13 @@ async def trigger_browser_screenshot(
         return {
             'success': True,
             'request_id': request_id,
+            'screenshot_id': final_screenshot_id,  # Return the ID that will be used
             'dashboard_id': dashboard_id,
             'context': context,
             'message': f'Screenshot request sent to browser - waiting {wait_seconds} seconds',
             'status': 'Browser will poll for this request and take screenshot automatically',
-            'poll_key': f"screenshot_request_{dashboard_id}"
+            'poll_key': f"screenshot_request_{dashboard_id}",
+            'claude_note': f'Browser will upload screenshot with ID: {final_screenshot_id}'
         }
         
     except Exception as e:
@@ -1157,6 +1253,131 @@ async def trigger_browser_screenshot(
             'success': False,
             'error': f'Failed to trigger browser screenshot: {str(e)}',
             'message': 'Could not send screenshot request to browser'
+        }
+
+
+@api_function(
+    protocols=["mcp"],
+    path="/api/download_screenshot/{screenshot_id}",
+    method="GET",
+    tags=["utility", "debugging"],
+    description="Download screenshot for Claude to analyze"
+)
+async def download_screenshot(
+    screenshot_id: str
+) -> JSONType:
+    """
+    Download screenshot for Claude to analyze via Read tool.
+    
+    This function retrieves screenshots from either DynamoDB or S3,
+    saves them to a temporary file, and provides the path for Claude to read.
+    """
+    
+    try:
+        import base64
+        import tempfile
+        import boto3
+        import os
+        
+        # Get screenshot metadata from DynamoDB
+        dynamodb = boto3.resource('dynamodb')
+        table_name = os.environ.get('DASHBOARDS_TABLE')
+        if not table_name:
+            return {
+                'success': False,
+                'error': 'Dashboard service not configured',
+                'screenshot_id': screenshot_id
+            }
+        
+        table = dynamodb.Table(table_name)
+        
+        try:
+            response = table.get_item(Key={'dashboard_id': f'screenshot_{screenshot_id}'})
+            
+            if 'Item' not in response:
+                return {
+                    'success': False,
+                    'error': f'Screenshot {screenshot_id} not found',
+                    'screenshot_id': screenshot_id,
+                    'suggestion': 'Screenshot may have expired (7-day TTL) or never existed'
+                }
+            
+            screenshot_meta = response['Item']
+            storage_type = screenshot_meta.get('storage_type', 'unknown')
+            
+            if storage_type == 'dynamodb':
+                # Screenshot stored directly in DynamoDB
+                screenshot_data = screenshot_meta.get('screenshot_data')
+                if not screenshot_data:
+                    return {
+                        'success': False,
+                        'error': 'Screenshot data missing from DynamoDB record',
+                        'screenshot_id': screenshot_id
+                    }
+                
+                # Decode and save to temporary file
+                img_data = base64.b64decode(screenshot_data)
+                
+            elif storage_type == 's3':
+                # Screenshot stored in S3
+                s3_client = boto3.client('s3')
+                bucket_name = screenshot_meta.get('s3_bucket')
+                s3_key = screenshot_meta.get('s3_key')
+                
+                if not bucket_name or not s3_key:
+                    return {
+                        'success': False,
+                        'error': 'S3 location missing from metadata',
+                        'screenshot_id': screenshot_id
+                    }
+                
+                # Download from S3
+                try:
+                    response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
+                    img_data = response['Body'].read()
+                except Exception as e:
+                    return {
+                        'success': False,
+                        'error': f'Failed to download from S3: {str(e)}',
+                        'screenshot_id': screenshot_id,
+                        's3_location': f's3://{bucket_name}/{s3_key}'
+                    }
+            else:
+                return {
+                    'success': False,
+                    'error': f'Unknown storage type: {storage_type}',
+                    'screenshot_id': screenshot_id
+                }
+            
+            # For Claude Code, return base64 data directly since Claude runs remotely
+            import base64
+            screenshot_base64 = base64.b64encode(img_data).decode('utf-8')
+            
+            return {
+                'success': True,
+                'screenshot_id': screenshot_id,
+                'screenshot_base64': screenshot_base64,
+                'file_size_bytes': len(img_data),
+                'storage_type': storage_type,
+                'filename': screenshot_meta.get('filename', f'{screenshot_id}.png'),
+                'context': screenshot_meta.get('context', 'unknown'),
+                'created_at': screenshot_meta.get('created_at'),
+                'message': f'Screenshot downloaded from {storage_type.upper()} and ready for analysis',
+                'claude_instruction': 'Screenshot data returned as base64 - Claude can save locally for analysis'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Failed to retrieve screenshot: {str(e)}',
+                'screenshot_id': screenshot_id
+            }
+        
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f'Download failed: {str(e)}',
+            'screenshot_id': screenshot_id
         }
 
 
@@ -1216,6 +1437,7 @@ async def check_screenshot_requests(
                         'success': True,
                         'screenshot_requested': True,
                         'request_id': request_item.get('request_id'),
+                        'screenshot_id': request_item.get('screenshot_id'),  # Include the screenshot_id for browser
                         'context': request_item.get('context', 'claude_debug_request'),
                         'wait_seconds': request_item.get('wait_seconds', 2),
                         'message': 'Screenshot requested by Claude - please capture and upload'
