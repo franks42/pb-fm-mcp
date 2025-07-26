@@ -402,8 +402,8 @@ async def create_portfolio_health(
                     'value': 90
                 }
             },
-            'title': {'text': "Portfolio Health Score", 'font': {'size': 20, 'color': '#ffffff'}},
-            'domain': {'x': [0, 0.5], 'y': [0.7, 1]}
+            'title': {'text': "Portfolio Health Score", 'font': {'size': 16, 'color': '#ffffff'}},
+            'domain': {'x': [0, 0.45], 'y': [0.55, 0.95]}
         }
         
         # Create asset allocation treemap
@@ -419,7 +419,7 @@ async def create_portfolio_health(
                 'colors': allocation_data['colors'],
                 'line': {'width': 2, 'color': '#ffffff'}
             },
-            'domain': {'x': [0.5, 1], 'y': [0.7, 1]}
+            'domain': {'x': [0.55, 1], 'y': [0.55, 0.95]}
         }
         
         # Create risk radar chart
@@ -432,21 +432,21 @@ async def create_portfolio_health(
             'fillcolor': 'rgba(0, 255, 136, 0.2)',
             'line': {'color': '#00ff88', 'width': 3},
             'marker': {'color': '#00ff88', 'size': 8},
-            'name': 'Risk Profile',
-            'domain': {'x': [0, 0.5], 'y': [0, 0.65]}
+            'name': 'Risk Profile'
         }
         
         # Create performance timeline
         performance_timeline = create_performance_timeline(wallet_data)
         
-        # Combine all visualizations
+        # Fix layout to prevent overlapping - use subplots with proper spacing
         plotly_spec = {
             'data': [health_gauge, asset_treemap, risk_radar, performance_timeline],
             'layout': {
                 'title': {
                     'text': f'Portfolio Health Dashboard - {wallet_address[:12]}...{wallet_address[-8:]}',
-                    'font': {'size': 24, 'color': '#ffffff'},
-                    'x': 0.5
+                    'font': {'size': 20, 'color': '#ffffff'},
+                    'x': 0.5,
+                    'y': 0.98
                 },
                 'paper_bgcolor': '#1e1e1e',
                 'plot_bgcolor': '#2a2a2a',
@@ -456,9 +456,11 @@ async def create_portfolio_health(
                     'bgcolor': 'rgba(0,0,0,0.5)',
                     'bordercolor': '#ffffff',
                     'borderwidth': 1,
-                    'x': 0.5,
-                    'y': 0.02
+                    'x': 1.02,
+                    'y': 0.5
                 },
+                'margin': {'l': 50, 'r': 150, 't': 80, 'b': 50},
+                'height': 800,
                 'polar': {
                     'bgcolor': '#2a2a2a',
                     'radialaxis': {
@@ -470,29 +472,22 @@ async def create_portfolio_health(
                     'angularaxis': {
                         'color': '#ffffff',
                         'gridcolor': '#333333'
-                    }
+                    },
+                    'domain': {'x': [0, 0.45], 'y': [0, 0.4]}
                 },
                 'xaxis': {
                     'title': 'Time Period',
                     'color': '#ffffff',
                     'gridcolor': '#333333',
-                    'domain': [0.5, 1],
-                    'anchor': 'y2'
+                    'domain': [0.55, 1],
+                    'anchor': 'y'
                 },
                 'yaxis': {
-                    'title': 'Performance Score',
+                    'title': 'Health Score',
                     'color': '#ffffff',
                     'gridcolor': '#333333',
-                    'domain': [0, 0.65],
-                    'anchor': 'x2'
-                },
-                'xaxis2': {
-                    'domain': [0.5, 1],
-                    'anchor': 'y2'
-                },
-                'yaxis2': {
-                    'domain': [0, 0.65],
-                    'anchor': 'x2'
+                    'domain': [0, 0.4],
+                    'anchor': 'x'
                 }
             }
         }
@@ -685,8 +680,8 @@ def create_performance_timeline(wallet_data: dict) -> dict:
         'name': 'Health Trend',
         'line': {'color': '#00ff88', 'width': 3},
         'marker': {'color': '#00ff88', 'size': 8},
-        'xaxis': 'x2',
-        'yaxis': 'y2'
+        'xaxis': 'x',
+        'yaxis': 'y'
     }
 
 
@@ -783,8 +778,7 @@ async def take_screenshot(
     """
     Take a screenshot of a webpage to help debug visualization issues.
     
-    This is useful for seeing exactly what the dashboard looks like
-    and identifying any display problems.
+    Uses puppeteer via node to capture screenshots in Lambda environment.
     """
     
     try:
@@ -792,18 +786,99 @@ async def take_screenshot(
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
             screenshot_path = tmp_file.name
         
-        # Use headless browser to capture screenshot
-        # Note: This requires playwright or selenium to be installed in Lambda
-        # For now, return a helpful message about what we would capture
+        # Create simple JavaScript for puppeteer
+        js_script = f'''
+const puppeteer = require('puppeteer');
+
+(async () => {{
+  const browser = await puppeteer.launch({{
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  }});
+  
+  const page = await browser.newPage();
+  await page.setViewport({{ width: {width}, height: {height} }});
+  
+  try {{
+    await page.goto('{url}', {{ waitUntil: 'networkidle2', timeout: 30000 }});
+    await page.waitForTimeout({wait_seconds * 1000});
+    await page.screenshot({{ path: '{screenshot_path}', fullPage: true }});
+    console.log('SUCCESS:{screenshot_path}');
+  }} catch (error) {{
+    console.log('ERROR:' + error.message);
+  }} finally {{
+    await browser.close();
+  }}
+}})();
+'''
         
-        return {
-            'success': True,
-            'message': f'Screenshot functionality not yet implemented in Lambda environment',
-            'url': url,
-            'dimensions': f'{width}x{height}',
-            'note': 'Would capture screenshot after {wait_seconds} seconds',
-            'alternative': 'Please describe what you see or share a manual screenshot'
-        }
+        # Write JavaScript to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as js_file:
+            js_file.write(js_script)
+            js_file_path = js_file.name
+        
+        try:
+            # Try to run puppeteer
+            result = subprocess.run(
+                ['node', js_file_path], 
+                capture_output=True, 
+                text=True, 
+                timeout=60
+            )
+            
+            if 'SUCCESS:' in result.stdout:
+                # Screenshot was taken successfully
+                import base64
+                with open(screenshot_path, 'rb') as img_file:
+                    img_data = base64.b64encode(img_file.read()).decode()
+                
+                return {
+                    'success': True,
+                    'screenshot_base64': img_data,
+                    'url': url,
+                    'dimensions': f'{width}x{height}',
+                    'file_size_bytes': len(img_data) * 3 // 4,  # approximate
+                    'message': 'Screenshot captured successfully'
+                }
+            else:
+                # Fall back to simple approach
+                raise Exception(f"Puppeteer failed: {result.stderr}")
+                
+        except Exception as node_error:
+            # Fallback: Use curl to get HTML and analyze structure
+            html_result = subprocess.run(
+                ['curl', '-s', '--max-time', '10', url], 
+                capture_output=True, 
+                text=True
+            )
+            
+            if html_result.returncode == 0:
+                html_content = html_result.stdout
+                return {
+                    'success': False,
+                    'screenshot_available': False,
+                    'url': url,
+                    'html_preview': html_content[:1000] + '...' if len(html_content) > 1000 else html_content,
+                    'html_length': len(html_content),
+                    'message': 'Screenshot failed but got HTML content',
+                    'error': str(node_error),
+                    'alternative': 'HTML content retrieved for analysis'
+                }
+            else:
+                return {
+                    'success': False,
+                    'url': url,
+                    'error': f'Both screenshot and HTML retrieval failed: {str(node_error)}',
+                    'message': 'Unable to capture or analyze webpage'
+                }
+        
+        finally:
+            # Cleanup temp files
+            try:
+                os.unlink(js_file_path)
+                os.unlink(screenshot_path)
+            except:
+                pass
         
     except Exception as e:
         return {
