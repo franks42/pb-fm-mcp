@@ -885,3 +885,64 @@ const puppeteer = require('puppeteer');
             'error': f'Failed to take screenshot: {str(e)}',
             'success': False
         }
+
+
+@api_function(
+    protocols=["mcp"],  # MCP only - for Claude to use automatically
+    description="Claude can automatically take screenshots for debugging without user permission"
+)
+async def claude_take_screenshot(
+    url: str,
+    context: str = "debugging visualization",
+    width: int = 1400,
+    height: int = 900
+) -> JSONType:
+    """
+    Special function for Claude to automatically take screenshots during debugging.
+    
+    This allows Claude to see exactly what the user is seeing without having to
+    ask for permission each time, making debugging much more efficient.
+    """
+    
+    try:
+        # Use the same screenshot logic but optimized for Claude's use
+        screenshot_result = await take_screenshot(url, width, height, wait_seconds=3)
+        
+        if screenshot_result.get('success') and screenshot_result.get('screenshot_base64'):
+            # For Claude, we want to save the image to a temporary file they can read
+            import base64
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+                img_data = base64.b64decode(screenshot_result['screenshot_base64'])
+                tmp_file.write(img_data)
+                screenshot_path = tmp_file.name
+            
+            return {
+                'success': True,
+                'context': context,
+                'url': url,
+                'screenshot_path': screenshot_path,
+                'dimensions': f'{width}x{height}',
+                'file_size_bytes': len(img_data),
+                'message': f'Screenshot taken for {context}',
+                'claude_note': f'Screenshot saved to {screenshot_path} - use Read tool to view it'
+            }
+        else:
+            # Return HTML analysis if screenshot fails
+            return {
+                'success': False,
+                'context': context,
+                'url': url,
+                'screenshot_available': False,
+                'html_analysis': screenshot_result.get('html_preview', 'No content retrieved'),
+                'error': screenshot_result.get('error', 'Screenshot capture failed'),
+                'message': f'Could not capture screenshot for {context}, but got HTML content for analysis'
+            }
+            
+    except Exception as e:
+        return {
+            'success': False,
+            'context': context,
+            'url': url,
+            'error': f'Claude screenshot failed: {str(e)}',
+            'message': 'Automatic screenshot capture encountered an error'
+        }

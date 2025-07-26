@@ -530,6 +530,7 @@ async def serve_personalized_dashboard(dashboard_id: str):
                 <button class="control-button" onclick="refreshDashboard()">🔄 Refresh</button>
                 <button class="control-button" onclick="loadHashPriceChart()">📈 HASH Price</button>
                 <button class="control-button" onclick="loadPortfolioHealth()">🏥 Portfolio Health</button>
+                <button class="control-button" onclick="takeScreenshot()">📸 Screenshot</button>
                 <button class="control-button" onclick="toggleTheme()">🌙 Theme</button>
             </div>
             
@@ -730,6 +731,50 @@ async def serve_personalized_dashboard(dashboard_id: str):
                 // Refresh dashboard
                 async function refreshDashboard() {{
                     await loadHashPriceChart();
+                }}
+                
+                // Take screenshot of current dashboard
+                async function takeScreenshot() {{
+                    try {{
+                        updateStatus('Taking screenshot...', 'info');
+                        
+                        const response = await fetch(`${{apiBase}}/api/take_screenshot`, {{
+                            method: 'POST',
+                            headers: {{
+                                'Content-Type': 'application/json',
+                            }},
+                            body: JSON.stringify({{
+                                url: window.location.href,
+                                width: 1400,
+                                height: 900,
+                                wait_seconds: 3
+                            }})
+                        }});
+                        
+                        if (!response.ok) {{
+                            throw new Error(`HTTP ${{response.status}}: ${{response.statusText}}`);
+                        }}
+                        
+                        const screenshotData = await response.json();
+                        
+                        if (screenshotData.success && screenshotData.screenshot_base64) {{
+                            // Create and download the screenshot
+                            const link = document.createElement('a');
+                            link.href = 'data:image/png;base64,' + screenshotData.screenshot_base64;
+                            link.download = `dashboard-screenshot-${{new Date().toISOString().slice(0,19).replace(/:/g,'-')}}.png`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            
+                            updateStatus('Screenshot downloaded successfully!', 'success');
+                        }} else {{
+                            updateStatus(`Screenshot failed: ${{screenshotData.message || screenshotData.error}}`, 'warning');
+                        }}
+                        
+                    }} catch (error) {{
+                        console.error('Screenshot error:', error);
+                        updateStatus('Failed to take screenshot: ' + error.message, 'error');
+                    }}
                 }}
                 
                 // Toggle dark/light theme
