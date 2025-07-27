@@ -1,0 +1,29 @@
+/* Minimal fallback styles - only loads if S3 fails */
+body { 
+    font-family: Arial, sans-serif; 
+    color: white; 
+    margin: 20px; 
+    background: #1e1e1e;
+}
+
+.loading { 
+    text-align: center; 
+    padding: 20px; 
+}
+
+.dashboard-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.dashboard-title {
+    color: #00ff88;
+    margin: 0;
+}
+
+.status-message {
+    text-align: center;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+}
