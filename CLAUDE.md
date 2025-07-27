@@ -174,6 +174,24 @@ uv run python scripts/mcp_test_client.py --mcp-url <URL> --test
 **Import Standards:**
 **NO ugly optional import statements with try/except fallbacks. Use explicit imports only. If a module cannot be imported, it's a bug that needs to be fixed, not worked around.**
 
+**🚨 CRITICAL: Python Import Path Policy**
+**NEVER EVER add "src." to import statements! This is bad practice and breaks the module structure.**
+- ❌ WRONG: `from src.registry import api_function`
+- ❌ WRONG: `from src.functions.utils import helper`
+- ✅ CORRECT: `from registry import api_function`
+- ✅ CORRECT: `from functions.utils import helper`
+
+**Import issues are resolved by setting PYTHONPATH, NOT by adding "src." prefixes:**
+```bash
+# For scripts in scripts/ directory:
+PYTHONPATH=/path/to/project/src uv run python scripts/test.py
+
+# For Lambda/production:
+export PYTHONPATH="/var/task/src:$PYTHONPATH"
+```
+
+**This is a fundamental Python best practice. The src directory should be on the Python path, not in the import statements.**
+
 **Code Duplication:**
 **NO duplication of code, functions, or type definitions across files. Maintain single source of truth. Import from shared modules instead of copying code.**
 
