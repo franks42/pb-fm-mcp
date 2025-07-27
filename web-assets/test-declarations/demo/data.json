@@ -1,0 +1,49 @@
+{
+  "version": "1.0",
+  "timestamp": "2024-01-15T12:00:10Z",
+  "datasets": [
+    {
+      "chartId": "price-chart",
+      "traces": [
+        {
+          "x": [
+            "2024-01-01",
+            "2024-01-02",
+            "2024-01-03",
+            "2024-01-04"
+          ],
+          "y": [
+            0.0082,
+            0.0085,
+            0.0087,
+            0.0084
+          ],
+          "type": "scatter",
+          "mode": "lines+markers",
+          "line": {
+            "color": "#00ff88"
+          }
+        }
+      ]
+    },
+    {
+      "chartId": "dist-chart",
+      "traces": [
+        {
+          "labels": [
+            "Staked",
+            "Available",
+            "Rewards"
+          ],
+          "values": [
+            45,
+            35,
+            20
+          ],
+          "type": "pie",
+          "hole": 0.4
+        }
+      ]
+    }
+  ]
+}

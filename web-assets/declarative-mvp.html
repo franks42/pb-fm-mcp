@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Declarative Dashboard MVP</title>
+    
+    <!-- Plotly.js for charting - Modern version -->
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    
+    <!-- Initial minimal styles -->
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        #status-container {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        #status-message {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #00ff88;
+        }
+        
+        #loading-dots {
+            font-size: 36px;
+            letter-spacing: 8px;
+        }
+        
+        @keyframes pulse {
+            0%, 80%, 100% { opacity: 0.3; }
+            40% { opacity: 1; }
+        }
+        
+        .dot {
+            animation: pulse 1.5s infinite;
+            display: inline-block;
+        }
+        
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <div id="status-container">
+        <div id="status-message">Waiting for Dashboard Configuration</div>
+        <div id="loading-dots">
+            <span class="dot">•</span>
+            <span class="dot">•</span>
+            <span class="dot">•</span>
+        </div>
+    </div>
+
+    <script>
+    // Queue-Based Declarative Dashboard Loader
+    // This uses coordination system to dynamically switch S3 sources
+    
+    let POLL_INTERVAL = 2000; // 2 seconds (can be changed by coordinator)
+    let S3_BASE_URL = window.S3_BASE_URL || '/web-assets'; // Default, will be updated by coordinator
+    let S3_PATH_PREFIX = 'declarations'; // Can be changed to switch layouts
+    const SESSION_ID = new URLSearchParams(window.location.search).get('session') || 'demo';
+    
+    // State tracking
+    let currentPhase = 'waiting'; // waiting → coordinates → layout → plotly → data → complete
+    let pollingInterval = null;
+    let coordinationInterval = null;
+    
+    // Status update helper
+    function updateStatus(message, phase) {
+        currentPhase = phase;
+        const statusEl = document.getElementById('status-message');
+        if (statusEl) {
+            statusEl.textContent = message;
+        }
+        console.log(`[${phase}] ${message}`);
+    }
+    
+    // Coordination System: Poll for S3 coordinates
+    async function pollForCoordinates() {
+        try {
+            console.log(`[Coordination] Checking coordinates for session: ${SESSION_ID}`);
+            // Use absolute URL to avoid path resolution issues
+            const coordinationUrl = `${window.location.origin}/v1/api/dashboard/coordinates/${SESSION_ID}`;
+            const response = await fetch(coordinationUrl);
+            
+            if (!response.ok) {
+                console.log(`[Coordination] No coordinates endpoint available: ${response.status}`);
+                return false;
+            }
+            
+            const coords = await response.json();
+            console.log('[Coordination] Coordinates response:', coords);
+            
+            if (coords.has_coordinates) {
+                // Update polling parameters from coordinator
+                const oldS3Url = S3_BASE_URL;
+                const oldPrefix = S3_PATH_PREFIX;
+                
+                S3_BASE_URL = coords.s3_base_url;
+                S3_PATH_PREFIX = coords.s3_path_prefix || 'declarations';
+                POLL_INTERVAL = coords.poll_interval || 2000;
+                
+                // If coordinates changed, reset and start fresh polling
+                if (oldS3Url !== S3_BASE_URL || oldPrefix !== S3_PATH_PREFIX) {
+                    console.log(`[Coordination] S3 coordinates changed!`);
+                    console.log(`[Coordination] New source: ${S3_BASE_URL}/${S3_PATH_PREFIX}`);
+                    updateStatus(`Switching to ${coords.layout_variant || 'new'} layout...`, 'coordinates');
+                    
+                    // Reset phase to start fresh
+                    currentPhase = 'waiting';
+                    
+                    // Restart declaration polling with new coordinates and interval
+                    stopPolling();
+                    
+                    // Update polling interval if it changed
+                    if (coordinationInterval) {
+                        clearInterval(coordinationInterval);
+                        coordinationInterval = setInterval(pollForCoordinates, 3000);
+                    }
+                    
+                    startPolling();
+                }
+                return true;
+            } else {
+                console.log('[Coordination] No active coordinates - using defaults');
+                return false;
+            }
+            
+        } catch (error) {
+            console.log('[Coordination] Coordination polling error:', error);
+            return false;
+        }
+    }
+    
+    // Phase 1: Load HTML/CSS layout from S3
+    async function loadLayoutDeclaration() {
+        try {
+            // For pre-staged variants, use layout.json directly (no session subdirectory)
+            const layoutUrl = S3_PATH_PREFIX.startsWith('layouts/') 
+                ? `${S3_BASE_URL}/${S3_PATH_PREFIX}/layout.json`
+                : `${S3_BASE_URL}/${S3_PATH_PREFIX}/${SESSION_ID}/layout.json`;
+            console.log(`[Declarative] Trying to fetch: ${layoutUrl}`);
+            const response = await fetch(layoutUrl);
+            if (!response.ok) {
+                console.log(`[Declarative] Layout fetch failed: ${response.status}`);
+                return false;
+            }
+            
+            const layoutSpec = await response.json();
+            console.log('[Declarative] Layout downloaded successfully:', layoutSpec);
+            updateStatus('Loading dashboard layout...', 'layout');
+            
+            // Apply the declarative HTML structure
+            if (layoutSpec.html) {
+                // Create a container for the new content
+                const newContent = document.createElement('div');
+                newContent.innerHTML = layoutSpec.html;
+                
+                // Replace body content but preserve scripts
+                document.body.innerHTML = '';
+                document.body.appendChild(newContent.firstElementChild);
+            }
+            
+            // Apply declarative CSS
+            if (layoutSpec.css) {
+                const style = document.createElement('style');
+                style.textContent = layoutSpec.css;
+                document.head.appendChild(style);
+            }
+            
+            // Initialize any required containers
+            if (layoutSpec.containers) {
+                layoutSpec.containers.forEach(container => {
+                    const el = document.createElement('div');
+                    el.id = container.id;
+                    el.className = container.class || '';
+                    el.style.cssText = container.style || '';
+                    
+                    const parent = document.querySelector(container.parent || 'body');
+                    parent.appendChild(el);
+                });
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Layout load error:', error);
+            return false;
+        }
+    }
+    
+    // Phase 2: Load Plotly configuration (empty chart)
+    async function loadPlotlyDeclaration() {
+        try {
+            const plotlyUrl = S3_PATH_PREFIX.startsWith('layouts/') 
+                ? `${S3_BASE_URL}/${S3_PATH_PREFIX}/plotly.json`
+                : `${S3_BASE_URL}/${S3_PATH_PREFIX}/${SESSION_ID}/plotly.json`;
+            const response = await fetch(plotlyUrl);
+            if (!response.ok) return false;
+            
+            const plotlySpec = await response.json();
+            updateStatus('Initializing chart panels...', 'plotly');
+            
+            // Create Plotly charts with empty data
+            if (plotlySpec.charts) {
+                for (const chart of plotlySpec.charts) {
+                    const container = document.getElementById(chart.containerId);
+                    if (!container) {
+                        console.warn(`Container ${chart.containerId} not found`);
+                        continue;
+                    }
+                    
+                    // Initialize empty Plotly chart with full layout
+                    Plotly.newPlot(chart.containerId, [], chart.layout || {}, chart.config || {});
+                    
+                    // Store chart metadata for data loading
+                    container.dataset.chartId = chart.id;
+                    container.dataset.dataEndpoint = chart.dataEndpoint || '';
+                }
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Plotly load error:', error);
+            return false;
+        }
+    }
+    
+    // Phase 3: Load actual data for charts
+    async function loadDataDeclaration() {
+        try {
+            const dataUrl = S3_PATH_PREFIX.startsWith('layouts/') 
+                ? `${S3_BASE_URL}/${S3_PATH_PREFIX}/data.json`
+                : `${S3_BASE_URL}/${S3_PATH_PREFIX}/${SESSION_ID}/data.json`;
+            const response = await fetch(dataUrl);
+            if (!response.ok) return false;
+            
+            const dataSpec = await response.json();
+            updateStatus('Loading live data...', 'data');
+            
+            // Update each chart with its data
+            if (dataSpec.datasets) {
+                for (const dataset of dataSpec.datasets) {
+                    const container = document.querySelector(`[data-chart-id="${dataset.chartId}"]`);
+                    if (!container) continue;
+                    
+                    // If endpoint specified, fetch fresh data
+                    if (dataset.endpoint) {
+                        const dataResponse = await fetch(dataset.endpoint);
+                        if (dataResponse.ok) {
+                            const freshData = await dataResponse.json();
+                            Plotly.addTraces(container.id, freshData.traces || freshData);
+                        }
+                    } else if (dataset.traces) {
+                        // Use inline data
+                        Plotly.addTraces(container.id, dataset.traces);
+                    }
+                }
+            }
+            
+            updateStatus('Dashboard ready', 'complete');
+            return true;
+        } catch (error) {
+            console.error('Data load error:', error);
+            return false;
+        }
+    }
+    
+    // Main polling loop
+    async function pollForDeclarations() {
+        switch (currentPhase) {
+            case 'waiting':
+            case 'layout':
+                if (await loadLayoutDeclaration()) {
+                    currentPhase = 'plotly';
+                }
+                break;
+                
+            case 'plotly':
+                if (await loadPlotlyDeclaration()) {
+                    currentPhase = 'data';
+                }
+                break;
+                
+            case 'data':
+                if (await loadDataDeclaration()) {
+                    currentPhase = 'complete';
+                    stopPolling();
+                }
+                break;
+        }
+    }
+    
+    // Start/stop polling
+    function startPolling() {
+        if (!pollingInterval) {
+            pollingInterval = setInterval(pollForDeclarations, POLL_INTERVAL);
+            pollForDeclarations(); // Immediate first check
+        }
+    }
+    
+    function stopPolling() {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+    }
+    
+    // Start coordination polling first (checks for S3 coordinate changes)
+    function startCoordinationPolling() {
+        if (!coordinationInterval) {
+            coordinationInterval = setInterval(pollForCoordinates, 3000); // Every 3 seconds
+            pollForCoordinates(); // Immediate first check
+        }
+    }
+    
+    function stopCoordinationPolling() {
+        if (coordinationInterval) {
+            clearInterval(coordinationInterval);
+            coordinationInterval = null;
+        }
+    }
+    
+    // Start the system
+    updateStatus('Waiting for dashboard configuration...', 'waiting');
+    startCoordinationPolling(); // Start coordination polling first
+    startPolling(); // Then start declaration polling
+    
+    // Allow manual phase progression for testing
+    window.dashboardMVP = {
+        currentPhase: () => currentPhase,
+        coordinates: {
+            s3BaseUrl: () => S3_BASE_URL,
+            s3PathPrefix: () => S3_PATH_PREFIX,
+            pollInterval: () => POLL_INTERVAL
+        },
+        forceLoad: {
+            layout: loadLayoutDeclaration,
+            plotly: loadPlotlyDeclaration,
+            data: loadDataDeclaration,
+            coordinates: pollForCoordinates
+        },
+        stop: () => {
+            stopPolling();
+            stopCoordinationPolling();
+        },
+        start: () => {
+            startCoordinationPolling();
+            startPolling();
+        }
+    };
+    </script>
+</body>
+</html>

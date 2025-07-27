@@ -1,0 +1,8 @@
+{
+  "version": "1.0",
+  "timestamp": "2024-01-15T12:00:00Z",
+  "description": "Dashboard layout with CSS Grid and panel structure",
+  "html": "<div id='dashboard-container'><header id='dashboard-header'><h1>Provenance Blockchain Analytics</h1><div id='status-bar'></div></header><main id='dashboard-grid'><section id='panel-stats' class='dashboard-panel'><h2>Hash Statistics</h2><div id='hash-chart' class='chart-container'></div></section><section id='panel-market' class='dashboard-panel'><h2>Market Overview</h2><div id='market-chart' class='chart-container'></div></section></main></div>",
+  "css": "#dashboard-container { min-height: 100vh; display: flex; flex-direction: column; background: #0a0a0a; color: #ffffff; font-family: -apple-system, sans-serif; } #dashboard-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 20px; box-shadow: 0 2px 10px rgba(0,255,136,0.1); } #dashboard-header h1 { margin: 0; font-size: 28px; color: #00ff88; } #dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; padding: 20px; flex: 1; } .dashboard-panel { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 20px; } .dashboard-panel h2 { margin: 0 0 20px 0; color: #00ff88; font-size: 18px; } .chart-container { width: 100%; height: 400px; background: #0f0f0f; border-radius: 4px; } @media (max-width: 768px) { #dashboard-grid { grid-template-columns: 1fr; } }",
+  "containers": []
+}

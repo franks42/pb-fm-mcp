@@ -1,0 +1,36 @@
+{
+  "version": "1.0",
+  "timestamp": "2024-01-15T12:00:10Z",
+  "description": "Data sources and initial datasets for charts",
+  "datasets": [
+    {
+      "chartId": "hash-statistics",
+      "endpoint": "/api/chart/hash_statistics",
+      "fallbackData": {
+        "traces": [{
+          "x": ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"],
+          "y": [0.0082, 0.0085, 0.0087, 0.0084, 0.0088],
+          "type": "scatter",
+          "mode": "lines+markers",
+          "name": "Hash Price",
+          "line": { "color": "#00ff88", "width": 3 },
+          "marker": { "size": 8, "color": "#00ff88" }
+        }]
+      }
+    },
+    {
+      "chartId": "market-overview",
+      "traces": [{
+        "labels": ["Staked", "Liquid", "Vesting", "Rewards"],
+        "values": [45, 30, 20, 5],
+        "type": "pie",
+        "hole": 0.4,
+        "marker": {
+          "colors": ["#00ff88", "#0088ff", "#ff8800", "#ff0088"]
+        },
+        "textinfo": "label+percent",
+        "textposition": "outside"
+      }]
+    }
+  ]
+}

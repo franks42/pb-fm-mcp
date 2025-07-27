@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "timestamp": "2024-01-15T12:00:05Z",
+  "charts": [
+    {
+      "id": "price-chart",
+      "containerId": "chart1",
+      "layout": {
+        "title": "Hash Price Over Time",
+        "xaxis": {
+          "title": "Time"
+        },
+        "yaxis": {
+          "title": "Price (USD)"
+        },
+        "paper_bgcolor": "#1a1a1a",
+        "plot_bgcolor": "#0f0f0f"
+      }
+    },
+    {
+      "id": "dist-chart",
+      "containerId": "chart2",
+      "layout": {
+        "title": "Portfolio Distribution",
+        "paper_bgcolor": "#1a1a1a",
+        "plot_bgcolor": "#0f0f0f"
+      }
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "version": "1.0",
+  "timestamp": "2024-01-15T12:00:00Z",
+  "html": "\n        <div id='test-dashboard'>\n            <header>\n                <h1>Local Test Dashboard</h1>\n                <div id='status'>Layout Loaded!</div>\n            </header>\n            <main>\n                <div id='chart1' class='chart-panel'>\n                    <h2>Price Chart</h2>\n                    <div class='placeholder'>Waiting for Plotly...</div>\n                </div>\n                <div id='chart2' class='chart-panel'>\n                    <h2>Distribution</h2>\n                    <div class='placeholder'>Waiting for Plotly...</div>\n                </div>\n            </main>\n        </div>\n        ",
+  "css": "\n        body { margin: 0; background: #0a0a0a; color: #fff; font-family: system-ui; }\n        #test-dashboard { padding: 20px; }\n        header { margin-bottom: 20px; }\n        h1 { color: #00ff88; }\n        #status { color: #0088ff; margin: 10px 0; }\n        main { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }\n        .chart-panel { background: #1a1a1a; padding: 20px; border-radius: 8px; min-height: 300px; }\n        .placeholder { color: #666; text-align: center; margin-top: 100px; }\n        "
+}

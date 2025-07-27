@@ -62,6 +62,16 @@ try:
 except Exception as e:
     print(f"❌ Failed to import debug_functions: {e}")
 
+try:
+    from . import declarative_dashboard
+except Exception as e:
+    print(f"❌ Failed to import declarative_dashboard: {e}")
+
+try:
+    from . import dashboard_coordinator
+except Exception as e:
+    print(f"❌ Failed to import dashboard_coordinator: {e}")
+
 __all__ = [
     "stats_functions",
     "delegation_functions", 
@@ -74,4 +84,6 @@ __all__ = [
     "browser_automation",
     "dynamic_visualization",
     "debug_functions",
+    "declarative_dashboard",
+    "dashboard_coordinator",
 ]

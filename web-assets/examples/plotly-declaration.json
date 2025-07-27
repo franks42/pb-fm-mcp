@@ -1,0 +1,61 @@
+{
+  "version": "1.0",
+  "timestamp": "2024-01-15T12:00:05Z",
+  "description": "Plotly chart configurations without data",
+  "charts": [
+    {
+      "id": "hash-statistics",
+      "containerId": "hash-chart",
+      "layout": {
+        "title": {
+          "text": "Hash Price Over Time",
+          "font": { "color": "#00ff88", "size": 16 }
+        },
+        "xaxis": {
+          "title": "Time",
+          "type": "date",
+          "gridcolor": "#333",
+          "zerolinecolor": "#333"
+        },
+        "yaxis": {
+          "title": "Price (USD)",
+          "gridcolor": "#333",
+          "zerolinecolor": "#333"
+        },
+        "paper_bgcolor": "#0f0f0f",
+        "plot_bgcolor": "#0a0a0a",
+        "font": { "color": "#ffffff" },
+        "margin": { "t": 40, "r": 20, "b": 40, "l": 60 }
+      },
+      "config": {
+        "displayModeBar": false,
+        "responsive": true
+      },
+      "dataEndpoint": "/api/chart/hash_statistics"
+    },
+    {
+      "id": "market-overview",
+      "containerId": "market-chart",
+      "layout": {
+        "title": {
+          "text": "Market Volume Distribution",
+          "font": { "color": "#00ff88", "size": 16 }
+        },
+        "paper_bgcolor": "#0f0f0f",
+        "plot_bgcolor": "#0a0a0a",
+        "font": { "color": "#ffffff" },
+        "showlegend": true,
+        "legend": {
+          "orientation": "h",
+          "y": -0.2
+        },
+        "margin": { "t": 40, "r": 20, "b": 80, "l": 20 }
+      },
+      "config": {
+        "displayModeBar": false,
+        "responsive": true
+      },
+      "dataEndpoint": "/api/chart/market_volume"
+    }
+  ]
+}
