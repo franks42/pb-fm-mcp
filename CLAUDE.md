@@ -170,6 +170,26 @@ uv run python scripts/mcp_test_client.py --mcp-url <URL> --test
 - **Legacy**: Production may have camelCase (e.g., `fetchCurrentHashStatistics`) 
 - **Rule**: Always ask before renaming ANY function - this is a breaking change
 
+### 🚨 CRITICAL: MCP Function Invocation Directive
+
+**ALWAYS use the Python MCP test client instead of curl for MCP function calls:**
+
+```bash
+# ✅ CORRECT: Use Python MCP test client
+uv run python scripts/mcp_test_client.py --mcp-url <URL> --interactive
+
+# ❌ WRONG: curl commands (require user permission each time)
+curl -X POST <MCP_URL> -d '{"jsonrpc":"2.0","method":"tools/call",...}'
+```
+
+**Why This Is Critical:**
+- **✅ No User Permission Required**: Python scripts don't need approval for each call
+- **✅ Official Full MCP SDK**: Uses the complete MCP protocol implementation
+- **✅ Better Error Handling**: Proper MCP session management and error reporting
+- **✅ Batch Operations**: Can perform multiple operations efficiently
+
+**This directive has been added to CLAUDE.md multiple times - it's essential for smooth development workflow.**
+
 ### 🚨 CRITICAL: Code Quality Standards
 
 **File Recovery Policy:**
@@ -342,7 +362,7 @@ echo $TEST_WALLET_ADDRESS         # Empty in separate bash call
 1. **🚨 HIGHEST PRIORITY**: Check certificate validation status and implement custom domains
 2. **Test Current Deployments**: Use URLs above to verify everything works
 3. **Run Test Suite**: `TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py --mcp-url <url> --rest-url <url>`
-4. **Deploy to Dev**: `sam build --template-file template-dual-path.yaml && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
+4. **Deploy to Dev**: `sam build --template-file template-simple.yaml && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
 5. **Deploy to Production**: Only deploy to main branch with user approval
 
 ### 🚨 CRITICAL URGENCY: Domain Stability Issue
@@ -1021,6 +1041,32 @@ curl https://your-lambda-url/api/fetch_current_hash_statistics
 - Fixed Python path issues with proper PYTHONPATH configuration
 - Web Adapter Layer provides native async support
 - Single Lambda function serves both `/mcp` and `/api/*` endpoints
+
+## 🚨 CRITICAL ARCHITECTURE CLARIFICATION (July 28, 2025)
+
+**IMPORTANT CORRECTION**: We never actually deployed dual Lambda functions - this was a documentation error and misunderstanding.
+
+**The Reality**:
+- ✅ **ALWAYS used single Lambda architecture** with `template-simple.yaml`
+- ✅ **Single unified Lambda function** handles both MCP and REST protocols
+- ✅ **AWS Lambda Web Adapter** enables unified FastAPI application
+- ✅ **No separate McpFunction/RestApiFunction** - that was a design mistake
+
+**The Confusion**:
+- ❌ Documentation incorrectly referenced "dual-path architecture" 
+- ❌ Created `template-dual-path.yaml` thinking it was needed
+- ❌ Mistakenly thought we deployed two separate Lambda functions
+
+**CORRECT DEPLOYMENT APPROACH**:
+- **Template**: `template-simple.yaml` (single Lambda + Web Adapter)
+- **Architecture**: Single Lambda serving both `/mcp` and `/api/*` routes
+- **Handler**: `run.sh` with uvicorn + FastAPI + AWS MCP Handler integration
+- **Status**: ✅ Production-ready since July 23, 2025
+
+**Action Items**:
+- Use `template-simple.yaml` for all deployments going forward
+- Discard `template-dual-path.yaml` as it was based on a misunderstanding
+- Update all references to reflect single Lambda architecture
 
 **Key Fix**: The critical issue was Python module path resolution:
 ```bash
