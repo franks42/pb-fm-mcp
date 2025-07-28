@@ -88,6 +88,24 @@ cd ~/Development/pb-fm-mcp  # New location
 
 **✅ Both environments tested with 100% MCP protocol success and 100% REST API success.**
 
+### 🚨 **Known Browser Issue: Intermittent 403 Errors**
+
+**Issue**: Some browsers may show "Error sending prompt: Failed to send prompt: HTTP 403" when accessing AI Terminal.
+
+**Root Cause**: Browser cache or DNS propagation issues with custom domain.
+
+**Troubleshooting Steps**:
+1. **Clear browser cache** and reload the page
+2. **Try incognito/private browsing mode** 
+3. **Use API Gateway URL as fallback**:
+   - Dev: `https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/ai-terminal`
+   - Prod: `https://4d0i1tqdg4.execute-api.us-west-1.amazonaws.com/v1/ai-terminal`
+4. **Wait 5-10 minutes** for DNS/CDN cache to clear
+
+**Verification**: All endpoints work correctly with `curl` - this is a browser-specific issue.
+
+**Status**: Custom domain endpoints are deployed and functional; browser compatibility being investigated.
+
 ### ✅ COMPLETED: Custom Domain Migration Success!
 
 **🎉 ACHIEVEMENT**: Successfully deployed custom domain with stable URLs that never change!
@@ -769,6 +787,29 @@ For AI-driven interfaces, **450-650ms latency is excellent** because:
 - **User experience**: Feels "instant" for AI interactions
 
 The SQS Traffic Light pattern trades raw speed for **massive scalability, reliability, and cost efficiency** - perfect for AI-powered web applications where the AI's thinking time dominates the total response time anyway.
+
+### 🎯 Event Replay Architecture for Multi-Browser Sync (July 2025)
+
+**NEW**: Enhanced Traffic Light Pattern with **Event Sourcing** for perfect multi-browser synchronization.
+
+**Core Architecture**:
+- **Event Storage**: Every message/action stored as an event in DynamoDB
+- **Replay on Connect**: New browsers replay all events to reach current state
+- **First Browser Controls**: Only the first connected browser can send input
+- **Observer Pattern**: Additional browsers are read-only observers
+
+**Benefits**:
+- ✅ **Perfect Sync**: All browsers see identical state through event replay
+- ✅ **Late Join**: Connect anytime and see complete conversation history
+- ✅ **Time Travel**: Can replay to any point in the conversation
+- ✅ **Simple Implementation**: Just store and replay events in order
+
+**Unified Conversation Function**:
+```python
+# New simplified conversation loop for Claude
+result = send_result_to_browser_and_fetch_new_instruction(session_id, "my response")
+# Always returns instruction on what to do next - implicit loop!
+```
 
 ### 🚨 CRITICAL: Always Clean Before Building
 

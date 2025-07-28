@@ -260,6 +260,69 @@ async def get_traffic_light_status(session_id: str) -> JSONType:
             "timestamp": time.time()
         }
 
+
+@api_function(
+    protocols=["mcp"],
+    description="Unified function for AI Terminal conversation. Sends result to browser, "
+                "then waits for new instruction. Returns instruction for Claude to follow."
+)
+async def send_result_to_browser_and_fetch_new_instruction(
+    session_id: str,
+    result_text: str = "",
+    timeout_seconds: int = 8
+) -> JSONType:
+    """
+    Unified conversation function that combines sending results and fetching instructions.
+    
+    This function:
+    1. If result_text provided, sends it to browser via SQS
+    2. Waits for user input from browser (with timeout)
+    3. Returns instruction for Claude to follow
+    
+    The instruction will always be to call this function again with the result.
+    
+    Args:
+        session_id: Unique session identifier for conversation isolation
+        result_text: Claude's response to send to browser (empty string if none)
+        timeout_seconds: How long to wait for user input (default 8s)
+        
+    Returns:
+        {
+            "instruction": "User said: hello" or "No input received",
+            "next_call": "send_result_to_browser_and_fetch_new_instruction(session_id, 'your_response')"
+        }
+    """
+    # Step 1: Send result to browser if provided
+    if result_text:
+        await send_response_to_browser(
+            session_id=session_id,
+            response_data={
+                "response": result_text,
+                "type": "claude_response"
+            },
+            response_type="claude_response"
+        )
+    
+    # Step 2: Wait for user input
+    user_input = await wait_for_user_input(session_id, timeout_seconds)
+    
+    # Step 3: Construct instruction for Claude
+    if user_input.get("has_input"):
+        user_message = user_input["input_data"]["input_value"]
+        instruction = f"User said: {user_message}"
+        next_call = f"send_result_to_browser_and_fetch_new_instruction('{session_id}', 'your_response_to_user')"
+    else:
+        instruction = "No input received - continue listening"
+        next_call = f"send_result_to_browser_and_fetch_new_instruction('{session_id}', '')"
+    
+    return {
+        "instruction": instruction,
+        "next_call": next_call,
+        "session_id": session_id,
+        "timestamp": time.time()
+    }
+
+
 @api_function(
     protocols=["mcp"],
     description="Start a real-time conversation session with a web browser. "

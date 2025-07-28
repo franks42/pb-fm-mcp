@@ -432,10 +432,24 @@ sys.exit(0 if result else 1)
     fi
     
     # Test AI Terminal webpage
-    local terminal_url="$api_base_url/ai-terminal"
-    print_status "Testing AI Terminal webpage: $terminal_url"
+    local terminal_url="${api_base_url}/ai-terminal"
+    if [[ -n "$custom_url" && "$custom_url" != "None" ]]; then
+        terminal_url="${custom_url}ai-terminal"
+        print_status "Testing custom domain AI Terminal webpage: $terminal_url"
+    else
+        print_status "Testing API Gateway AI Terminal webpage: $terminal_url"
+    fi
     if curl -s -f "$terminal_url" | grep -q "AI Terminal" 2>/dev/null; then
         print_success "AI Terminal webpage loading"
+        
+        # Test AI Terminal API endpoints
+        local test_input_url="${test_url%/mcp}/api/user-input/deploy-test"
+        print_status "Testing AI Terminal input endpoint: $test_input_url"
+        if curl -s -f "$test_input_url" -H "Content-Type: application/json" -d '{"input_type":"test","input_value":"deploy test","timestamp":123456}' | grep -q "sent_to_ai" 2>/dev/null; then
+            print_success "AI Terminal input endpoint working"
+        else
+            print_warning "AI Terminal input endpoint not responding"
+        fi
     else
         print_warning "AI Terminal webpage not responding"
     fi

@@ -326,6 +326,34 @@ async def health_check():
     """Health check endpoint for container readiness."""
     return {"status": "healthy", "version": get_version_string()}
 
+# AI Terminal Interface endpoint
+@app.get("/ai-terminal")
+async def ai_terminal_interface():
+    """Serve the AI Terminal interface - real-time AI conversation via SQS."""
+    from pathlib import Path
+    from fastapi.responses import HTMLResponse
+    
+    # Path to AI terminal file
+    terminal_file = Path(__file__).parent.parent / "web-assets" / "ai-terminal.html"
+    
+    if terminal_file.exists():
+        with open(terminal_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return HTMLResponse(content=content)
+    else:
+        return HTMLResponse(
+            content="""
+            <html>
+                <body style="background: #0a0e1a; color: white; font-family: sans-serif; padding: 40px;">
+                    <h1>🚦 AI Terminal Not Found</h1>
+                    <p>The AI Terminal interface is not available. Please ensure ai-terminal.html is deployed.</p>
+                    <p><a href="/" style="color: #4fc3f7;">← Back to API Home</a></p>
+                </body>
+            </html>
+            """,
+            status_code=404
+        )
+
 # Traffic Light Test Interface endpoint
 @app.get("/api/traffic-light-test")
 async def traffic_light_test_interface():
@@ -578,7 +606,20 @@ async def root():
             "mcp": "/mcp",
             "docs": "/docs",
             "openapi": "/openapi.json", 
-            "health": "/health"
+            "health": "/health",
+            "ai_terminal": "/ai-terminal"
+        },
+        "demos": {
+            "ai_terminal": {
+                "name": "AI Terminal",
+                "url": "/ai-terminal",
+                "description": "Real-time AI conversation using SQS Traffic Light system"
+            },
+            "traffic_light_test": {
+                "name": "Traffic Light System Test", 
+                "url": "/api/traffic-light-test",
+                "description": "Test bidirectional SQS communication"
+            }
         }
     }
 

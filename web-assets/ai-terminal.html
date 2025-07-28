@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Terminal - Real-time SQS Traffic Light System</title>
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #1a1f2e;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-blue: #4fc3f7;
+            --accent-green: #4caf50;
+            --accent-purple: #9c27b0;
+            --border-color: #2a3142;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status-indicators {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .status-light {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #333;
+            transition: all 0.3s ease;
+        }
+
+        .status-light.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 10px var(--accent-green);
+        }
+
+        .status-light.waiting {
+            background: #ffc107;
+            box-shadow: 0 0 10px #ffc107;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem;
+            gap: 1.5rem;
+        }
+
+        .response-area {
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .response-header {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .response-content {
+            flex: 1;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            padding-right: 0.5rem;
+        }
+
+        .response-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .response-content::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+            border-radius: 4px;
+        }
+
+        .response-content::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .response-content::-webkit-scrollbar-thumb:hover {
+            background: #3a4152;
+        }
+
+        .message {
+            margin-bottom: 1.5rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-header {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .message-role {
+            padding: 0.125rem 0.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.625rem;
+        }
+
+        .message-role.user {
+            background: rgba(79, 195, 247, 0.2);
+            color: var(--accent-blue);
+        }
+
+        .message-role.ai {
+            background: rgba(156, 39, 176, 0.2);
+            color: var(--accent-purple);
+        }
+
+        .message-role.system {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .message-body {
+            padding: 1rem;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .prompt-area {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .prompt-form {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .prompt-input {
+            flex: 1;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+
+        .prompt-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(79, 195, 247, 0.1);
+        }
+
+        .prompt-input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .send-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 195, 247, 0.3);
+        }
+
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .connection-info {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .loading-dots {
+            display: inline-block;
+            animation: loadingDots 1.5s infinite;
+        }
+
+        @keyframes loadingDots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .error-message {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            color: #f44336;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚦 AI Terminal</h1>
+        <div class="status-indicators">
+            <div class="status-item">
+                <div id="userStatus" class="status-light"></div>
+                <span>User → AI</span>
+            </div>
+            <div class="status-item">
+                <div id="aiStatus" class="status-light"></div>
+                <span>AI → User</span>
+            </div>
+            <div class="status-item">
+                <span id="sessionId">Session: Initializing...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="response-area">
+            <div class="response-header">
+                <span>Conversation</span>
+                <button onclick="clearConversation()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.75rem;">Clear</button>
+            </div>
+            <div id="responseContent" class="response-content">
+                <div class="message">
+                    <div class="message-header">
+                        <span class="message-role system">SYSTEM</span>
+                        <span class="message-time" id="initTime"></span>
+                    </div>
+                    <div class="message-body">Initializing AI Terminal with SQS Traffic Light System...
+                    
+This interface demonstrates real-time bidirectional communication between your browser and AI using AWS SQS queues. Type your prompt below and press Enter or click Send.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="prompt-area">
+            <form id="promptForm" class="prompt-form">
+                <input 
+                    type="text" 
+                    id="promptInput" 
+                    class="prompt-input" 
+                    placeholder="Type your prompt here..."
+                    autocomplete="off"
+                    disabled
+                >
+                <button type="submit" id="sendButton" class="send-button" disabled>
+                    <span>Send</span>
+                    <span>→</span>
+                </button>
+            </form>
+            <div class="connection-info" id="connectionInfo">
+                Connecting to API<span class="loading-dots">...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class AITerminal {
+            constructor() {
+                // Check URL parameters for session ID first
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessionFromUrl = urlParams.get('session');
+                
+                this.sessionId = sessionFromUrl || `terminal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                // Determine API base URL based on environment
+                if (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')) {
+                    this.apiBase = 'http://localhost:8000/v1';  // Local development
+                } else if (window.location.origin.includes('execute-api.us-west-1.amazonaws.com')) {
+                    this.apiBase = window.location.origin + '/v1';  // API Gateway (has /v1 stage)
+                } else {
+                    this.apiBase = window.location.origin;  // Custom domain (no /v1 stage)
+                }
+                this.isPolling = false;
+                this.isWaitingForResponse = false;
+                
+                this.initializeUI();
+                this.startPolling();
+            }
+
+            initializeUI() {
+                // Set initial time
+                document.getElementById('initTime').textContent = new Date().toLocaleTimeString();
+                
+                // Show session info with source indicator
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessionFromUrl = urlParams.get('session');
+                const sessionDisplay = sessionFromUrl 
+                    ? `Session: ${this.sessionId} (URL)` 
+                    : `Session: ${this.sessionId.substr(0, 8)}... (auto)`;
+                document.getElementById('sessionId').textContent = sessionDisplay;
+                
+                // Set up form submission
+                document.getElementById('promptForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.sendPrompt();
+                });
+                
+                // Enable input after connection
+                setTimeout(() => {
+                    document.getElementById('promptInput').disabled = false;
+                    document.getElementById('sendButton').disabled = false;
+                    const connectionText = sessionFromUrl 
+                        ? `Connected to ${this.apiBase} • Session: ${this.sessionId} (from URL)`
+                        : `Connected to ${this.apiBase} • Session: ${this.sessionId.substr(0, 12)}... (auto-generated)`;
+                    document.getElementById('connectionInfo').innerHTML = connectionText;
+                    this.setUserStatus('active');
+                }, 1000);
+            }
+
+            async startPolling() {
+                this.isPolling = true;
+                this.setAIStatus('active');
+                
+                while (this.isPolling) {
+                    try {
+                        const response = await fetch(
+                            `${this.apiBase}/api/wait-for-ai-response/${this.sessionId}?timeout=5`,
+                            { method: 'GET' }
+                        );
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        
+                        const data = await response.json();
+                        
+                        if (data.has_response && data.response) {
+                            this.handleAIResponse(data.response);
+                        }
+                        
+                    } catch (error) {
+                        console.error('Polling error:', error);
+                        this.setAIStatus('error');
+                        await this.sleep(2000);
+                        this.setAIStatus('active');
+                    }
+                }
+            }
+
+            async sendPrompt() {
+                const input = document.getElementById('promptInput');
+                const prompt = input.value.trim();
+                
+                if (!prompt) return;
+                
+                // Disable input while processing
+                input.disabled = true;
+                document.getElementById('sendButton').disabled = true;
+                this.isWaitingForResponse = true;
+                
+                // Show user message immediately
+                this.addMessage('user', prompt);
+                
+                // Clear input
+                input.value = '';
+                
+                // Set status
+                this.setUserStatus('waiting');
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/api/user-input/${this.sessionId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            input_type: 'prompt',
+                            input_value: prompt,
+                            timestamp: Date.now()
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to send prompt: HTTP ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    console.log('Prompt sent:', result);
+                    
+                } catch (error) {
+                    console.error('Send error:', error);
+                    this.addMessage('system', `Error sending prompt: ${error.message}`, 'error');
+                    this.isWaitingForResponse = false;
+                    input.disabled = false;
+                    document.getElementById('sendButton').disabled = false;
+                } finally {
+                    this.setUserStatus('active');
+                }
+            }
+
+            handleAIResponse(response) {
+                console.log('AI Response:', response);
+                
+                // Extract the actual response text
+                let responseText = '';
+                if (response.response_data) {
+                    if (typeof response.response_data === 'string') {
+                        responseText = response.response_data;
+                    } else if (response.response_data.response) {
+                        responseText = response.response_data.response;
+                    } else if (response.response_data.message) {
+                        responseText = response.response_data.message;
+                    } else {
+                        responseText = JSON.stringify(response.response_data, null, 2);
+                    }
+                }
+                
+                // Show AI response
+                this.addMessage('ai', responseText);
+                
+                // Re-enable input
+                this.isWaitingForResponse = false;
+                document.getElementById('promptInput').disabled = false;
+                document.getElementById('sendButton').disabled = false;
+                document.getElementById('promptInput').focus();
+                
+                this.setAIStatus('active');
+            }
+
+            addMessage(role, content, type = '') {
+                const container = document.getElementById('responseContent');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message';
+                
+                const time = new Date().toLocaleTimeString();
+                
+                messageDiv.innerHTML = `
+                    <div class="message-header">
+                        <span class="message-role ${role}">${role.toUpperCase()}</span>
+                        <span class="message-time">${time}</span>
+                    </div>
+                    <div class="message-body${type === 'error' ? ' error-message' : ''}">${this.escapeHtml(content)}</div>
+                `;
+                
+                container.appendChild(messageDiv);
+                container.scrollTop = container.scrollHeight;
+            }
+
+            setUserStatus(status) {
+                const light = document.getElementById('userStatus');
+                light.className = `status-light ${status}`;
+            }
+
+            setAIStatus(status) {
+                const light = document.getElementById('aiStatus');
+                light.className = `status-light ${status}`;
+            }
+
+            clearConversation() {
+                const container = document.getElementById('responseContent');
+                container.innerHTML = '';
+                this.addMessage('system', 'Conversation cleared. Session continues.');
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // Initialize the terminal when page loads
+        let terminal;
+        window.addEventListener('DOMContentLoaded', () => {
+            terminal = new AITerminal();
+        });
+    </script>
+</body>
+</html>
