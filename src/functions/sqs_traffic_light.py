@@ -15,7 +15,8 @@ import time
 import boto3
 from typing import Optional, Dict, Any
 
-from ..registry import api_function, JSONType
+from registry import api_function
+from utils import JSONType
 
 # Initialize SQS client
 sqs = boto3.client('sqs')
@@ -36,7 +37,7 @@ def ensure_queue_exists(queue_name: str) -> str:
             QueueName=queue_name,
             Attributes={
                 'MessageRetentionPeriod': '3600',  # 1 hour
-                'VisibilityTimeoutSeconds': '30'
+                'VisibilityTimeout': '30'
             }
         )
         return response['QueueUrl']

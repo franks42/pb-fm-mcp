@@ -326,6 +326,34 @@ async def health_check():
     """Health check endpoint for container readiness."""
     return {"status": "healthy", "version": get_version_string()}
 
+# Traffic Light Test Interface endpoint
+@app.get("/api/traffic-light-test")
+async def traffic_light_test_interface():
+    """Serve the SQS traffic light bidirectional communication test interface."""
+    from pathlib import Path
+    from fastapi.responses import HTMLResponse
+    
+    # Path to traffic light test file
+    test_file = Path(__file__).parent.parent / "web-assets" / "traffic-light-test.html"
+    
+    if test_file.exists():
+        with open(test_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return HTMLResponse(content=content)
+    else:
+        return HTMLResponse(
+            content="""
+            <html>
+                <body style="background: #1a1a1a; color: white; font-family: sans-serif; padding: 40px;">
+                    <h1>🚦 Traffic Light Test Interface Not Found</h1>
+                    <p>The test interface file is not available. Please ensure traffic-light-test.html is deployed.</p>
+                    <p><a href="/" style="color: #4fc3f7;">← Back to API Home</a></p>
+                </body>
+            </html>
+            """,
+            status_code=404
+        )
+
 # Static file endpoint for heartbeat test interface
 @app.get("/api/heartbeat-test")
 async def heartbeat_test_interface():
@@ -706,7 +734,7 @@ async def receive_user_input(session_id: str, input_data: dict):
                 QueueName=f"user-input-{session_id}",
                 Attributes={
                     'MessageRetentionPeriod': '3600',  # 1 hour
-                    'VisibilityTimeoutSeconds': '30'
+                    'VisibilityTimeout': '30'
                 }
             )
         
@@ -754,7 +782,7 @@ async def wait_for_ai_response(session_id: str, timeout: int = 5):
                 QueueName=f"ai-response-{session_id}",
                 Attributes={
                     'MessageRetentionPeriod': '3600',  # 1 hour
-                    'VisibilityTimeoutSeconds': '30'
+                    'VisibilityTimeout': '30'
                 }
             )
         

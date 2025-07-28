@@ -72,6 +72,11 @@ try:
 except Exception as e:
     print(f"❌ Failed to import dashboard_coordinator: {e}")
 
+try:
+    from . import sqs_traffic_light
+except Exception as e:
+    print(f"❌ Failed to import sqs_traffic_light: {e}")
+
 __all__ = [
     "stats_functions",
     "delegation_functions", 
@@ -86,4 +91,5 @@ __all__ = [
     "debug_functions",
     "declarative_dashboard",
     "dashboard_coordinator",
+    "sqs_traffic_light",
 ]
