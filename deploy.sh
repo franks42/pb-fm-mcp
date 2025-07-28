@@ -55,6 +55,7 @@ OPTIONS:
   --force         Force deployment even if checks fail
   --clean         Clean build before deployment
   --test          Run tests after deployment
+  --skip-check    Skip deployment version check and force deployment
   --help          Show this help message
 
 Examples:
@@ -215,6 +216,55 @@ clean_build() {
     print_success "Build artifacts cleaned"
 }
 
+# Check if deployment is needed
+check_deployment_needed() {
+    local env=$1
+    local stack_name
+    
+    if [[ "$env" == "prod" ]]; then
+        stack_name="pb-fm-mcp-v2"
+    else
+        stack_name="pb-fm-mcp-dev"
+    fi
+    
+    print_header "Checking if Deployment is Needed"
+    
+    # Get current git commit hash
+    local current_commit=$(git rev-parse HEAD)
+    local current_branch=$(git rev-parse --abbrev-ref HEAD)
+    
+    # Check if stack exists
+    if ! aws cloudformation describe-stacks --stack-name "$stack_name" --region "$DEPLOYMENT_REGION" &>/dev/null; then
+        print_status "Stack $stack_name does not exist, deployment needed"
+        echo "true"
+        return
+    fi
+    
+    # Get current deployed version from stack tags
+    local deployed_commit=$(aws cloudformation describe-stacks --stack-name "$stack_name" --region "$DEPLOYMENT_REGION" --query 'Stacks[0].Tags[?Key==`GitCommit`].Value' --output text 2>/dev/null || echo "")
+    local deployed_branch=$(aws cloudformation describe-stacks --stack-name "$stack_name" --region "$DEPLOYMENT_REGION" --query 'Stacks[0].Tags[?Key==`GitBranch`].Value' --output text 2>/dev/null || echo "")
+    
+    # Check for uncommitted changes
+    if ! git diff --quiet || ! git diff --cached --quiet; then
+        print_warning "Uncommitted changes detected, deployment recommended"
+        echo "true"
+        return
+    fi
+    
+    # Compare commits and branches
+    if [[ "$deployed_commit" == "$current_commit" && "$deployed_branch" == "$current_branch" ]]; then
+        print_success "Deployed version matches current state"
+        print_status "Current: $current_commit ($current_branch)"
+        print_status "Deployed: $deployed_commit ($deployed_branch)"
+        echo "false"
+    else
+        print_status "Version mismatch detected, deployment needed"
+        print_status "Current: $current_commit ($current_branch)"
+        print_status "Deployed: $deployed_commit ($deployed_branch)"
+        echo "true"
+    fi
+}
+
 # Build the application
 build_application() {
     print_header "Building Application"
@@ -246,7 +296,13 @@ deploy_application() {
     print_status "Stack: $stack_name"
     print_status "Region: $DEPLOYMENT_REGION"
     
-    local deploy_cmd="sam deploy --stack-name $stack_name --resolve-s3 --region $DEPLOYMENT_REGION"
+    # Add git tracking tags
+    local current_commit=$(git rev-parse HEAD)
+    local current_branch=$(git rev-parse --abbrev-ref HEAD)
+    local deploy_timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    
+    local deploy_cmd="sam deploy --stack-name $stack_name --resolve-s3 --region $DEPLOYMENT_REGION --capabilities CAPABILITY_IAM"
+    deploy_cmd="$deploy_cmd --tags 'GitCommit=$current_commit' 'GitBranch=$current_branch' 'DeployTimestamp=$deploy_timestamp' 'Environment=$env'"
     
     # Add parameters if custom domain is enabled
     if [[ -n "$cert_arn" && -n "$zone_id" ]]; then
@@ -306,24 +362,82 @@ test_deployment() {
     local api_url=$(aws cloudformation describe-stacks --stack-name "$stack_name" --region "$DEPLOYMENT_REGION" --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' --output text)
     local custom_url=$(aws cloudformation describe-stacks --stack-name "$stack_name" --region "$DEPLOYMENT_REGION" --query 'Stacks[0].Outputs[?OutputKey==`CustomDomainUrl`].OutputValue' --output text 2>/dev/null || echo "")
     
-    # Test API Gateway URL
-    if [[ -n "$api_url" ]]; then
-        print_status "Testing API Gateway URL: ${api_url}mcp"
-        if curl -s -f "${api_url}mcp" > /dev/null; then
-            print_success "API Gateway endpoint responding"
-        else
-            print_error "API Gateway endpoint not responding"
-        fi
+    # Test MCP endpoints using proper MCP test client
+    local test_url="${api_url}mcp"
+    if [[ -n "$custom_url" && "$custom_url" != "None" ]]; then
+        test_url="${custom_url}mcp"
+        print_status "Testing custom domain MCP endpoint: $test_url"
+    else
+        print_status "Testing API Gateway MCP endpoint: $test_url"
     fi
     
-    # Test custom domain URL if available
-    if [[ -n "$custom_url" && "$custom_url" != "None" ]]; then
-        print_status "Testing custom domain URL: ${custom_url}mcp"
-        if curl -s -f "${custom_url}mcp" > /dev/null; then
-            print_success "Custom domain endpoint responding"
-        else
-            print_warning "Custom domain endpoint not responding (DNS may still be propagating)"
-        fi
+    # Test MCP protocol using proper test client
+    print_status "Running MCP connection test..."
+    if timeout 30 uv run python -c "
+import asyncio
+import sys
+sys.path.append('scripts')
+from mcp_test_client import MCPTestClient
+
+async def test_mcp():
+    try:
+        client = MCPTestClient('$test_url')
+        await client.connect()
+        tools = await client.list_tools()
+        await client.disconnect()
+        print(f'✅ MCP test passed: {len(tools)} tools available')
+        return len(tools) > 0
+    except Exception as e:
+        print(f'❌ MCP test failed: {e}')
+        return False
+
+result = asyncio.run(test_mcp())
+sys.exit(0 if result else 1)
+    " 2>/dev/null; then
+        print_success "MCP endpoint working correctly"
+    else
+        print_warning "MCP endpoint test failed (may still be starting up)"
+    fi
+    
+    # Test REST API endpoints
+    local api_base_url="${test_url%/mcp}"
+    print_status "Testing REST API endpoints..."
+    
+    # Test root endpoint
+    if curl -s -f "$api_base_url/" | grep -q "pb-fm-mcp" 2>/dev/null; then
+        print_success "REST API root endpoint working"
+    else
+        print_warning "REST API root endpoint not responding"
+    fi
+    
+    # Test health endpoint
+    if curl -s -f "$api_base_url/health" | grep -q "status" 2>/dev/null; then
+        print_success "REST API health endpoint working"
+    else
+        print_warning "REST API health endpoint not responding"
+    fi
+    
+    # Test docs endpoint
+    if curl -s -f "$api_base_url/docs" | grep -q "swagger" 2>/dev/null; then
+        print_success "REST API documentation endpoint working"
+    else
+        print_warning "REST API documentation endpoint not responding"
+    fi
+    
+    # Test a sample API function endpoint
+    if curl -s -f "$api_base_url/api/fetch_current_hash_statistics" | grep -q "maxSupply" 2>/dev/null; then
+        print_success "REST API function endpoints working"
+    else
+        print_warning "REST API function endpoints not responding"
+    fi
+    
+    # Test AI Terminal webpage
+    local terminal_url="$api_base_url/ai-terminal"
+    print_status "Testing AI Terminal webpage: $terminal_url"
+    if curl -s -f "$terminal_url" | grep -q "AI Terminal" 2>/dev/null; then
+        print_success "AI Terminal webpage loading"
+    else
+        print_warning "AI Terminal webpage not responding"
     fi
     
     # Run comprehensive tests if script exists
@@ -354,6 +468,7 @@ main() {
     local force=false
     local clean=false
     local test=false
+    local skip_check=false
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -376,6 +491,10 @@ main() {
                 ;;
             --test)
                 test=true
+                shift
+                ;;
+            --skip-check)
+                skip_check=true
                 shift
                 ;;
             --help)
@@ -440,6 +559,26 @@ main() {
                 exit 1
             fi
         fi
+    fi
+    
+    # Check if deployment is needed (unless skip-check is specified)
+    local deployment_needed="true"
+    if [[ "$skip_check" == false ]]; then
+        deployment_needed=$(check_deployment_needed "$environment")
+        
+        if [[ "$deployment_needed" == "false" ]]; then
+            print_success "No deployment needed - current version already deployed"
+            
+            # Still run tests if requested
+            if [[ "$test" == true ]]; then
+                test_deployment "$environment"
+            fi
+            
+            print_success "No changes detected - deployment skipped!"
+            return 0
+        fi
+    else
+        print_status "Skipping deployment check (--skip-check specified)"
     fi
     
     # Clean build if requested
