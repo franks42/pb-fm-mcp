@@ -17,6 +17,7 @@ from typing import Optional, Dict, Any
 
 from registry import api_function
 from utils import JSONType
+from .event_store import store_event, EVENT_TYPES
 
 # Initialize SQS client
 sqs = boto3.client('sqs')
@@ -302,6 +303,14 @@ async def send_result_to_browser_and_fetch_new_instruction(
             },
             response_type="claude_response"
         )
+        
+        # Store Claude response event for replay
+        await store_event(
+            session_id=session_id,
+            event_type=EVENT_TYPES["CLAUDE_RESPONSE"],
+            content=result_text,
+            metadata={"timestamp": time.time()}
+        )
     
     # Step 2: Wait for user input
     user_input = await wait_for_user_input(session_id, timeout_seconds)
@@ -309,6 +318,15 @@ async def send_result_to_browser_and_fetch_new_instruction(
     # Step 3: Construct instruction for Claude
     if user_input.get("has_input"):
         user_message = user_input["input_data"]["input_value"]
+        
+        # Store user message event for replay
+        await store_event(
+            session_id=session_id,
+            event_type=EVENT_TYPES["USER_MESSAGE"],
+            content=user_message,
+            metadata={"timestamp": time.time()}
+        )
+        
         instruction = f"User said: {user_message}"
         next_call = f"send_result_to_browser_and_fetch_new_instruction('{session_id}', 'your_response_to_user')"
     else:

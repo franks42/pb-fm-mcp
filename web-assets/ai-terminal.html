@@ -355,6 +355,8 @@ This interface demonstrates real-time bidirectional communication between your b
                 const sessionFromUrl = urlParams.get('session');
                 
                 this.sessionId = sessionFromUrl || `terminal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                this.browserId = `browser-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                
                 // Determine API base URL based on environment
                 if (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')) {
                     this.apiBase = 'http://localhost:8000/v1';  // Local development
@@ -363,11 +365,84 @@ This interface demonstrates real-time bidirectional communication between your b
                 } else {
                     this.apiBase = window.location.origin;  // Custom domain (no /v1 stage)
                 }
+                
                 this.isPolling = false;
                 this.isWaitingForResponse = false;
+                this.hasInputControl = false;
+                this.connectionOrder = null;
+                this.lastProcessedEvent = 0;
                 
+                this.initializeSession();
+            }
+            
+            async initializeSession() {
+                await this.registerBrowserConnection();
+                await this.replayHistoricalEvents();
                 this.initializeUI();
                 this.startPolling();
+            }
+            
+            async registerBrowserConnection() {
+                try {
+                    // Register this browser connection and get control status
+                    const response = await fetch(`${this.apiBase}/api/browser-connect`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            session_id: this.sessionId,
+                            browser_id: this.browserId,
+                            timestamp: Date.now()
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.connectionOrder = result.connection_order;
+                        this.hasInputControl = result.has_input_control;
+                    }
+                } catch (error) {
+                    console.warn('Failed to register browser connection:', error);
+                    // Fallback - assume first browser if connection fails
+                    this.hasInputControl = true;
+                    this.connectionOrder = 1;
+                }
+            }
+            
+            async replayHistoricalEvents() {
+                try {
+                    const response = await fetch(`${this.apiBase}/api/fetch-session-events/${this.sessionId}`);
+                    if (!response.ok) return;
+                    
+                    const data = await response.json();
+                    const events = data.events || [];
+                    
+                    console.log(`🔄 Replaying ${events.length} historical events...`);
+                    
+                    // Replay events at high speed
+                    for (const event of events) {
+                        this.replayEvent(event, true);
+                        this.lastProcessedEvent = Math.max(this.lastProcessedEvent, event.sequence);
+                    }
+                    
+                    console.log('✅ Event replay completed');
+                } catch (error) {
+                    console.warn('Failed to replay historical events:', error);
+                }
+            }
+            
+            replayEvent(event, fast = false) {
+                switch (event.event_type) {
+                    case 'user_message':
+                        this.addMessage('user', event.content, '', fast);
+                        break;
+                    case 'claude_response':
+                        this.addMessage('ai', event.content, '', fast);
+                        break;
+                    case 'system_message':
+                        this.addMessage('system', event.content, '', fast);
+                        break;
+                    // Future: layout_change, data_update, etc.
+                }
             }
 
             initializeUI() {
@@ -388,13 +463,28 @@ This interface demonstrates real-time bidirectional communication between your b
                     this.sendPrompt();
                 });
                 
-                // Enable input after connection
+                // Enable/disable input based on control status
                 setTimeout(() => {
-                    document.getElementById('promptInput').disabled = false;
-                    document.getElementById('sendButton').disabled = false;
+                    const promptInput = document.getElementById('promptInput');
+                    const sendButton = document.getElementById('sendButton');
+                    
+                    if (this.hasInputControl) {
+                        promptInput.disabled = false;
+                        sendButton.disabled = false;
+                        promptInput.placeholder = "Type your prompt here...";
+                    } else {
+                        promptInput.disabled = true;
+                        sendButton.disabled = true;
+                        promptInput.placeholder = "This browser is in observer mode - first browser has control";
+                    }
+                    
+                    const controlStatus = this.hasInputControl 
+                        ? `(Browser #${this.connectionOrder} - INPUT CONTROL)` 
+                        : `(Browser #${this.connectionOrder} - OBSERVER)`;
+                    
                     const connectionText = sessionFromUrl 
-                        ? `Connected to ${this.apiBase} • Session: ${this.sessionId} (from URL)`
-                        : `Connected to ${this.apiBase} • Session: ${this.sessionId.substr(0, 12)}... (auto-generated)`;
+                        ? `Connected to ${this.apiBase} • Session: ${this.sessionId} ${controlStatus}`
+                        : `Connected to ${this.apiBase} • Session: ${this.sessionId.substr(0, 12)}... ${controlStatus}`;
                     document.getElementById('connectionInfo').innerHTML = connectionText;
                     this.setUserStatus('active');
                 }, 1000);
@@ -406,8 +496,9 @@ This interface demonstrates real-time bidirectional communication between your b
                 
                 while (this.isPolling) {
                     try {
+                        // Check for new events since last processed
                         const response = await fetch(
-                            `${this.apiBase}/api/wait-for-ai-response/${this.sessionId}?timeout=5`,
+                            `${this.apiBase}/api/fetch-session-events/${this.sessionId}?start_sequence=${this.lastProcessedEvent}`,
                             { method: 'GET' }
                         );
                         
@@ -416,9 +507,25 @@ This interface demonstrates real-time bidirectional communication between your b
                         }
                         
                         const data = await response.json();
+                        const events = data.events || [];
                         
-                        if (data.has_response && data.response) {
-                            this.handleAIResponse(data.response);
+                        // Process new events in real-time
+                        for (const event of events) {
+                            this.replayEvent(event, false);  // Not fast - real-time display
+                            this.lastProcessedEvent = Math.max(this.lastProcessedEvent, event.sequence);
+                        }
+                        
+                        // Also check for AI responses via old polling method (fallback)
+                        const responsePolling = await fetch(
+                            `${this.apiBase}/api/wait-for-ai-response/${this.sessionId}?timeout=2`,
+                            { method: 'GET' }
+                        );
+                        
+                        if (responsePolling.ok) {
+                            const responseData = await responsePolling.json();
+                            if (responseData.has_response && responseData.response) {
+                                this.handleAIResponse(responseData.response);
+                            }
                         }
                         
                     } catch (error) {
@@ -427,10 +534,19 @@ This interface demonstrates real-time bidirectional communication between your b
                         await this.sleep(2000);
                         this.setAIStatus('active');
                     }
+                    
+                    // Small delay to prevent excessive polling
+                    await this.sleep(1000);
                 }
             }
 
             async sendPrompt() {
+                // Only first browser can send input
+                if (!this.hasInputControl) {
+                    this.addMessage('system', 'Only the first browser can send input. This browser is in observer mode.', 'error');
+                    return;
+                }
+                
                 const input = document.getElementById('promptInput');
                 const prompt = input.value.trim();
                 
@@ -459,7 +575,8 @@ This interface demonstrates real-time bidirectional communication between your b
                         body: JSON.stringify({
                             input_type: 'prompt',
                             input_value: prompt,
-                            timestamp: Date.now()
+                            timestamp: Date.now(),
+                            browser_id: this.browserId
                         })
                     });
                     
@@ -474,8 +591,10 @@ This interface demonstrates real-time bidirectional communication between your b
                     console.error('Send error:', error);
                     this.addMessage('system', `Error sending prompt: ${error.message}`, 'error');
                     this.isWaitingForResponse = false;
-                    input.disabled = false;
-                    document.getElementById('sendButton').disabled = false;
+                    if (this.hasInputControl) {
+                        input.disabled = false;
+                        document.getElementById('sendButton').disabled = false;
+                    }
                 } finally {
                     this.setUserStatus('active');
                 }
@@ -510,11 +629,12 @@ This interface demonstrates real-time bidirectional communication between your b
                 this.setAIStatus('active');
             }
 
-            addMessage(role, content, type = '') {
+            addMessage(role, content, type = '', fast = false) {
                 const container = document.getElementById('responseContent');
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message';
                 
+                // Use current time for live messages, preserve timestamp for replayed events
                 const time = new Date().toLocaleTimeString();
                 
                 messageDiv.innerHTML = `
@@ -526,6 +646,20 @@ This interface demonstrates real-time bidirectional communication between your b
                 `;
                 
                 container.appendChild(messageDiv);
+                
+                // Skip animation for fast replay, show animation for real-time
+                if (!fast) {
+                    // Add animation for real-time messages
+                    messageDiv.style.opacity = '0';
+                    messageDiv.style.transform = 'translateY(10px)';
+                    
+                    setTimeout(() => {
+                        messageDiv.style.transition = 'all 0.3s ease';
+                        messageDiv.style.opacity = '1';
+                        messageDiv.style.transform = 'translateY(0)';
+                    }, 10);
+                }
+                
                 container.scrollTop = container.scrollHeight;
             }
 

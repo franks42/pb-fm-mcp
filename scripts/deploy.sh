@@ -124,14 +124,14 @@ echo -e "${BLUE}🚀 Deploying to $ENVIRONMENT environment...${NC}"
 # Check if custom domain parameters are provided
 if [ -n "$HOSTED_ZONE_ID" ] && [ -n "$CERTIFICATE_ARN" ]; then
     echo -e "${YELLOW}🌐 Using custom domain configuration${NC}"
-    sam deploy --stack-name "$STACK_NAME" --resolve-s3 \
+    sam deploy --stack-name "$STACK_NAME" --resolve-s3 --capabilities CAPABILITY_IAM \
         --parameter-overrides \
         "Environment=$ENVIRONMENT" \
         "HostedZoneId=$HOSTED_ZONE_ID" \
         "CertificateArn=$CERTIFICATE_ARN"
 else
     echo -e "${YELLOW}📝 Using default configuration (no custom domain)${NC}"
-    sam deploy --stack-name "$STACK_NAME" --resolve-s3 \
+    sam deploy --stack-name "$STACK_NAME" --resolve-s3 --capabilities CAPABILITY_IAM \
         --parameter-overrides "Environment=$ENVIRONMENT"
 fi
 if [ $? -ne 0 ]; then

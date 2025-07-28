@@ -738,6 +738,78 @@ register_rest_routes(app, registry)
 print(f"✅ Registered {len(registry.get_rest_functions())} REST endpoints")
 
 # =============================================================================
+# Event Replay Architecture for Multi-Browser Synchronization
+# =============================================================================
+
+print("🔄 Initializing Event Replay Architecture...")
+
+from functions.event_store import store_event, EVENT_TYPES, get_browser_connection_order
+
+# Browser connection registration endpoint
+@app.post("/api/browser-connect")
+async def register_browser_connection(connection_data: dict):
+    """
+    Register a browser connection and determine input control privileges.
+    First browser gets input control, others are observers.
+    """
+    try:
+        session_id = connection_data.get('session_id')
+        browser_id = connection_data.get('browser_id')
+        timestamp = connection_data.get('timestamp', time.time())
+        
+        if not session_id or not browser_id:
+            raise HTTPException(status_code=400, detail="session_id and browser_id are required")
+        
+        # Store browser connection event
+        await store_event(
+            session_id=session_id,
+            event_type=EVENT_TYPES["BROWSER_CONNECT"],
+            content={
+                "browser_id": browser_id,
+                "timestamp": timestamp
+            },
+            metadata={"connection_info": connection_data}
+        )
+        
+        # Get connection order to determine control
+        connection_info = await get_browser_connection_order(session_id)
+        
+        # Find this browser's information
+        this_browser = None
+        for browser in connection_info.get('browsers', []):
+            if browser['browser_id'] == browser_id:
+                this_browser = browser
+                break
+        
+        if not this_browser:
+            # Fallback - assume first browser if lookup fails
+            connection_order = 1 
+            has_input_control = True
+        else:
+            connection_order = this_browser['connection_order']
+            has_input_control = this_browser['has_input_control']
+        
+        return {
+            "status": "registered",
+            "session_id": session_id,
+            "browser_id": browser_id,
+            "connection_order": connection_order,
+            "has_input_control": has_input_control,
+            "total_browsers": connection_info.get('total_browsers', 1),
+            "timestamp": time.time()
+        }
+        
+    except Exception as e:
+        print(f"Browser registration error: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "session_id": connection_data.get('session_id', 'unknown')
+        }
+
+print("✅ Event Replay Architecture endpoints registered")
+
+# =============================================================================
 # SQS Bidirectional Traffic Light System
 # =============================================================================
 
