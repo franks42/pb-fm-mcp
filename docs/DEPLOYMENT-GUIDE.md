@@ -260,7 +260,7 @@ curl https://your-api-url/v1/docs
 
 ```bash
 # Set test wallet address
-export TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8
+export TEST_WALLET_ADDRESS=USER_PROVIDED_WALLET_ADDRESS
 
 # Run function coverage tests
 uv run python scripts/test_function_coverage.py \

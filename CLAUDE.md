@@ -270,7 +270,7 @@ curl https://deployed-lambda-url/mcp  # Must return MCP server info
 curl https://deployed-lambda-url/api/health  # Must return health status
 
 # 3. Comprehensive Function Coverage Testing (REQUIRED)
-TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py --mcp-url <url> --rest-url <url>
+TEST_WALLET_ADDRESS="user_provided_address" uv run python scripts/test_function_coverage.py --mcp-url <url> --rest-url <url>
 ```
 
 **Critical Testing Requirements:**
@@ -374,7 +374,7 @@ echo $TEST_WALLET_ADDRESS         # Empty in separate bash call
 ### 🚀 Immediate Actions Available
 1. **🚨 HIGHEST PRIORITY**: Check certificate validation status and implement custom domains
 2. **Test Current Deployments**: Use URLs above to verify everything works
-3. **Run Test Suite**: `TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py --mcp-url <url> --rest-url <url>`
+3. **Run Test Suite**: `TEST_WALLET_ADDRESS="user_provided_address" uv run python scripts/test_function_coverage.py --mcp-url <url> --rest-url <url>`
 4. **Deploy to Dev**: `sam build --template-file template-simple.yaml && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
 5. **Deploy to Production**: Only deploy to main branch with user approval
 
@@ -410,27 +410,46 @@ echo $TEST_WALLET_ADDRESS         # Empty in separate bash call
 
 ### 🛠️ Build and Test Quick Reference
 
-**Complete Build and Test Sequence:**
+**🚀 AUTOMATED DEPLOYMENT (RECOMMENDED):**
+```bash
+# Development deployment with testing (single command does everything!)
+./deploy.sh dev --clean --test
+
+# Production deployment (requires main branch)
+./deploy.sh prod --clean --test
+
+# Deploy without custom domain
+./deploy.sh dev --no-domain
+
+# Force deployment (bypass branch checks)
+./deploy.sh dev --force
+
+# Show deployment script options
+./deploy.sh --help
+```
+
+**📋 MANUAL DEPLOYMENT (Advanced):**
 ```bash
 # 1. Clean build (ALWAYS clean first)
 rm -rf .aws-sam/
 find . -name "*.pyc" -delete
 find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 
-# 2. Build with dual-path template (THE ONLY TEMPLATE TO USE)
-sam build --template-file template-dual-path.yaml
+# 2. Build with single Lambda template
+sam build --template-file template-simple.yaml
 
 # 3. Deploy to development
 sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 
 # 4. Test comprehensive function coverage (MUST PASS 100% MCP and REST)
-TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py \
-  --mcp-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp \
-  --rest-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1
+# IMPORTANT: User must provide wallet address via environment variable
+TEST_WALLET_ADDRESS="user_provided_address" uv run python scripts/test_function_coverage.py \
+  --mcp-url https://pb-fm-mcp-dev.creativeapptitude.com/mcp \
+  --rest-url https://pb-fm-mcp-dev.creativeapptitude.com
 
 # 5. For production (main branch only, user approval required)
 git checkout main
-sam build --template-file template-dual-path.yaml  
+sam build --template-file template-simple.yaml  
 sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3
 ```
 
@@ -663,9 +682,58 @@ du -sh .aws-sam/build/McpFunction/
 
 ### AWS Lambda Development (Current)
 
-**🚀 Automated Deployment (Recommended)**:
-- **Deploy Development**: `./scripts/deploy.sh dev` (includes clean build, versioning, pruning)
-- **Deploy Production**: `./scripts/deploy.sh prod` (requires main branch, production warning)
+**🚀 AUTOMATED DEPLOYMENT SCRIPT (HIGHLY RECOMMENDED):**
+
+We now have a comprehensive `deploy.sh` script that automates the entire deployment process with:
+
+✅ **Automatic Dependency Checks:**
+- AWS CLI, SAM CLI, uv availability
+- Certificate validation
+- Route 53 hosted zone verification
+- Git branch validation
+
+✅ **Smart Certificate Management:**
+- Uses known certificate ARN for `creativeapptitude.com`
+- Validates certificate exists and is valid
+- Falls back gracefully if domain setup fails
+
+✅ **Reliable Build Process:**
+- Automatic clean build (prevents poisoned builds)
+- Uses `template-simple.yaml` (single Lambda architecture)
+- Includes Lambda size management
+
+✅ **Comprehensive Testing:**
+- Tests both API Gateway and custom domain endpoints
+- Runs function coverage tests with `uv`
+- Validates MCP and REST API functionality
+
+**Usage Examples:**
+```bash
+# Standard development deployment
+./deploy.sh dev --clean --test
+
+# Production deployment (requires main branch)
+./deploy.sh prod --clean --test
+
+# Deploy without custom domain
+./deploy.sh dev --no-domain
+
+# Force deployment (bypass safety checks)
+./deploy.sh dev --force
+
+# Show all available options
+./deploy.sh --help
+```
+
+**🔒 Security Features:**
+- Never hardcodes wallet addresses
+- Requires `TEST_WALLET_ADDRESS` environment variable for testing
+- Validates git branch before production deployments
+- Includes rollback guidance
+
+**🚀 Legacy Manual Commands:**
+- **Deploy Development**: `./deploy.sh dev` (single command deployment)
+- **Deploy Production**: `./deploy.sh prod` (requires main branch, includes safety checks)
 
 ### 🏷️ Deployment Best Practices
 
@@ -737,7 +805,7 @@ Consider maintaining `DEPLOYMENTS.md`:
 
 **🧪 Testing & Development**:
 - **🚨 DEPLOY-FIRST TESTING APPROACH**: Deploy to Lambda dev environment first, then test
-- **Function Coverage Testing**: `TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py --mcp-url <URL> --rest-url <URL>`
+- **Function Coverage Testing**: `TEST_WALLET_ADDRESS="user_provided_address" uv run python scripts/test_function_coverage.py --mcp-url <URL> --rest-url <URL>`
 - **Core Tests**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
 - **Equivalence Testing**: `uv run python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
 - **Session Behavior Testing**: `uv run python scripts/test_session_behavior.py` (validates MCP session management behavior)
@@ -757,7 +825,7 @@ sam build --template-file template-dual-path.yaml
 sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 
 # 2. Test deployed Lambda (REQUIRED)
-TEST_WALLET_ADDRESS=pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8 uv run python scripts/test_function_coverage.py \
+TEST_WALLET_ADDRESS="user_provided_address" uv run python scripts/test_function_coverage.py \
   --mcp-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp \
   --rest-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1
 ```
