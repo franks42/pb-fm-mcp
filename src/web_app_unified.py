@@ -347,6 +347,43 @@ async def heartbeat_test_interface():
             status_code=404
         )
 
+# Declarative Dashboard MVP endpoint
+@app.get("/dashboard/declarative")
+async def serve_declarative_dashboard(session: str = "demo"):
+    """Serve the declarative dashboard MVP that progressively loads from S3."""
+    from fastapi.responses import HTMLResponse
+    import os
+    
+    # Get S3 base URL for the frontend
+    web_assets_bucket = os.environ.get('WEB_ASSETS_BUCKET', '')
+    s3_base_url = f"https://{web_assets_bucket}.s3.us-west-1.amazonaws.com" if web_assets_bucket else ""
+    
+    # Read the MVP HTML file
+    mvp_html_path = os.path.join(os.path.dirname(__file__), '..', 'web-assets', 'declarative-mvp.html')
+    try:
+        with open(mvp_html_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        # Inject the S3 base URL
+        html_content = html_content.replace(
+            "window.S3_BASE_URL || '/web-assets'",
+            f"'{s3_base_url}'"
+        )
+        
+        return HTMLResponse(content=html_content)
+    except FileNotFoundError:
+        return HTMLResponse(
+            content="""
+            <html>
+                <body style="background: #1a1a1a; color: white; font-family: sans-serif; padding: 40px;">
+                    <h1>Declarative Dashboard MVP Not Found</h1>
+                    <p>The MVP file is not available. Please deploy the declarative-mvp.html file.</p>
+                </body>
+            </html>
+            """,
+            status_code=404
+        )
+
 # Personalized Dashboard endpoint
 @app.get("/dashboard/{dashboard_id}")
 async def serve_personalized_dashboard(dashboard_id: str):

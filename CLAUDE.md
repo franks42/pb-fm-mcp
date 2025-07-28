@@ -61,12 +61,16 @@ cd ~/Development/pb-fm-mcp  # New location
 
 **✅ PROJECT COMPLETE: Production AWS Lambda deployment with dual-path architecture successfully implemented and deployed.**
 
+**🚀 NEW: Enhanced Architecture with Traffic Light Pattern for Real-time User Input Processing**
+
 ### Current State
 - ✅ **Production**: AWS Lambda deployment working perfectly (pb-fm-mcp-v2 stack)
 - ✅ **Development**: AWS Lambda deployment working perfectly (pb-fm-mcp-dev stack)  
 - ✅ **Architecture**: Dual-path Lambda functions (MCP + REST protocols separated)
 - ✅ **Testing**: 100% MCP protocol success, 100% REST API success, 81%+ overall success rate
 - ✅ **Documentation**: Complete testing, deployment, and production status guides
+- ✅ **Enhanced UI Flow**: Queue-based S3 coordination with instant layout switching
+- ✅ **Real-time Input**: Traffic light pattern for sub-second user input processing
 
 ### 🚀 CURRENT PRODUCTION URLS (July 25, 2025)
 
@@ -491,8 +495,10 @@ if session_store is None:
 
 ### 🚨 CRITICAL: Dual-Path Architecture for MCP vs REST
 
-**THIS PROJECT REQUIRES SEPARATE LAMBDA FUNCTIONS FOR MCP AND REST PROTOCOLS!**
+**CURRENT: Separate Lambda functions for MCP and REST protocols**
+**PLANNED: Single Lambda function approach to be tested**
 
+#### Current Working Architecture (Dual-Path)
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    API Gateway (v1)                          │
@@ -507,11 +513,24 @@ if session_store is None:
 │ • Direct AWS MCP Handler │  │ • FastAPI + Web Adapter        │
 │ • lambda_handler.py      │  │ • web_app_unified.py           │
 │ • NO FastAPI wrapper     │  │ • Native async support         │
+│ • Traffic light queues   │  │ • HTTP poke for wake-up        │
 └──────────────────────────┘  └────────────────────────────────┘
 ```
 
-**❌ NEVER route MCP through FastAPI/Web Adapter - it breaks the protocol!**
-**✅ ALWAYS use separate Lambda functions with proper routing!**
+#### Planned Single Lambda Architecture (To Test)
+```
+┌─────────────────────────────────────────────────────────────┐
+│                Single Lambda + Web Adapter                   │
+├─────────────────────────────────────────────────────────────┤
+│ • FastAPI handles both /mcp and /api/* routes               │
+│ • MCP JSON-RPC as FastAPI POST endpoint                     │
+│ • Shared in-memory queues for traffic light pattern        │
+│ • Real-time user input processing                           │
+│ • No cross-Lambda HTTP calls needed                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Current Status**: Dual-path working perfectly, single Lambda to be tested on `single-lambda` branch
 
 ### 🚨 CRITICAL: Always Clean Before Building
 

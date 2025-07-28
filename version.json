@@ -2,10 +2,10 @@
   "major": 0,
   "minor": 1,
   "patch": 6,
-  "build_number": 20,
-  "last_deployment": "2025-07-26T10:56:46.106569",
+  "build_number": 21,
+  "last_deployment": "2025-07-27T14:54:11.080960",
   "deployment_environment": "dev",
-  "build_datetime": "2025-07-26T10:56:46.106569",
-  "git_commit": "7868de94",
+  "build_datetime": "2025-07-27T14:54:11.080960",
+  "git_commit": "e9d125a3",
   "git_branch": "mcp-ui"
 }
