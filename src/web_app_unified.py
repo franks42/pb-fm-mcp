@@ -668,4 +668,135 @@ print("🔧 Registering REST routes...")
 register_rest_routes(app, registry)
 print(f"✅ Registered {len(registry.get_rest_functions())} REST endpoints")
 
+# =============================================================================
+# SQS Bidirectional Traffic Light System
+# =============================================================================
+
+import boto3
+import time
+from typing import Optional
+
+print("🚦 Initializing SQS traffic light system...")
+
+# Initialize SQS client
+sqs = boto3.client('sqs')
+
+# SQS queue URL pattern
+def get_queue_url(queue_type: str, session_id: str) -> str:
+    """Get SQS queue URL for a session and direction"""
+    account_id = boto3.client('sts').get_caller_identity()['Account']
+    region = boto3.Session().region_name or 'us-west-1'
+    return f"https://sqs.{region}.amazonaws.com/{account_id}/{queue_type}-{session_id}"
+
+# Browser → AI: User input endpoint
+@app.post("/api/user-input/{session_id}")
+async def receive_user_input(session_id: str, input_data: dict):
+    """
+    Browser sends user input (form changes, clicks, etc).
+    Pushes to SQS queue for AI to process immediately.
+    """
+    try:
+        queue_url = get_queue_url("user-input", session_id)
+        
+        # Ensure queue exists (create if needed)
+        try:
+            sqs.get_queue_attributes(QueueUrl=queue_url)
+        except sqs.exceptions.QueueDoesNotExist:
+            sqs.create_queue(
+                QueueName=f"user-input-{session_id}",
+                Attributes={
+                    'MessageRetentionPeriod': '3600',  # 1 hour
+                    'VisibilityTimeoutSeconds': '30'
+                }
+            )
+        
+        # Send message to AI
+        message_body = {
+            'session_id': session_id,
+            'timestamp': time.time(),
+            'input_data': input_data
+        }
+        
+        sqs.send_message(
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(message_body)
+        )
+        
+        return {
+            "status": "sent_to_ai",
+            "session_id": session_id,
+            "timestamp": time.time(),
+            "message": "Input forwarded to AI for processing"
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "session_id": session_id
+        }
+
+# AI → Browser: Response polling endpoint  
+@app.get("/api/wait-for-ai-response/{session_id}")
+async def wait_for_ai_response(session_id: str, timeout: int = 5):
+    """
+    Browser long polling endpoint. Waits for AI responses.
+    Uses SQS long polling - same traffic light pattern as MCP!
+    """
+    try:
+        queue_url = get_queue_url("ai-response", session_id)
+        
+        # Ensure queue exists
+        try:
+            sqs.get_queue_attributes(QueueUrl=queue_url)
+        except sqs.exceptions.QueueDoesNotExist:
+            sqs.create_queue(
+                QueueName=f"ai-response-{session_id}",
+                Attributes={
+                    'MessageRetentionPeriod': '3600',  # 1 hour
+                    'VisibilityTimeoutSeconds': '30'
+                }
+            )
+        
+        # SQS long polling (traffic light pattern!)
+        response = sqs.receive_message(
+            QueueUrl=queue_url,
+            WaitTimeSeconds=min(timeout, 20),  # SQS max is 20 seconds
+            MaxNumberOfMessages=1
+        )
+        
+        if 'Messages' in response:
+            # Got AI response!
+            message = response['Messages'][0]
+            ai_response = json.loads(message['Body'])
+            
+            # Delete message from queue
+            sqs.delete_message(
+                QueueUrl=queue_url,
+                ReceiptHandle=message['ReceiptHandle']
+            )
+            
+            return {
+                "has_response": True,
+                "response": ai_response,
+                "timestamp": time.time(),
+                "session_id": session_id
+            }
+        else:
+            # Timeout - no AI response yet
+            return {
+                "has_response": False,
+                "message": "No AI response yet",
+                "session_id": session_id,
+                "timeout": timeout
+            }
+            
+    except Exception as e:
+        return {
+            "has_response": False,
+            "error": str(e),
+            "session_id": session_id
+        }
+
+print("✅ SQS traffic light endpoints registered")
 print("📝 Unified MCP + REST server ready")

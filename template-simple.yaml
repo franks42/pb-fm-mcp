@@ -34,6 +34,23 @@ Resources:
           AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
           PORT: 8000
           API_GATEWAY_STAGE_PATH: /v1
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sqs:CreateQueue
+                - sqs:DeleteQueue
+                - sqs:GetQueueAttributes
+                - sqs:GetQueueUrl
+                - sqs:ListQueues
+                - sqs:SendMessage
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:ChangeMessageVisibility
+              Resource: !Sub 'arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:*'
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DashboardTable
       Events:
         McpApi:
           Type: Api
@@ -67,6 +84,26 @@ Resources:
             Method: ANY
     Metadata:
       BuildMethod: python3.12
+
+  DashboardTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
 
 Outputs:
   ApiUrl:
