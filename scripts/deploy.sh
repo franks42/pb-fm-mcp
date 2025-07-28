@@ -94,7 +94,7 @@ echo ""
 
 # Build
 echo -e "${BLUE}🔨 Building SAM project...${NC}"
-sam build --template-file template-dual-path.yaml
+sam build --template-file template-unified.yaml
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Build failed${NC}"
     exit 1

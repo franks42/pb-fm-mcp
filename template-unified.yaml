@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: pb-fm-mcp - Dual-path MCP + REST Server (MCP direct, REST via Web Adapter)
+Description: pb-fm-mcp - Unified Lambda Server (Final Template)
 
 Parameters:
   Environment:
@@ -61,32 +61,25 @@ Resources:
         AllowOrigin: "'*'"
         MaxAge: "'3600'"
 
-  # MCP Function - Direct AWS Lambda handler (no Web Adapter)
-  McpFunction:
+  PbFmMcpFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: .
-      Handler: lambda_handler_unified.lambda_handler
-      Description: "MCP Server using direct AWS MCP Handler"
+      Handler: run.sh
+      Description: "Unified MCP + REST Server with AWS Lambda Web Adapter"
+      Layers:
+        - arn:aws:lambda:us-west-1:753240598075:layer:LambdaAdapterLayerX86:25
       Environment:
         Variables:
-          LOG_LEVEL: INFO
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
+          PORT: 8000
+          API_GATEWAY_STAGE_PATH: /v1
           SESSIONS_TABLE: !Ref ConversationSessionsTable
           MESSAGES_TABLE: !Ref ConversationMessagesTable
           DASHBOARDS_TABLE: !Ref PersonalizedDashboardsTable
           SCREENSHOTS_BUCKET: !If [CreateScreenshotsBucket, !Ref ScreenshotBucket, !Ref ExistingScreenshotsBucket]
           WEB_ASSETS_BUCKET: !If [CreateWebAssetsBucket, !Ref WebAssetsBucket, !Ref ExistingWebAssetsBucket]
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConversationSessionsTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConversationMessagesTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref PersonalizedDashboardsTable
-        - S3CrudPolicy:
-            BucketName: !If [CreateScreenshotsBucket, !Ref ScreenshotBucket, !Ref ExistingScreenshotsBucket]
-        - S3CrudPolicy:
-            BucketName: !If [CreateWebAssetsBucket, !Ref WebAssetsBucket, !Ref ExistingWebAssetsBucket]
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
@@ -101,13 +94,16 @@ Resources:
                 - sqs:DeleteMessage
                 - sqs:ChangeMessageVisibility
               Resource: !Sub 'arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:*'
-      FunctionUrlConfig:
-        AuthType: NONE
-        Cors:
-          AllowMethods: ["GET", "POST"]
-          AllowHeaders: ["Content-Type", "Authorization", "Accept"]
-          AllowOrigins: ["*"]
-          MaxAge: 3600
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationSessionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationMessagesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PersonalizedDashboardsTable
+        - S3CrudPolicy:
+            BucketName: !If [CreateScreenshotsBucket, !Ref ScreenshotBucket, !Ref ExistingScreenshotsBucket]
+        - S3CrudPolicy:
+            BucketName: !If [CreateWebAssetsBucket, !Ref WebAssetsBucket, !Ref ExistingWebAssetsBucket]
       Events:
         McpApi:
           Type: Api
@@ -115,54 +111,6 @@ Resources:
             RestApiId: !Ref MyServerlessApi
             Path: /mcp
             Method: ANY
-    Metadata:
-      BuildMethod: python3.12
-
-  # REST Function - FastAPI via Web Adapter
-  RestApiFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: .
-      Handler: run.sh
-      Description: "REST API Server with AWS Lambda Web Adapter"
-      Layers:
-        - arn:aws:lambda:us-west-1:753240598075:layer:LambdaAdapterLayerX86:25
-      Environment:
-        Variables:
-          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
-          PORT: 8000
-          API_GATEWAY_STAGE_PATH: !If [HasCustomDomain, "", "/v1"]
-          SESSIONS_TABLE: !Ref ConversationSessionsTable
-          MESSAGES_TABLE: !Ref ConversationMessagesTable
-          DASHBOARDS_TABLE: !Ref PersonalizedDashboardsTable
-          SCREENSHOTS_BUCKET: !If [CreateScreenshotsBucket, !Ref ScreenshotBucket, !Ref ExistingScreenshotsBucket]
-          WEB_ASSETS_BUCKET: !If [CreateWebAssetsBucket, !Ref WebAssetsBucket, !Ref ExistingWebAssetsBucket]
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConversationSessionsTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConversationMessagesTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref PersonalizedDashboardsTable
-        - S3CrudPolicy:
-            BucketName: !If [CreateScreenshotsBucket, !Ref ScreenshotBucket, !Ref ExistingScreenshotsBucket]
-        - S3CrudPolicy:
-            BucketName: !If [CreateWebAssetsBucket, !Ref WebAssetsBucket, !Ref ExistingWebAssetsBucket]
-        - Version: '2012-10-17'
-          Statement:
-            - Effect: Allow
-              Action:
-                - sqs:CreateQueue
-                - sqs:DeleteQueue
-                - sqs:GetQueueAttributes
-                - sqs:GetQueueUrl
-                - sqs:ListQueues
-                - sqs:SendMessage
-                - sqs:ReceiveMessage
-                - sqs:DeleteMessage
-                - sqs:ChangeMessageVisibility
-              Resource: !Sub 'arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:*'
-      Events:
         RestApiRoot:
           Type: Api
           Properties:
@@ -187,62 +135,21 @@ Resources:
             RestApiId: !Ref MyServerlessApi
             Path: /api/{proxy+}
             Method: ANY
-        RestApiHealth:
-          Type: Api
-          Properties:
-            RestApiId: !Ref MyServerlessApi
-            Path: /health
-            Method: ANY
-        RestApiDashboard:
-          Type: Api
-          Properties:
-            RestApiId: !Ref MyServerlessApi
-            Path: /dashboard/{proxy+}
-            Method: ANY
         AiTerminalRoute:
           Type: Api
           Properties:
             RestApiId: !Ref MyServerlessApi
             Path: /ai-terminal
             Method: GET
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowMethods: ["GET", "POST"]
+          AllowHeaders: ["Content-Type", "Authorization", "Accept"]
+          AllowOrigins: ["*"]
+          MaxAge: 3600
     Metadata:
       BuildMethod: python3.12
-
-  # Custom domain for API Gateway (only if certificate provided)
-  ApiCustomDomain:
-    Type: AWS::ApiGateway::DomainName
-    Condition: HasCustomDomain
-    Properties:
-      DomainName: !If 
-        - IsProduction
-        - !Sub "pb-fm-mcp.${DomainName}"
-        - !Sub "pb-fm-mcp-dev.${DomainName}"
-      CertificateArn: !Ref CertificateArn
-      SecurityPolicy: TLS_1_2
-
-  # Base path mapping (only if custom domain exists)
-  ApiBasePathMapping:
-    Type: AWS::ApiGateway::BasePathMapping
-    Condition: HasCustomDomain
-    Properties:
-      DomainName: !Ref ApiCustomDomain
-      RestApiId: !Ref MyServerlessApi
-      Stage: v1
-
-  # Route 53 record (only if custom domain exists)
-  ApiDnsRecord:
-    Type: AWS::Route53::RecordSet
-    Condition: HasCustomDomain
-    Properties:
-      HostedZoneId: !Ref HostedZoneId
-      Name: !If 
-        - IsProduction
-        - !Sub "pb-fm-mcp.${DomainName}"
-        - !Sub "pb-fm-mcp-dev.${DomainName}"
-      Type: A
-      AliasTarget:
-        DNSName: !GetAtt ApiCustomDomain.DistributionDomainName
-        HostedZoneId: !GetAtt ApiCustomDomain.DistributionHostedZoneId
 
   # DynamoDB Tables for Conversation Storage
   ConversationSessionsTable:
@@ -390,20 +297,41 @@ Resources:
         - Key: Purpose
           Value: live-web-assets
 
-  # Bucket policy to allow public read access for web assets (only if we created bucket)
-  WebAssetsBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Condition: CreateWebAssetsBucket
-    Properties:
-      Bucket: !Ref WebAssetsBucket
-      PolicyDocument:
-        Statement:
-          - Sid: PublicReadGetObject
-            Effect: Allow
-            Principal: "*"
-            Action: s3:GetObject
-            Resource: !Sub "${WebAssetsBucket}/*"
+  # Note: Bucket policy removed to avoid deployment issues - buckets are created but not public
 
+  # Custom domain for API Gateway (only if certificate provided)
+  ApiCustomDomain:
+    Type: AWS::ApiGateway::DomainName
+    Condition: HasCustomDomain
+    Properties:
+      DomainName: !If 
+        - IsProduction
+        - !Sub "pb-fm-mcp.${DomainName}"
+        - !Sub "pb-fm-mcp-dev.${DomainName}"
+      CertificateArn: !Ref CertificateArn
+      SecurityPolicy: TLS_1_2
+
+  ApiBasePathMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Condition: HasCustomDomain
+    Properties:
+      DomainName: !Ref ApiCustomDomain
+      RestApiId: !Ref MyServerlessApi
+      Stage: v1
+
+  ApiDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Condition: HasCustomDomain
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !If 
+        - IsProduction
+        - !Sub "pb-fm-mcp.${DomainName}"
+        - !Sub "pb-fm-mcp-dev.${DomainName}"
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt ApiCustomDomain.DistributionDomainName
+        HostedZoneId: !GetAtt ApiCustomDomain.DistributionHostedZoneId
 
 Outputs:
   ApiUrl:
@@ -433,7 +361,7 @@ Outputs:
   # Stable Lambda Function URLs (don't change between deployments)
   StableMcpUrl:
     Description: "STABLE MCP Protocol endpoint URL (Lambda Function URL)"
-    Value: !GetAtt McpFunctionUrl.FunctionUrl
+    Value: !GetAtt PbFmMcpFunctionUrl.FunctionUrl
     Export:
       Name: !Sub "${AWS::StackName}-stable-mcp-url"
       
@@ -463,7 +391,7 @@ Outputs:
     Value: !Sub |
       Environment: ${Environment}
       Stack Name: ${AWS::StackName}
-      Lambda Function URL: ${McpFunctionUrl.FunctionUrl}
+      Lambda Function URL: ${PbFmMcpFunctionUrl.FunctionUrl}
       Custom Domain: !If [HasCustomDomain, !If [IsProduction, !Sub "pb-fm-mcp.${DomainName}", !Sub "pb-fm-mcp-dev.${DomainName}"], "Not configured"]
       Note: Both Lambda Function URLs and custom domains are stable
 

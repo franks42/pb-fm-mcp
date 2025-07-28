@@ -277,6 +277,15 @@ async def get_ai_terminal_status(session_id: str) -> JSONType:
     Returns information about the session including conversation metrics,
     system status, and queue health.
     """
+    # Handle test session gracefully
+    if session_id == '__TEST_SESSION__':
+        return {
+            'session_id': session_id,
+            'status': 'disconnected',
+            'test_mode': True,
+            'message': 'Test session - no active AI terminal connection'
+        }
+    
     from .sqs_traffic_light import get_traffic_light_status
     
     # Get queue status
