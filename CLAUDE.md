@@ -408,6 +408,149 @@ echo $TEST_WALLET_ADDRESS         # Empty in separate bash call
 - **Overall Functions**: Must achieve 80%+ success rate (accounts for real-time data differences)
 - **Data Equivalence**: MCP and REST must return equivalent data structures
 
+## 🔄 Code & Deployment Lifecycle (MANDATORY PROCESS)
+
+**⚠️ CRITICAL: Follow this exact workflow for ALL development and deployment activities.**
+
+### 🚨 **1. Development Phase**
+
+**Always use `uv` for Python operations:**
+```bash
+# ✅ CORRECT: Always use uv
+uv run python scripts/mcp_test_client.py --test
+uv run python scripts/test_function_coverage.py
+uv run pytest tests/
+
+# ❌ WRONG: Never use python directly
+python scripts/mcp_test_client.py  # FORBIDDEN
+pytest tests/                      # FORBIDDEN
+```
+
+**Always use MCP test client for MCP testing:**
+```bash
+# ✅ CORRECT: Use proper MCP test client
+uv run python scripts/mcp_test_client.py --mcp-url <URL> --test
+
+# ❌ WRONG: Never use curl for MCP
+curl -d '{"jsonrpc":"2.0","method":"tools/list","id":"1"}' <URL>  # FORBIDDEN
+```
+
+### 🚨 **2. Pre-Deployment Phase**
+
+**Clean everything before deployment:**
+```bash
+# Always clean first
+./clean.sh
+
+# Verify clean state
+ls -la .aws-sam/  # Should not exist
+find . -name "*.pyc" -delete  # Should find nothing
+```
+
+**Test locally before deployment:**
+```bash
+# Run core tests with uv
+uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py
+
+# Test specific functionality
+uv run python scripts/mcp_test_client.py --mcp-url <EXISTING_URL> --test
+```
+
+### 🚨 **3. Deployment Phase**
+
+**Use automated deployment script (MANDATORY):**
+```bash
+# Standard development deployment
+./deploy.sh dev --clean --test
+
+# Production deployment (main branch only)
+./deploy.sh prod --clean --test
+
+# Skip version check if needed
+./deploy.sh dev --clean --test --skip-check
+```
+
+**Deployment automatically includes:**
+- ✅ Dependency checking (AWS CLI, SAM CLI, uv)
+- ✅ Git version tracking (commit hash + branch tags in CloudFormation)
+- ✅ Certificate validation
+- ✅ Clean build from scratch
+- ✅ Comprehensive testing (MCP + REST protocols)
+- ✅ Smart version checking (skips if no changes)
+
+### 🚨 **4. Post-Deployment Verification**
+
+**MANDATORY: Verify deployment with proper tools:**
+```bash
+# Test MCP endpoint (NEVER use curl!)
+uv run python scripts/mcp_test_client.py --mcp-url "https://pb-fm-mcp-dev.creativeapptitude.com/mcp" --test
+
+# Test comprehensive function coverage (with user-provided wallet)
+TEST_WALLET_ADDRESS="user_provided_address" uv run python scripts/test_function_coverage.py \
+  --mcp-url "https://pb-fm-mcp-dev.creativeapptitude.com/mcp" \
+  --rest-url "https://pb-fm-mcp-dev.creativeapptitude.com"
+
+# Verify AI Terminal
+open "https://pb-fm-mcp-dev.creativeapptitude.com/ai-terminal"
+```
+
+### 🚨 **5. Git Lifecycle (MANDATORY)**
+
+**After EVERY successful deployment:**
+```bash
+# 1. Commit all changes
+git add .
+git commit -m "🚀 Feature: Brief description
+
+- Detailed changes
+- Test results
+- Deployment verified
+
+🎯 Generated with Claude Code (https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+# 2. Create deployment tag
+git tag -a "deploy-$(date +%Y-%m-%d)-$(git rev-list --count HEAD)" -m "Deployment: $(date)"
+
+# 3. Push everything
+git push origin $(git rev-parse --abbrev-ref HEAD)
+git push origin --tags
+```
+
+**Git Tag Format:**
+- `deploy-YYYY-MM-DD-N` (where N is sequence number)
+- Example: `deploy-2025-07-28-1`
+
+### 🚨 **6. Environment Management**
+
+**Stable Development URL (ALWAYS use this):**
+- **MCP**: https://pb-fm-mcp-dev.creativeapptitude.com/mcp
+- **REST**: https://pb-fm-mcp-dev.creativeapptitude.com/api/*
+- **AI Terminal**: https://pb-fm-mcp-dev.creativeapptitude.com/ai-terminal
+
+**Production URL (main branch only):**
+- **MCP**: https://pb-fm-mcp.creativeapptitude.com/mcp  
+- **REST**: https://pb-fm-mcp.creativeapptitude.com/api/*
+
+### 🚨 **7. Security Requirements**
+
+**NEVER commit sensitive data:**
+- ❌ Real wallet addresses in any file
+- ❌ API keys or secrets  
+- ❌ Production credentials
+- ✅ Use environment variables at runtime only
+
+**Wallet address policy:**
+```bash
+# ✅ CORRECT: Runtime provision
+export TEST_WALLET_ADDRESS="user_provided_address"
+./deploy.sh dev --test
+
+# ❌ WRONG: Never hardcode in files
+TEST_WALLET_ADDRESS="pb1real_address" # FORBIDDEN IN FILES
+```
+
 ### 🛠️ Build and Test Quick Reference
 
 **🚀 AUTOMATED DEPLOYMENT (RECOMMENDED):**
