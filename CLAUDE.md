@@ -170,6 +170,19 @@ uv run python scripts/mcp_test_client.py --mcp-url <URL> --test
 - **Legacy**: Production may have camelCase (e.g., `fetchCurrentHashStatistics`) 
 - **Rule**: Always ask before renaming ANY function - this is a breaking change
 
+### 🚨 CRITICAL: Stable Development Domain Directive
+
+**ALWAYS use https://pb-fm-mcp-dev.creativeapptitude.com/ for testing and development:**
+
+This is our **standard testing environment** - all features must work on this stable dev domain.
+
+- **Testing URL**: `https://pb-fm-mcp-dev.creativeapptitude.com/`
+- **AI Terminal**: `https://pb-fm-mcp-dev.creativeapptitude.com/v1/ai-terminal`
+- **MCP Endpoint**: `https://pb-fm-mcp-dev.creativeapptitude.com/v1/mcp`
+- **API Documentation**: `https://pb-fm-mcp-dev.creativeapptitude.com/v1/docs`
+
+**Rule**: From now on, always make features work on this domain and deploy the single Lambda template to the pb-fm-mcp-dev stack.
+
 ### 🚨 CRITICAL: MCP Function Invocation Directive
 
 **ALWAYS use the Python MCP test client instead of curl for MCP function calls:**
