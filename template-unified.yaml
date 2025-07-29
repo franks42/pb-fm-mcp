@@ -125,6 +125,12 @@ Resources:
             RestApiId: !Ref MyServerlessApi
             Path: /openapi.json
             Method: ANY
+        RestApiHealth:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyServerlessApi
+            Path: /health
+            Method: ANY
         RestApiRoutes:
           Type: Api
           Properties:
