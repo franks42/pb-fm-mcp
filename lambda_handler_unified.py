@@ -228,17 +228,28 @@ def handle_api_function(event, context):
     path = event.get('path', '')
     method = event.get('httpMethod', 'GET')
     
-    # Find matching function in registry
+    # Find matching function in registry with path parameter support
     for func_meta in registry.get_rest_functions():
-        if func_meta.rest_path == path and func_meta.rest_method == method:
+        if matches_path_pattern(func_meta.rest_path, path) and func_meta.rest_method == method:
             try:
                 # Extract parameters
                 kwargs = {}
                 
-                # Path parameters from API Gateway (filter out proxy parameter)
+                # Path parameters from URL pattern matching
+                path_params = extract_path_parameters(func_meta.rest_path, path)
+                for param_name, param_value in path_params.items():
+                    # Type conversion based on function signature
+                    param = func_meta.signature.parameters.get(param_name)
+                    if param:
+                        param_type = func_meta.type_hints.get(param_name, str)
+                        kwargs[param_name] = convert_parameter_type(param_value, param_type)
+                    else:
+                        kwargs[param_name] = param_value
+                
+                # Additional path parameters from API Gateway (filter out proxy parameter)
                 if event.get('pathParameters'):
                     for param_name, param_value in event['pathParameters'].items():
-                        if param_name != 'proxy':  # Filter out API Gateway proxy parameter
+                        if param_name != 'proxy' and param_name not in kwargs:  # Don't override pattern params
                             kwargs[param_name] = param_value
                 
                 # Query string parameters
@@ -328,6 +339,57 @@ def handle_api_function(event, context):
             'message': f'No API function found for {method} {path}'
         })
     }
+
+
+def matches_path_pattern(pattern: str, path: str) -> bool:
+    """
+    Check if a path matches a pattern with path parameters.
+    
+    Examples:
+        matches_path_pattern("/api/fetch_account_info/{wallet_address}", "/api/fetch_account_info/pb123") -> True
+        matches_path_pattern("/api/fetch_current_hash_statistics", "/api/fetch_current_hash_statistics") -> True
+    """
+    if not pattern or not path:
+        return False
+    
+    # Convert pattern to regex by replacing {param} with [^/]+
+    import re
+    pattern_regex = re.escape(pattern)
+    pattern_regex = re.sub(r'\\{[^}]+\\}', r'[^/]+', pattern_regex)
+    pattern_regex = f'^{pattern_regex}$'
+    
+    return re.match(pattern_regex, path) is not None
+
+
+def extract_path_parameters(pattern: str, path: str) -> dict:
+    """
+    Extract path parameters from a path using a pattern.
+    
+    Examples:
+        extract_path_parameters("/api/user/{id}", "/api/user/123") -> {"id": "123"}
+        extract_path_parameters("/api/user/{id}/posts/{post_id}", "/api/user/123/posts/456") -> {"id": "123", "post_id": "456"}
+    """
+    if not pattern or not path:
+        return {}
+    
+    import re
+    
+    # Find all parameter names in the pattern
+    param_names = re.findall(r'{([^}]+)}', pattern)
+    
+    if not param_names:
+        return {}
+    
+    # Convert pattern to regex with capture groups
+    pattern_regex = re.escape(pattern)
+    pattern_regex = re.sub(r'\\{[^}]+\\}', r'([^/]+)', pattern_regex)
+    pattern_regex = f'^{pattern_regex}$'
+    
+    match = re.match(pattern_regex, path)
+    if match:
+        return dict(zip(param_names, match.groups()))
+    
+    return {}
 
 
 def convert_parameter_type(value: str, param_type: type) -> Any:
