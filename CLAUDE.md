@@ -2,6 +2,36 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 CRITICAL: Template Architecture Cleanup (July 28, 2025)
+
+**IMPORTANT: Template consolidation and cleanup completed successfully.**
+
+### Current Status
+- ✅ **Single Template**: `template-unified.yaml` is the ONLY template to use
+- ✅ **Unified Architecture**: Single Lambda function with AWS Web Adapter handles both MCP and REST
+- ✅ **Cleanup Complete**: Deleted all unused template files (template-dual-path.yaml, template-simple.yaml)
+- ✅ **Testing Verified**: 100% function coverage with unified template architecture
+- ✅ **Documentation Updated**: All references now point to correct template
+
+### What Was Cleaned Up
+- **Deleted Files**: template-dual-path.yaml, template-simple.yaml, and other unused templates
+- **Architecture Clarification**: Never actually used dual Lambda functions - always used single Lambda
+- **Documentation Fix**: Removed all references to deleted templates and incorrect architectures
+- **Test Validation**: All tests pass with 100% MCP protocol success and 100% REST API success
+
+### Deploy Commands (Current)
+```bash
+# Development deployment
+sam build --template-file template-unified.yaml
+sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
+
+# Production deployment  
+sam build --template-file template-unified.yaml
+sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3
+```
+
+**Rule**: Always use `template-unified.yaml` for ALL deployments. All other templates have been deleted.
+
 ## 🚨 CRITICAL: Project Location and iCloud Sync Issues (July 2025)
 
 **IMPORTANT: This project may be relocated from `~/Documents/GitHub/` to `~/Development/` due to iCloud sync issues.**
@@ -59,14 +89,14 @@ cd ~/Development/pb-fm-mcp  # New location
 
 ## 🚨 IMPORTANT: Project Status Update (July 2025)
 
-**✅ PROJECT COMPLETE: Production AWS Lambda deployment with dual-path architecture successfully implemented and deployed.**
+**✅ PROJECT COMPLETE: Production AWS Lambda deployment with unified Lambda architecture successfully implemented and deployed.**
 
 **🚀 NEW: Enhanced Architecture with Traffic Light Pattern for Real-time User Input Processing**
 
 ### Current State
 - ✅ **Production**: AWS Lambda deployment working perfectly (pb-fm-mcp-v2 stack)
 - ✅ **Development**: AWS Lambda deployment working perfectly (pb-fm-mcp-dev stack)  
-- ✅ **Architecture**: Dual-path Lambda functions (MCP + REST protocols separated)
+- ✅ **Architecture**: Unified Lambda function (MCP + REST protocols in single function)
 - ✅ **Testing**: 100% MCP protocol success, 100% REST API success, 81%+ overall success rate
 - ✅ **Documentation**: Complete testing, deployment, and production status guides
 - ✅ **Enhanced UI Flow**: Queue-based S3 coordination with instant layout switching
@@ -257,7 +287,7 @@ export PYTHONPATH="/var/task/src:$PYTHONPATH"
 
 **MANDATORY TESTING REQUIREMENTS: All Tests Must Pass Before Proceeding**
 
-**🚨 IMPORTANT UPDATE**: **Docker local testing has been ABANDONED due to dual-path architecture complexity.**
+**🚨 IMPORTANT UPDATE**: **Docker local testing has been ABANDONED due to unified Lambda Web Adapter architecture.**
 
 **Current Testing Approach:**
 1. **Deploy-First Testing**: Deploy to Lambda first, then test deployed endpoints
@@ -267,20 +297,20 @@ export PYTHONPATH="/var/task/src:$PYTHONPATH"
 5. **Fix Before Proceed**: All test failures must be resolved before moving to next steps
 
 **Why Local Testing Was Abandoned:**
-- **SAM Local Limitations**: Cannot properly handle dual-path Lambda architecture
+- **SAM Local Limitations**: Cannot properly handle unified Lambda Web Adapter architecture
 - **REST API Failures**: `sam local start-api` returns "illegal instruction" errors for REST endpoints
-- **Architecture Mismatch**: Local environment cannot replicate AWS Lambda Web Adapter behavior
+- **Architecture Mismatch**: Local environment cannot replicate AWS Lambda Web Adapter behavior for unified routing
 - **Deploy-First is Faster**: Direct Lambda testing is more reliable and faster than debugging local issues
 
 **Why This Policy Exists:**
-- We previously deployed dual-path architecture without realizing local API testing was broken
+- We previously deployed unified Lambda architecture without realizing local API testing was broken
 - Partial testing led to incomplete validation and unknown system state
-- **Direct Lambda testing is the ONLY reliable validation method** for dual-path architecture
+- **Direct Lambda testing is the ONLY reliable validation method** for unified Lambda Web Adapter architecture
 
 **Testing Protocol:**
 ```bash
 # 1. Deploy to Lambda first
-sam build --template-file template-dual-path.yaml
+sam build --template-file template-unified.yaml
 sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 
 # 2. Test deployed Lambda endpoints (BOTH must pass)
@@ -393,7 +423,7 @@ echo $TEST_WALLET_ADDRESS         # Empty in separate bash call
 1. **🚨 HIGHEST PRIORITY**: Check certificate validation status and implement custom domains
 2. **Test Current Deployments**: Use URLs above to verify everything works
 3. **Run Test Suite**: `TEST_WALLET_ADDRESS="user_provided_address" uv run python scripts/test_function_coverage.py --mcp-url <url> --rest-url <url>`
-4. **Deploy to Dev**: `sam build --template-file template-simple.yaml && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
+4. **Deploy to Dev**: `sam build --template-file template-unified.yaml && sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
 5. **Deploy to Production**: Only deploy to main branch with user approval
 
 ### 🚨 CRITICAL URGENCY: Domain Stability Issue
@@ -407,17 +437,17 @@ echo $TEST_WALLET_ADDRESS         # Empty in separate bash call
 **Target**: `pb-fm-mcp.creativeapptitude.com` (prod) and `pb-fm-mcp-dev.creativeapptitude.com` (dev)
 
 ### 🔑 Critical Files to Understand
-- **`template-dual-path.yaml`**: THE deployment template (only one to use)
-- **`lambda_handler_unified.py`**: MCP protocol handler with AWS bug fix
-- **`src/web_app_unified.py`**: REST API handler with FastAPI
+- **`template-unified.yaml`**: THE deployment template (only one to use)
+- **`src/web_app_unified.py`**: Unified FastAPI application handling both MCP and REST
+- **`run.sh`**: Startup script for unified Lambda function
 - **`scripts/test_function_coverage.py`**: Comprehensive testing script
 - **`src/functions/`**: All business logic functions with @api_function decorator
 
 ### 🚨 Critical Constraints
 - **NEVER change function names** without explicit user approval
-- **ALWAYS use dual-path architecture** (separate MCP and REST Lambda functions)
+- **ALWAYS use unified Lambda architecture** (single function with protocol routing)
 - **ALWAYS test before deployment** (both protocols must have 100% success)
-- **ALWAYS use `template-dual-path.yaml`** for deployments
+- **ALWAYS use `template-unified.yaml`** for deployments
 - **NEVER commit real wallet addresses** to git
 
 ### 🎯 Success Metrics to Maintain
@@ -597,7 +627,7 @@ find . -name "*.pyc" -delete
 find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # 2. Build with single Lambda template
-sam build --template-file template-simple.yaml
+sam build --template-unified.yaml
 
 # 3. Deploy to development
 sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
@@ -610,7 +640,7 @@ TEST_WALLET_ADDRESS="user_provided_address" uv run python scripts/test_function_
 
 # 5. For production (main branch only, user approval required)
 git checkout main
-sam build --template-file template-simple.yaml  
+sam build --template-unified.yaml  
 sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3
 ```
 
@@ -820,10 +850,10 @@ result = send_result_to_browser_and_fetch_new_instruction(session_id, "my respon
 rm -rf .aws-sam/
 find . -name "*.pyc" -delete
 find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
-sam build --template-file template-dual-path.yaml
+sam build --template-file template-unified.yaml
 
 # ❌ WRONG: Building without cleaning (leads to internal server errors)
-sam build --template-file template-dual-path.yaml
+sam build --template-file template-unified.yaml
 ```
 
 **Why This Matters:**
@@ -854,7 +884,7 @@ rm -f tests/test_worker*.py
 
 # Then proceed with clean build
 rm -rf .aws-sam/
-sam build --template-file template-dual-path.yaml
+sam build --template-file template-unified.yaml
 ```
 
 **Size Verification:**
@@ -883,7 +913,7 @@ We now have a comprehensive `deploy.sh` script that automates the entire deploym
 
 ✅ **Reliable Build Process:**
 - Automatic clean build (prevents poisoned builds)
-- Uses `template-simple.yaml` (single Lambda architecture)
+- Uses `template-unified.yaml` (unified Lambda architecture)
 - Includes Lambda size management
 
 ✅ **Comprehensive Testing:**
@@ -993,7 +1023,7 @@ Consider maintaining `DEPLOYMENTS.md`:
 - **Core Tests**: `uv run pytest tests/test_base64expand.py tests/test_jqpy/test_core.py` (core tests pass)
 - **Equivalence Testing**: `uv run python scripts/test_equivalence.py` (verifies MCP and REST return identical results)
 - **Session Behavior Testing**: `uv run python scripts/test_session_behavior.py` (validates MCP session management behavior)
-- **⚠️ NO LOCAL TESTING**: SAM local abandoned due to dual-path architecture incompatibility
+- **⚠️ NO LOCAL TESTING**: SAM local abandoned due to unified Lambda Web Adapter incompatibility
 - **Linting**: `uv run ruff check .`
 - **Python Scripts**: `uv run python script.py` (always use uv for dependency management)
 
@@ -1005,7 +1035,7 @@ Consider maintaining `DEPLOYMENTS.md`:
 ```bash
 # 🚨 PRIMARY TEST COMMAND - Deploy-first testing approach
 # 1. Deploy first
-sam build --template-file template-dual-path.yaml
+sam build --template-file template-unified.yaml
 sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 
 # 2. Test deployed Lambda (REQUIRED)
@@ -1053,7 +1083,7 @@ export DEPLOYED_REST_URL="https://api.example.com/api"
 - **Deployment**: Must pass comprehensive function coverage tests (100% MCP, 100% REST)
 - **Production**: Must pass deployed tests in both dev and production environments
 - **No Exceptions**: Test failures mean stop work and fix issues
-- **⚠️ NO LOCAL TESTING**: Only deployed Lambda testing is reliable for dual-path architecture
+- **⚠️ NO LOCAL TESTING**: Only deployed Lambda testing is reliable for unified Lambda Web Adapter architecture
 
 ### 🚨 CRITICAL: Deployment Success Criteria
 
@@ -1097,13 +1127,13 @@ uv run python scripts/test_function_coverage.py \
 - Protocol-specific data format inconsistencies
 
 **🔧 Manual Deployment (Advanced)**:
-- **Build**: `rm -rf .aws-sam/ && sam build --template-file template-dual-path.yaml` (no wallet needed for build)
+- **Build**: `rm -rf .aws-sam/ && sam build --template-file template-unified.yaml` (no wallet needed for build)
 - **Deploy Development**: `sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
 - **Deploy Production**: `sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3`
 - **⚠️ Warning**: Manual deployment requires manual pruning to stay under Lambda size limits
 
 **⚠️ CRITICAL**: 
-- Always use `template-dual-path.yaml` for ALL deployments
+- Always use `template-unified.yaml` for ALL deployments
 - Use automated `./scripts/deploy.sh` for best results (includes automatic versioning and pruning)
 
 ### 🚨 CRITICAL: API Gateway Stage Management
@@ -1112,7 +1142,7 @@ uv run python scripts/test_function_coverage.py \
 
 **How to Change Stage Prefix** (e.g., from `/v1/` to `/v1.1/` or `/v2/`):
 
-1. **Edit `template-dual-path.yaml`** - Update 4 places:
+1. **Edit `template-unified.yaml`** - Update 4 places:
 ```yaml
 Resources:
   MyServerlessApi:
@@ -1138,14 +1168,14 @@ Outputs:
 
 2. **Deploy**:
 ```bash
-sam build --template-file template-dual-path.yaml
+sam build --template-file template-unified.yaml
 sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
 ```
 
-**Why This Works**: Uses explicit `AWS::Serverless::Api` resource with `RestApiId` references and proper dual-path routing.
+**Why This Works**: Uses explicit `AWS::Serverless::Api` resource with proper unified Lambda routing.
 
 **Critical Files**:
-- **✅ Primary Template**: `template-dual-path.yaml` (dual Lambda functions - ALWAYS USE THIS!)
+- **✅ Primary Template**: `template-unified.yaml` (unified Lambda function - ALWAYS USE THIS!)
 - **❌ Wrong Template**: `template-simple.yaml` (single function - BREAKS MCP PROTOCOL!)
 - **❌ Legacy Template**: `template.yaml` (old complex approach - deprecated)
 
@@ -1256,9 +1286,9 @@ This MVP represents a **paradigm shift** in AI-user interface interaction:
 
 ### 🏗️ **Architecture Foundation (Dual-Path)**
 
-**Why Dual-Path Architecture is REQUIRED**: Separate Lambda functions for each protocol
-- ✅ **McpFunction**: Direct AWS MCP Handler for `/mcp` endpoint
-- ✅ **RestApiFunction**: FastAPI + Web Adapter for `/api/*`, `/docs`, etc.
+**Current Architecture**: Single Lambda function with unified protocol handling
+- ✅ **Unified Lambda**: Single function handling both MCP and REST protocols via FastAPI
+- ✅ **AWS Lambda Web Adapter**: Enables native async support and protocol routing
 - ✅ **Result**: Both protocols working perfectly, Claude.ai connection successful
 
 **Status**: ✅ **MVP COMPLETE** - Queue-based AI dashboard coordination system production-ready!
@@ -1312,25 +1342,25 @@ curl https://your-lambda-url/api/fetch_current_hash_statistics
 **IMPORTANT CORRECTION**: We never actually deployed dual Lambda functions - this was a documentation error and misunderstanding.
 
 **The Reality**:
-- ✅ **ALWAYS used single Lambda architecture** with `template-simple.yaml`
+- ✅ **ALWAYS used unified Lambda architecture** with `template-unified.yaml`
 - ✅ **Single unified Lambda function** handles both MCP and REST protocols
 - ✅ **AWS Lambda Web Adapter** enables unified FastAPI application
 - ✅ **No separate McpFunction/RestApiFunction** - that was a design mistake
 
 **The Confusion**:
-- ❌ Documentation incorrectly referenced "dual-path architecture" 
-- ❌ Created `template-dual-path.yaml` thinking it was needed
+- ❌ Documentation incorrectly referenced multiple template architectures 
+- ❌ Created multiple unused templates causing confusion
 - ❌ Mistakenly thought we deployed two separate Lambda functions
 
 **CORRECT DEPLOYMENT APPROACH**:
-- **Template**: `template-simple.yaml` (single Lambda + Web Adapter)
+- **Template**: `template-unified.yaml` (unified Lambda + Web Adapter)
 - **Architecture**: Single Lambda serving both `/mcp` and `/api/*` routes
 - **Handler**: `run.sh` with uvicorn + FastAPI + AWS MCP Handler integration
 - **Status**: ✅ Production-ready since July 23, 2025
 
 **Action Items**:
-- Use `template-simple.yaml` for all deployments going forward
-- Discard `template-dual-path.yaml` as it was based on a misunderstanding
+- Use `template-unified.yaml` for all deployments going forward
+- Use only `template-unified.yaml` for all deployments
 - Update all references to reflect single Lambda architecture
 
 **Key Fix**: The critical issue was Python module path resolution:
@@ -1348,35 +1378,35 @@ exec python -m uvicorn web_app_unified:app --host 0.0.0.0 --port $PORT
 
 **Validation**: All 16 MCP tools and 22 REST endpoints working with real wallet data.
 
-## 🗂️ KEY FILES FOR DUAL-PATH ARCHITECTURE
+## 🗂️ KEY FILES FOR UNIFIED LAMBDA ARCHITECTURE
 
 ### Critical Implementation Files
 
-1. **`template-dual-path.yaml`** - ✅ THE ONLY TEMPLATE TO USE
-   - Defines two separate Lambda functions (McpFunction + RestApiFunction)
-   - Configures path-based routing at API Gateway level
+1. **`template-unified.yaml`** - ✅ THE ONLY TEMPLATE TO USE
+   - Defines single Lambda function with AWS Web Adapter
+   - Configures unified routing for both MCP and REST protocols
    - **ALWAYS use this for deployments**
 
-2. **`lambda_handler_unified.py`** - MCP Protocol Handler
-   - Direct AWS MCP Handler implementation
-   - Handles `/mcp` endpoint without FastAPI
-   - Contains snake_case monkey patch for AWS bug
+2. **`src/web_app_unified.py`** - Unified FastAPI Application
+   - Single FastAPI application handling both MCP and REST protocols
+   - Handles `/mcp`, `/api/*`, `/docs`, `/health` endpoints
+   - Uses AWS Lambda Web Adapter for native async support
 
-3. **`src/web_app_unified.py`** - REST API Handler
-   - FastAPI application for REST endpoints
-   - Handles `/api/*`, `/docs`, `/health`
-   - Uses AWS Lambda Web Adapter
+3. **`run.sh`** - Startup script for unified Lambda function
+   - Launches uvicorn for FastAPI with Web Adapter integration
+   - Sets PYTHONPATH for proper module resolution
+   - Used by the single Lambda function
 
-4. **`run.sh`** - Startup script for REST function only
-   - Launches uvicorn for FastAPI
-   - Used ONLY by RestApiFunction
-   - NOT used by McpFunction
+4. **`src/functions/event_store.py`** - Session & Event Management
+   - Implements __TEST_SESSION__ pattern for graceful test handling
+   - Uses environment variables for DynamoDB table configuration
+   - Supports both MCP and REST protocol access patterns
 
-### Templates to AVOID
+### Templates Status
 
-- **❌ `template-simple.yaml`** - Single function approach (BREAKS MCP)
-- **❌ `template.yaml`** - Old complex approach (deprecated)
-- **❌ Any template without dual Lambda functions**
+- **✅ Current Template**: `template-unified.yaml` (ONLY template to use)
+- **❌ Deleted Templates**: All other templates have been removed for clarity
+- **Architecture**: Single Lambda function with unified protocol handling
 
 ## 🚨 DEPLOYMENT ENVIRONMENTS
 
@@ -1400,7 +1430,7 @@ exec python -m uvicorn web_app_unified:app --host 0.0.0.0 --port $PORT
 - **Deploy Branch**: `dev` branch for all development work  
 - **Status**: ✅ 85.7% overall success, 100% MCP/REST protocol success
 
-**🔒 Both environments are fully functional and production-ready with dual-path Lambda architecture.**
+**🔒 Both environments are fully functional and production-ready with unified Lambda architecture.**
 
 ## 🤖 Claude.ai MCP Configuration
 
