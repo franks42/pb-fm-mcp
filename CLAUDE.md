@@ -27,6 +27,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Never use "out of habit" or "remembered" approaches**
 - **Never override what CLAUDE.md explicitly states**
 
+## 🚨 CRITICAL: "Can you...?" Question Policy
+
+**When the user asks "Can you...?" or similar capability questions:**
+- ✅ **ANSWER THE QUESTION FIRST** - Explain yes/no and how it would be done
+- ❌ **DO NOT IMMEDIATELY IMPLEMENT** - Wait for explicit permission or request
+- ✅ **ASK FOR CONFIRMATION** - "Would you like me to implement this?"
+- ❌ **NO PROACTIVE CODING** - Only implement when specifically asked
+
+**Examples:**
+- User: "Can you add logging to the API?"
+- ✅ Correct: "Yes, I can add logging by integrating Python's logging module into the Lambda handler. Would you like me to implement this?"
+- ❌ Wrong: Immediately starts coding logging without asking
+
+**This prevents unwanted changes and gives the user control over what gets implemented.**
+
 ## Error Prevention Warning
 **If Claude Code uses wrong templates/commands, it can:**
 - Deploy wrong configurations to production

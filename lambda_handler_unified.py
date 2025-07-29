@@ -405,74 +405,356 @@ def convert_parameter_type(value: str, param_type: type) -> Any:
 
 
 def handle_docs_request(event, context):
-    """Simple docs handler - returns basic API information"""
+    """Dynamic docs handler - generates documentation from registry"""
     path = event.get('path', '')
     
     if path == '/docs':
-        # Return simple HTML docs page
+        # Generate dynamic HTML docs from registry
+        rest_functions = registry.get_rest_functions()
+        mcp_functions = registry.get_mcp_functions()
+        
+        # Build endpoints HTML from registry
+        endpoints_html = []
+        
+        # Add health endpoint (hardcoded special endpoint)
+        endpoints_html.append(
+            '<div class="endpoint">'
+            '<span class="method">GET</span> /health - Health check endpoint'
+            '</div>'
+        )
+        
+        # Add all REST API endpoints from registry
+        for func_meta in rest_functions:
+            method = func_meta.rest_method or 'GET'
+            path_display = func_meta.rest_path or f'/api/{func_meta.name}'
+            description = func_meta.description or f'{func_meta.name} function'
+            
+            endpoints_html.append(
+                f'<div class="endpoint">'
+                f'<span class="method">{method}</span> {path_display} - {description}'
+                f'</div>'
+            )
+        
+        endpoints_section = '\n'.join(endpoints_html)
+        
         return {
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'text/html',
                 'Access-Control-Allow-Origin': '*'
             },
-            'body': """
+            'body': f"""
 <!DOCTYPE html>
 <html>
 <head>
     <title>PB-FM API Documentation</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        h1 { color: #333; }
-        .endpoint { background: #f4f4f4; padding: 10px; margin: 10px 0; border-radius: 5px; }
-        .method { color: #007bff; font-weight: bold; }
+        body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+        h1 {{ color: #333; }}
+        h2 {{ color: #555; margin-top: 30px; }}
+        .endpoint {{ background: #f4f4f4; padding: 10px; margin: 10px 0; border-radius: 5px; }}
+        .method {{ color: #007bff; font-weight: bold; }}
+        .stats {{ background: #e8f4fd; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+        .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; }}
     </style>
 </head>
 <body>
     <h1>PB-FM API Documentation</h1>
     <p>Native Lambda REST API for Provenance Blockchain and Figure Markets data.</p>
-    <h2>Available Endpoints:</h2>
-    <div class="endpoint">
-        <span class="method">GET</span> /health - Health check endpoint
+    
+    <div class="stats">
+        <strong>API Statistics:</strong><br>
+        &bull; REST Endpoints: {len(rest_functions) + 1} (including /health)<br>
+        &bull; MCP Tools: {len(mcp_functions)}<br>
+        &bull; Version: {get_version_string()}
     </div>
+    
+    <h2>Available REST Endpoints:</h2>
+    {endpoints_section}
+    
+    <h2>MCP Protocol Access:</h2>
     <div class="endpoint">
-        <span class="method">GET</span> /api/fetch_current_hash_statistics - Get HASH token statistics
+        <span class="method">POST</span> /mcp - JSON-RPC 2.0 protocol with {len(mcp_functions)} available tools
     </div>
-    <div class="endpoint">
-        <span class="method">GET</span> /api/fetch_account_info/{wallet_address} - Get account information
+    <p>Send POST requests with JSON-RPC 2.0 format to interact with MCP tools. Use tools/list method to discover all available tools.</p>
+    
+    <div class="footer">
+        <p><strong>Additional Resources:</strong></p>
+        <p>&bull; <a href="/openapi.json">OpenAPI Specification</a></p>
+        <p>&bull; <a href="https://generator3.swagger.io/index.html?url=https://pb-fm-mcp-dev.creativeapptitude.com/openapi.json" target="_blank">Interactive Swagger UI</a></p>
+        <p>&bull; <a href="/">API Root</a> (JSON format)</p>
+        <p>&bull; MCP URL for Claude.ai: <code>https://pb-fm-mcp-dev.creativeapptitude.com/mcp</code></p>
     </div>
-    <p>For MCP protocol access, use POST /mcp with JSON-RPC 2.0 format.</p>
 </body>
 </html>
 """
         }
     
     elif path == '/openapi.json':
-        # Return basic OpenAPI spec
+        # Generate dynamic OpenAPI spec from registry
+        rest_functions = registry.get_rest_functions()
+        mcp_functions = registry.get_mcp_functions()
+        
+        # Build paths object from registry
+        paths = {}
+        
+        # Add health endpoint
+        paths["/health"] = {
+            "get": {
+                "summary": "Health check endpoint",
+                "description": "Returns server health status and version",
+                "responses": {
+                    "200": {
+                        "description": "Server is healthy",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {"type": "string", "example": "healthy"},
+                                        "version": {"type": "string", "example": get_version_string()}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        # Add all REST endpoints from registry
+        for func_meta in rest_functions:
+            path_key = func_meta.rest_path or f'/api/{func_meta.name}'
+            method = (func_meta.rest_method or 'GET').lower()
+            
+            # Extract path parameters
+            path_params = []
+            if '{' in path_key:
+                import re
+                param_matches = re.findall(r'{([^}]+)}', path_key)
+                for param_name in param_matches:
+                    param_type = func_meta.type_hints.get(param_name, str)
+                    openapi_type = "string"
+                    if param_type == int:
+                        openapi_type = "integer"
+                    elif param_type == float:
+                        openapi_type = "number"
+                    elif param_type == bool:
+                        openapi_type = "boolean"
+                    
+                    path_params.append({
+                        "name": param_name,
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": openapi_type},
+                        "description": f"The {param_name} parameter"
+                    })
+            
+            # Build operation object
+            operation = {
+                "summary": func_meta.description or f"{func_meta.name} function",
+                "description": func_meta.docstring or func_meta.description or f"Execute {func_meta.name}",
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {"type": "object"}
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid parameters"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+            
+            # Add parameters if any
+            if path_params:
+                operation["parameters"] = path_params
+            
+            # Add query parameters for GET requests
+            if method == 'get':
+                query_params = []
+                for param_name, param in func_meta.signature.parameters.items():
+                    if param_name in ('self', 'cls'):
+                        continue
+                    
+                    # Skip path parameters
+                    if any(pp["name"] == param_name for pp in path_params):
+                        continue
+                    
+                    param_type = func_meta.type_hints.get(param_name, str)
+                    openapi_type = "string"
+                    if param_type == int:
+                        openapi_type = "integer"
+                    elif param_type == float:
+                        openapi_type = "number"
+                    elif param_type == bool:
+                        openapi_type = "boolean"
+                    
+                    is_required = param.default == param.empty
+                    
+                    query_params.append({
+                        "name": param_name,
+                        "in": "query",
+                        "required": is_required,
+                        "schema": {"type": openapi_type},
+                        "description": f"The {param_name} parameter"
+                    })
+                
+                if query_params:
+                    if "parameters" not in operation:
+                        operation["parameters"] = []
+                    operation["parameters"].extend(query_params)
+            
+            # Add request body for POST requests
+            elif method == 'post':
+                body_properties = {}
+                required_fields = []
+                
+                for param_name, param in func_meta.signature.parameters.items():
+                    if param_name in ('self', 'cls'):
+                        continue
+                    
+                    param_type = func_meta.type_hints.get(param_name, str)
+                    openapi_type = "string"
+                    if param_type == int:
+                        openapi_type = "integer"
+                    elif param_type == float:
+                        openapi_type = "number"
+                    elif param_type == bool:
+                        openapi_type = "boolean"
+                    
+                    body_properties[param_name] = {
+                        "type": openapi_type,
+                        "description": f"The {param_name} parameter"
+                    }
+                    
+                    if param.default == param.empty:
+                        required_fields.append(param_name)
+                
+                if body_properties:
+                    request_body = {
+                        "required": len(required_fields) > 0,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": body_properties
+                                }
+                            }
+                        }
+                    }
+                    
+                    if required_fields:
+                        request_body["content"]["application/json"]["schema"]["required"] = required_fields
+                    
+                    operation["requestBody"] = request_body
+            
+            # Add tags based on function categories
+            if func_meta.tags:
+                operation["tags"] = func_meta.tags
+            else:
+                # Auto-categorize based on function name
+                if 'delegation' in func_meta.name.lower():
+                    operation["tags"] = ["Delegation"]
+                elif 'vesting' in func_meta.name.lower():
+                    operation["tags"] = ["Vesting"]
+                elif 'account' in func_meta.name.lower() or 'wallet' in func_meta.name.lower():
+                    operation["tags"] = ["Wallet"]
+                elif 'market' in func_meta.name.lower() or 'fm' in func_meta.name.lower():
+                    operation["tags"] = ["Markets"]
+                elif 'session' in func_meta.name.lower() or 'message' in func_meta.name.lower():
+                    operation["tags"] = ["Sessions"]
+                else:
+                    operation["tags"] = ["General"]
+            
+            # Add to paths
+            if path_key not in paths:
+                paths[path_key] = {}
+            paths[path_key][method] = operation
+        
+        # Add MCP endpoint
+        paths["/mcp"] = {
+            "post": {
+                "summary": "MCP Protocol endpoint",
+                "description": f"JSON-RPC 2.0 endpoint with {len(mcp_functions)} available tools",
+                "tags": ["MCP"],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "jsonrpc": {"type": "string", "example": "2.0"},
+                                    "method": {"type": "string", "example": "tools/list"},
+                                    "id": {"type": "string", "example": "1"},
+                                    "params": {"type": "object"}
+                                },
+                                "required": ["jsonrpc", "method", "id"]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "MCP JSON-RPC response",
+                        "content": {
+                            "application/json": {
+                                "schema": {"type": "object"}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        # Build complete OpenAPI spec
+        openapi_spec = {
+            "openapi": "3.0.0",
+            "info": {
+                "title": "PB-FM Unified API",
+                "version": get_version_string(),
+                "description": "Unified MCP + REST API for Provenance Blockchain and Figure Markets data",
+                "contact": {
+                    "name": "PB-FM API Support",
+                    "url": "https://pb-fm-mcp-dev.creativeapptitude.com/"
+                }
+            },
+            "servers": [
+                {
+                    "url": "https://pb-fm-mcp-dev.creativeapptitude.com",
+                    "description": "Development server"
+                },
+                {
+                    "url": "https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1",
+                    "description": "API Gateway endpoint"
+                }
+            ],
+            "tags": [
+                {"name": "General", "description": "General API endpoints"},
+                {"name": "Wallet", "description": "Wallet and account operations"},
+                {"name": "Delegation", "description": "Staking and delegation operations"},
+                {"name": "Vesting", "description": "Vesting and token release operations"},
+                {"name": "Markets", "description": "Figure Markets exchange operations"},
+                {"name": "Sessions", "description": "Session and messaging operations"},
+                {"name": "MCP", "description": "Model Context Protocol operations"}
+            ],
+            "paths": paths
+        }
+        
         return {
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'
             },
-            'body': json.dumps({
-                "openapi": "3.0.0",
-                "info": {
-                    "title": "PB-FM API",
-                    "version": get_version_string(),
-                    "description": "Native Lambda REST API"
-                },
-                "paths": {
-                    "/health": {
-                        "get": {
-                            "summary": "Health check",
-                            "responses": {
-                                "200": {"description": "Healthy"}
-                            }
-                        }
-                    }
-                }
-            })
+            'body': json.dumps(openapi_spec, indent=2)
         }
 
 
