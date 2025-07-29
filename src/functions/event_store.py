@@ -141,16 +141,16 @@ async def fetch_session_events(
     Returns:
         List of events in sequence order
     """
-    # Handle test session gracefully
-    if session_id == '__TEST_SESSION__':
-        return {
-            'session_id': session_id,
-            'events': [],
-            'count': 0,
-            'has_more': False,
-            'test_mode': True,
-            'message': 'Test session - no events stored'
-        }
+    # Handle test session gracefully - TEMPORARILY DISABLED FOR CLAUDE.AI TESTING
+    # if session_id == '__TEST_SESSION__':
+    #     return {
+    #         'session_id': session_id,
+    #         'events': [],
+    #         'count': 0,
+    #         'has_more': False,
+    #         'test_mode': True,
+    #         'message': 'Test session - no events stored'
+    #     }
     table = get_event_table()
     
     try:
@@ -212,15 +212,15 @@ async def get_browser_connection_order(session_id: str) -> JSONType:
     Returns:
         Connection order and control status
     """
-    # Handle test session gracefully
-    if session_id == '__TEST_SESSION__':
-        return {
-            'session_id': session_id,
-            'total_browsers': 0,
-            'browsers': [],
-            'test_mode': True,
-            'message': 'Test session - no browser connections'
-        }
+    # Handle test session gracefully - TEMPORARILY DISABLED FOR CLAUDE.AI TESTING
+    # if session_id == '__TEST_SESSION__':
+    #     return {
+    #         'session_id': session_id,
+    #         'total_browsers': 0,
+    #         'browsers': [],
+    #         'test_mode': True,
+    #         'message': 'Test session - no browser connections'
+    #     }
     table = get_event_table()
     
     try:

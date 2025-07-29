@@ -65,14 +65,10 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: .
-      Handler: run.sh
-      Description: "Unified MCP + REST Server with AWS Lambda Web Adapter"
-      Layers:
-        - arn:aws:lambda:us-west-1:753240598075:layer:LambdaAdapterLayerX86:25
+      Handler: lambda_handler_unified.lambda_handler
+      Description: "Unified MCP + REST Server with Native Lambda Handler"
       Environment:
         Variables:
-          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
-          PORT: 8000
           API_GATEWAY_STAGE_PATH: /v1
           SESSIONS_TABLE: !Ref ConversationSessionsTable
           MESSAGES_TABLE: !Ref ConversationMessagesTable

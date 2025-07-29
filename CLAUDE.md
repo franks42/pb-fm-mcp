@@ -37,6 +37,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **CLAUDE.MD IS THE SINGLE SOURCE OF TRUTH - Always consult it first.**
 
+## 🚨 CRITICAL: Native MCP Handler Requirement (July 29, 2025)
+
+**MANDATORY: Ensure that MCP requests are ALWAYS handled natively by the AWS MCP handlers. If not, it may cause connection issues with Claude.ai and possibly other MCP clients.**
+
+### Critical MCP Architecture Requirements:
+- ✅ **Native AWS MCP Handler**: MCP requests must go directly to `awslabs.mcp_lambda_handler.MCPLambdaHandler`
+- ❌ **Never intercept MCP with FastAPI**: Do NOT create FastAPI routes for `/mcp` endpoints
+- ❌ **Never simulate MCP responses**: Do NOT manually construct JSON-RPC responses in FastAPI
+- ✅ **Use Native Lambda Handler**: Deploy with `lambda_handler_unified.lambda_handler` for MCP compatibility
+
+### Why This Matters:
+- **Claude.ai Compatibility**: Claude.ai requires proper MCP protocol handling to discover and execute tools
+- **MCP Client Standards**: Other MCP clients expect native protocol compliance
+- **Tool Discovery**: Improper MCP handling causes "disabled" status instead of showing available tools
+- **Protocol Compliance**: Native handlers ensure proper JSON-RPC 2.0 and MCP specification adherence
+
+### Correct Architecture:
+```
+MCP Requests (/mcp) → Native AWS MCP Handler → Direct tool execution
+REST Requests (/api/*, /docs) → FastAPI (if needed)
+```
+
+### Incorrect Architecture (NEVER DO THIS):
+```
+MCP Requests (/mcp) → FastAPI → Manual JSON-RPC simulation → Tool execution
+```
+
+**If MCP clients show "disabled" or "no provided tools", check that MCP requests are handled natively, not intercepted by FastAPI routes.**
+
 ## 🚨 CRITICAL: Template Architecture Cleanup (July 28, 2025)
 
 **IMPORTANT: Template consolidation and cleanup completed successfully.**
