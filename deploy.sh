@@ -399,36 +399,48 @@ sys.exit(0 if result else 1)
         print_warning "MCP endpoint test failed (may still be starting up)"
     fi
     
-    # Test REST API endpoints
+    # Test REST API endpoints - CRITICAL: These must pass for deployment to succeed
     local api_base_url="${test_url%/mcp}"
     print_status "Testing REST API endpoints..."
+    local rest_failures=0
     
     # Test root endpoint
-    if curl -s -f "$api_base_url/" | grep -q "pb-fm-mcp" 2>/dev/null; then
+    if curl -s -f "$api_base_url/" | grep -q "PB-FM.*API" 2>/dev/null; then
         print_success "REST API root endpoint working"
     else
-        print_warning "REST API root endpoint not responding"
+        print_error "❌ CRITICAL: REST API root endpoint not responding"
+        ((rest_failures++))
     fi
     
     # Test health endpoint
     if curl -s -f "$api_base_url/health" | grep -q "status" 2>/dev/null; then
         print_success "REST API health endpoint working"
     else
-        print_warning "REST API health endpoint not responding"
+        print_error "❌ CRITICAL: REST API health endpoint not responding"
+        ((rest_failures++))
     fi
     
     # Test docs endpoint
     if curl -s -f "$api_base_url/docs" | grep -q "swagger" 2>/dev/null; then
         print_success "REST API documentation endpoint working"
     else
-        print_warning "REST API documentation endpoint not responding"
+        print_error "❌ CRITICAL: REST API documentation endpoint not responding"
+        ((rest_failures++))
     fi
     
     # Test a sample API function endpoint
     if curl -s -f "$api_base_url/api/fetch_current_hash_statistics" | grep -q "maxSupply" 2>/dev/null; then
         print_success "REST API function endpoints working"
     else
-        print_warning "REST API function endpoints not responding"
+        print_error "❌ CRITICAL: REST API function endpoints not responding"
+        ((rest_failures++))
+    fi
+    
+    # HARD FAIL if any REST API tests failed
+    if [[ $rest_failures -gt 0 ]]; then
+        print_error "💥 DEPLOYMENT FAILED: $rest_failures REST API endpoints are not working"
+        print_error "This is a CRITICAL failure - all endpoints must be functional"
+        exit 1
     fi
     
     # Test AI Terminal webpage
@@ -448,10 +460,14 @@ sys.exit(0 if result else 1)
         if curl -s -f "$test_input_url" -H "Content-Type: application/json" -d '{"input_type":"test","input_value":"deploy test","timestamp":123456}' | grep -q "sent_to_ai" 2>/dev/null; then
             print_success "AI Terminal input endpoint working"
         else
-            print_warning "AI Terminal input endpoint not responding"
+            print_error "❌ CRITICAL: AI Terminal input endpoint not responding"
+            print_error "💥 DEPLOYMENT FAILED: AI Terminal functionality is broken"
+            exit 1
         fi
     else
-        print_warning "AI Terminal webpage not responding"
+        print_error "❌ CRITICAL: AI Terminal webpage not responding"
+        print_error "💥 DEPLOYMENT FAILED: AI Terminal webpage is not accessible"
+        exit 1
     fi
     
     # Run comprehensive tests if script exists

@@ -181,18 +181,24 @@ def lambda_handler(event, context):
         # Path-based routing: determine which handler to use
         if path.startswith('/api/') or path in ['/', '/docs', '/openapi.json', '/health']:
             # Route to FastAPI for REST endpoints and documentation
-            print(f"🌐 Routing {http_method} {path} to FastAPI Web Adapter")
+            print(f"🌐 Routing {http_method} {path} to FastAPI handler")
             
-            # This should not happen in Web Adapter deployment
-            # Web Adapter handles routing directly to FastAPI
-            return {
-                'statusCode': 500,
-                'headers': {'Content-Type': 'application/json'},
-                'body': json.dumps({
-                    'error': 'Internal routing error',
-                    'message': 'REST requests should be handled by Web Adapter directly'
-                })
-            }
+            # Load FastAPI handler and process request
+            fastapi_app = get_fastapi_handler()
+            if fastapi_app is None:
+                return {
+                    'statusCode': 500,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps({
+                        'error': 'FastAPI handler not available',
+                        'message': 'FastAPI application could not be loaded'
+                    })
+                }
+            
+            # Use Mangum to handle the FastAPI request
+            from mangum import Mangum
+            handler = Mangum(fastapi_app, lifespan="off")
+            return handler(event, context)
         
         else:
             # Route to MCP handler (default for /mcp and unknown paths)
