@@ -79,7 +79,7 @@ print("✅ Snake_case monkey patch applied successfully")
 
 import asyncio
 from functools import wraps
-from typing import Callable
+from typing import Callable, Any
 
 def create_mcp_sync_wrapper(async_func: Callable) -> Callable:
     """
@@ -143,18 +143,275 @@ print(f"✅ Registered {len(mcp_functions)} MCP tools")
 
 
 # =============================================================================
-# FastAPI Handler Import (lazy loading)
+# Native REST Handler (No FastAPI)
 # =============================================================================
 
-def get_fastapi_handler():
-    """Lazy load FastAPI handler to avoid conflicts with MCP initialization"""
-    try:
-        # Import uvicorn and create ASGI application
-        from src.web_app_unified import app
-        return app
-    except ImportError as e:
-        print(f"⚠️ FastAPI handler not available: {e}")
-        return None
+def handle_rest_request(event, context):
+    """
+    Native REST handler using Lambda events directly.
+    No FastAPI, no framework overhead, just clean Lambda integration.
+    """
+    path = event.get('path', '')
+    method = event.get('httpMethod', 'GET')
+    
+    # Import version for responses
+    from version import get_version_string, get_full_version_info
+    
+    # Handle root endpoint
+    if path == '/':
+        version_info = get_full_version_info()
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                "name": "PB-FM Unified API",
+                "version": version_info["version"],
+                "build_number": version_info["build_number"],
+                "build_datetime": version_info["build_datetime"],
+                "environment": version_info["deployment_environment"],
+                "description": "Unified MCP + REST API for Provenance Blockchain and Figure Markets data",
+                "protocols": {
+                    "mcp": {
+                        "endpoint": "/mcp",
+                        "method": "POST",
+                        "tools": len(registry.get_mcp_functions())
+                    },
+                    "rest": {
+                        "endpoints": len(registry.get_rest_functions()),
+                        "docs": "/docs",
+                        "openapi": "/openapi.json"
+                    }
+                },
+                "endpoints": {
+                    "mcp": "/mcp",
+                    "docs": "/docs",
+                    "openapi": "/openapi.json",
+                    "health": "/health"
+                }
+            })
+        }
+    
+    # Handle health check
+    elif path == '/health':
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                "status": "healthy",
+                "version": get_version_string()
+            })
+        }
+    
+    # Handle API routes
+    elif path.startswith('/api/'):
+        return handle_api_function(event, context)
+    
+    # Unknown path
+    return {
+        'statusCode': 404,
+        'headers': {'Content-Type': 'application/json'},
+        'body': json.dumps({
+            'error': 'Not Found',
+            'message': f'Path {path} not found'
+        })
+    }
+
+
+def handle_api_function(event, context):
+    """Handle /api/* function calls using the registry"""
+    path = event.get('path', '')
+    method = event.get('httpMethod', 'GET')
+    
+    # Find matching function in registry
+    for func_meta in registry.get_rest_functions():
+        if func_meta.rest_path == path and func_meta.rest_method == method:
+            try:
+                # Extract parameters
+                kwargs = {}
+                
+                # Path parameters from API Gateway (filter out proxy parameter)
+                if event.get('pathParameters'):
+                    for param_name, param_value in event['pathParameters'].items():
+                        if param_name != 'proxy':  # Filter out API Gateway proxy parameter
+                            kwargs[param_name] = param_value
+                
+                # Query string parameters
+                if event.get('queryStringParameters'):
+                    for param_name, param_value in event['queryStringParameters'].items():
+                        # Type conversion based on function signature
+                        param = func_meta.signature.parameters.get(param_name)
+                        if param:
+                            param_type = func_meta.type_hints.get(param_name, str)
+                            kwargs[param_name] = convert_parameter_type(param_value, param_type)
+                        else:
+                            kwargs[param_name] = param_value
+                
+                # Body parameters for POST/PUT
+                if method in ['POST', 'PUT', 'PATCH'] and event.get('body'):
+                    try:
+                        body_data = json.loads(event['body'])
+                        if isinstance(body_data, dict):
+                            for param_name, param_value in body_data.items():
+                                param = func_meta.signature.parameters.get(param_name)
+                                if param:
+                                    param_type = func_meta.type_hints.get(param_name, str)
+                                    kwargs[param_name] = convert_parameter_type(param_value, param_type)
+                                else:
+                                    kwargs[param_name] = param_value
+                    except json.JSONDecodeError:
+                        return {
+                            'statusCode': 400,
+                            'headers': {'Content-Type': 'application/json'},
+                            'body': json.dumps({
+                                'error': 'Bad Request',
+                                'message': 'Invalid JSON in request body'
+                            })
+                        }
+                
+                # Add default values for missing optional parameters
+                for param_name, param in func_meta.signature.parameters.items():
+                    if param_name not in kwargs and param.default != param.empty:
+                        kwargs[param_name] = param.default
+                
+                # Call the function
+                if asyncio.iscoroutinefunction(func_meta.func):
+                    result = asyncio.run(func_meta.func(**kwargs))
+                else:
+                    result = func_meta.func(**kwargs)
+                
+                # Handle error responses
+                if isinstance(result, dict) and result.get("MCP-ERROR"):
+                    return {
+                        'statusCode': 500,
+                        'headers': {'Content-Type': 'application/json'},
+                        'body': json.dumps({
+                            'error': 'Function Error',
+                            'message': result["MCP-ERROR"]
+                        })
+                    }
+                
+                # Success response
+                return {
+                    'statusCode': 200,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    },
+                    'body': json.dumps(result)
+                }
+                
+            except Exception as e:
+                print(f"🚨 Error in API function {func_meta.name}: {e}")
+                import traceback
+                traceback.print_exc()
+                return {
+                    'statusCode': 500,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps({
+                        'error': 'Internal Server Error',
+                        'message': str(e)
+                    })
+                }
+    
+    # No matching function found
+    return {
+        'statusCode': 404,
+        'headers': {'Content-Type': 'application/json'},
+        'body': json.dumps({
+            'error': 'Not Found',
+            'message': f'No API function found for {method} {path}'
+        })
+    }
+
+
+def convert_parameter_type(value: str, param_type: type) -> Any:
+    """Convert string parameter to the correct type"""
+    if param_type == int:
+        return int(value)
+    elif param_type == float:
+        return float(value)
+    elif param_type == bool:
+        return value.lower() in ('true', '1', 'yes', 'on')
+    else:
+        return value
+
+
+def handle_docs_request(event, context):
+    """Simple docs handler - returns basic API information"""
+    path = event.get('path', '')
+    
+    if path == '/docs':
+        # Return simple HTML docs page
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'text/html',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PB-FM API Documentation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1 { color: #333; }
+        .endpoint { background: #f4f4f4; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .method { color: #007bff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>PB-FM API Documentation</h1>
+    <p>Native Lambda REST API for Provenance Blockchain and Figure Markets data.</p>
+    <h2>Available Endpoints:</h2>
+    <div class="endpoint">
+        <span class="method">GET</span> /health - Health check endpoint
+    </div>
+    <div class="endpoint">
+        <span class="method">GET</span> /api/fetch_current_hash_statistics - Get HASH token statistics
+    </div>
+    <div class="endpoint">
+        <span class="method">GET</span> /api/fetch_account_info/{wallet_address} - Get account information
+    </div>
+    <p>For MCP protocol access, use POST /mcp with JSON-RPC 2.0 format.</p>
+</body>
+</html>
+"""
+        }
+    
+    elif path == '/openapi.json':
+        # Return basic OpenAPI spec
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                "openapi": "3.0.0",
+                "info": {
+                    "title": "PB-FM API",
+                    "version": get_version_string(),
+                    "description": "Native Lambda REST API"
+                },
+                "paths": {
+                    "/health": {
+                        "get": {
+                            "summary": "Health check",
+                            "responses": {
+                                "200": {"description": "Healthy"}
+                            }
+                        }
+                    }
+                }
+            })
+        }
 
 
 # =============================================================================
@@ -179,26 +436,15 @@ def lambda_handler(event, context):
         print(f"🔍 Lambda handler: {http_method} {path}")
         
         # Path-based routing: determine which handler to use
-        if path.startswith('/api/') or path in ['/', '/docs', '/openapi.json', '/health']:
-            # Route to FastAPI for REST endpoints and documentation
-            print(f"🌐 Routing {http_method} {path} to FastAPI handler")
+        if path.startswith('/api/') or path in ['/', '/health']:
+            # Route to native REST handler (no FastAPI!)
+            print(f"🌐 Routing {http_method} {path} to native REST handler")
+            return handle_rest_request(event, context)
             
-            # Load FastAPI handler and process request
-            fastapi_app = get_fastapi_handler()
-            if fastapi_app is None:
-                return {
-                    'statusCode': 500,
-                    'headers': {'Content-Type': 'application/json'},
-                    'body': json.dumps({
-                        'error': 'FastAPI handler not available',
-                        'message': 'FastAPI application could not be loaded'
-                    })
-                }
-            
-            # Use Mangum to handle the FastAPI request
-            from mangum import Mangum
-            handler = Mangum(fastapi_app, lifespan="off")
-            return handler(event, context)
+        elif path == '/docs' or path == '/openapi.json':
+            # Simple docs response for now
+            print(f"📖 Routing {http_method} {path} to docs handler")
+            return handle_docs_request(event, context)
         
         else:
             # Route to MCP handler (default for /mcp and unknown paths)

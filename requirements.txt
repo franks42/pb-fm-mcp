@@ -4,4 +4,3 @@ structlog==25.4.0
 fastapi
 uvicorn==0.30.1
 boto3
-mangum
