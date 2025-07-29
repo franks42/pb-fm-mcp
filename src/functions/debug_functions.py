@@ -13,10 +13,10 @@ from registry import api_function
 from utils import JSONType
 
 
-@api_function(
-    protocols=["mcp"],
-    description="Debug function to analyze MCP request context for AI instance identification"
-)
+@api_function(protocols=["mcp"])
+
+
+
 async def analyze_mcp_request_context() -> JSONType:
     """
     Analyze the current MCP request context to identify potential
@@ -72,10 +72,10 @@ async def analyze_mcp_request_context() -> JSONType:
         }
 
 
-@api_function(
-    protocols=["mcp"], 
-    description="Create a test dashboard with debug information about the requesting AI instance"
-)
+@api_function(protocols=["mcp"])
+
+
+
 async def create_debug_dashboard(
     debug_context: str = "investigating_ai_instance_id"
 ) -> JSONType:
@@ -137,10 +137,10 @@ async def create_debug_dashboard(
         }
 
 
-@api_function(
-    protocols=["mcp"],
-    description="Test function to examine if there's any session persistence across MCP calls"
-)
+@api_function(protocols=["mcp"])
+
+
+
 async def test_session_persistence(
     test_value: str = "session_test"
 ) -> JSONType:

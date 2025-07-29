@@ -70,6 +70,12 @@ Dependencies checked automatically:
   - Route 53 hosted zone
   - Template file existence
   - Git status and branch validation
+
+Automatic steps performed:
+  - Function protocol sync from CSV configuration
+  - Clean build (if --clean specified)
+  - SAM build and deployment
+  - Testing (if --test specified)
 EOF
 }
 
@@ -263,6 +269,82 @@ check_deployment_needed() {
         print_status "Deployed: $deployed_commit ($deployed_branch)"
         echo "true"
     fi
+}
+
+# Update version information
+update_version_info() {
+    local env=$1
+    
+    print_header "Updating Version Information"
+    
+    # Get git information
+    local git_commit=$(git rev-parse --short HEAD)
+    local git_branch=$(git rev-parse --abbrev-ref HEAD)
+    local build_datetime=$(date -u +"%Y-%m-%dT%H:%M:%S.%fZ")
+    
+    # Read current version.json
+    if [[ -f "version.json" ]]; then
+        # Update version.json with deployment info
+        python3 -c "
+import json
+from datetime import datetime
+
+# Load current version
+with open('version.json', 'r') as f:
+    version = json.load(f)
+
+# Update build information
+version['last_deployment'] = '$build_datetime'
+version['deployment_environment'] = '$env'
+version['build_datetime'] = '$build_datetime'
+version['git_commit'] = '$git_commit'
+version['git_branch'] = '$git_branch'
+
+# Increment build number
+version['build_number'] = version.get('build_number', 0) + 1
+
+# Write updated version
+with open('version.json', 'w') as f:
+    json.dump(version, f, indent=2)
+
+print(f\"Updated version.json: {version['major']}.{version['minor']}.{version['patch']} build {version['build_number']}\")
+"
+    else
+        print_warning "version.json not found, creating default"
+        cat > version.json << EOF
+{
+  "major": 0,
+  "minor": 2,
+  "patch": 0,
+  "build_number": 1,
+  "last_deployment": "$build_datetime",
+  "deployment_environment": "$env",
+  "build_datetime": "$build_datetime",
+  "git_commit": "$git_commit",
+  "git_branch": "$git_branch",
+  "csv_sync_enabled": true,
+  "description": "CSV-driven function protocol system"
+}
+EOF
+    fi
+    
+    print_success "Version information updated"
+}
+
+# Sync function protocols from CSV
+sync_function_protocols() {
+    local env=$1
+    
+    print_header "Syncing Function Protocols"
+    print_status "Environment: $env"
+    
+    # Run the protocol sync script
+    if ! uv run python scripts/update_function_protocols.py "$env"; then
+        print_error "Function protocol sync failed"
+        exit 1
+    fi
+    
+    print_success "Function protocols synced successfully"
 }
 
 # Build the application
@@ -615,6 +697,12 @@ main() {
     if [[ "$clean" == true ]]; then
         clean_build
     fi
+    
+    # Update version information
+    update_version_info "$environment"
+    
+    # Sync function protocols from CSV
+    sync_function_protocols "$environment"
     
     # Build application
     build_application

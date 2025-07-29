@@ -121,10 +121,10 @@ async def store_event(
     }
 
 
-@api_function(
-    protocols=["mcp", "rest"],
-    description="Fetch all events for a session to enable browser replay and synchronization."
-)
+@api_function(protocols=["mcp"])
+
+
+
 async def fetch_session_events(
     session_id: str,
     start_sequence: int = 0,
@@ -196,10 +196,10 @@ async def fetch_session_events(
         }
 
 
-@api_function(
-    protocols=["mcp", "rest"],
-    description="Get browser connection order to determine input control privileges."
-)
+@api_function(protocols=["mcp"])
+
+
+
 async def get_browser_connection_order(session_id: str) -> JSONType:
     """
     Determine browser connection order for input control.

@@ -43,12 +43,12 @@ def ensure_queue_exists(queue_name: str) -> str:
         )
         return response['QueueUrl']
 
-@api_function(
-    protocols=["mcp"],
-    description="Wait for user input from browser using SQS traffic light pattern. "
-                "This function blocks until user interacts with the web interface "
-                "or timeout is reached. Perfect for real-time AI-browser communication."
-)
+@api_function(protocols=["mcp"])
+
+
+
+
+
 async def wait_for_user_input(
     session_id: str,
     timeout_seconds: int = 8
@@ -128,12 +128,12 @@ async def wait_for_user_input(
             "session_id": session_id
         }
 
-@api_function(
-    protocols=["mcp"],
-    description="Send AI response to browser via SQS queue. "
-                "Browser will receive this immediately through its polling loop. "
-                "Use this to update dashboards, show analysis results, or send any data to the UI."
-)
+@api_function(protocols=["mcp"])
+
+
+
+
+
 async def send_response_to_browser(
     session_id: str,
     response_data: Dict[str, Any],
@@ -193,11 +193,11 @@ async def send_response_to_browser(
             "session_id": session_id
         }
 
-@api_function(
-    protocols=["mcp"],
-    description="Get the current status of SQS queues for a session. "
-                "Useful for debugging communication issues or checking message counts."
-)
+@api_function(protocols=["mcp"])
+
+
+
+
 async def get_traffic_light_status(session_id: str) -> JSONType:
     """
     Get status of both traffic light queues for debugging.
@@ -262,11 +262,11 @@ async def get_traffic_light_status(session_id: str) -> JSONType:
         }
 
 
-@api_function(
-    protocols=["mcp"],
-    description="Unified function for AI Terminal conversation. Sends result to browser, "
-                "then waits for new instruction. Returns instruction for Claude to follow."
-)
+@api_function(protocols=["mcp"])
+
+
+
+
 async def send_result_to_browser_and_fetch_new_instruction(
     session_id: str,
     result_text: str = "",
@@ -341,12 +341,12 @@ async def send_result_to_browser_and_fetch_new_instruction(
     }
 
 
-@api_function(
-    protocols=["mcp"],
-    description="Start a real-time conversation session with a web browser. "
-                "Returns instructions for Claude on how to use the traffic light pattern "
-                "for bidirectional communication."
-)
+@api_function(protocols=["mcp"])
+
+
+
+
+
 async def start_realtime_conversation(session_id: str) -> JSONType:
     """
     Initialize a real-time conversation session.
