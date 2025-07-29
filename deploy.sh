@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 DOMAIN_NAME="creativeapptitude.com"
 DEV_DOMAIN="pb-fm-mcp-dev.${DOMAIN_NAME}"
 PROD_DOMAIN="pb-fm-mcp.${DOMAIN_NAME}"
-TEMPLATE_FILE="template-simple.yaml"
+TEMPLATE_FILE="template-unified.yaml"
 US_EAST_1_REGION="us-east-1"  # For certificates
 DEPLOYMENT_REGION="us-west-1"  # For Lambda deployment
 
