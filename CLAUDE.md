@@ -1,6 +1,41 @@
 # CLAUDE.md
 
+# 🚨 RULE #1: READ THIS FILE FIRST
+**Claude Code: Before ANY action, read this entire CLAUDE.md file. Follow it exactly. No exceptions.**
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## 🚨 MANDATORY: Pre-Action Verification Protocol
+
+**Before ANY deployment, build, or technical command, Claude Code MUST:**
+1. **Read this CLAUDE.md file completely** - Never skip this step
+2. **Verify current directory contents** with `ls` to see what files actually exist
+3. **Use ONLY the commands/templates specified in this file** - No assumptions
+4. **Never use "remembered" commands from other contexts** - Only what's documented here
+
+## 🚨 Deployment Checklist (MANDATORY)
+□ Read current CLAUDE.md file completely
+□ Check what templates exist (`ls *.yaml`) 
+□ Use exact template name specified in CLAUDE.md
+□ Use exact commands documented in CLAUDE.md
+□ No assumptions, no "habits", no prior knowledge from other projects
+
+## 🚨 NEVER DO THESE THINGS
+- **Never use template names not listed in this file**
+- **Never assume commands from other projects/contexts**
+- **Never skip reading this CLAUDE.md file first**
+- **Never use "out of habit" or "remembered" approaches**
+- **Never override what CLAUDE.md explicitly states**
+
+## Error Prevention Warning
+**If Claude Code uses wrong templates/commands, it can:**
+- Deploy wrong configurations to production
+- Break production systems and user access
+- Waste hours debugging mysterious failures
+- Create inconsistent deployments
+- Force manual recovery procedures
+
+**CLAUDE.MD IS THE SINGLE SOURCE OF TRUTH - Always consult it first.**
 
 ## 🚨 CRITICAL: Template Architecture Cleanup (July 28, 2025)
 
@@ -21,16 +56,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Deploy Commands (Current)
 ```bash
-# Development deployment
-sam build --template-file template-unified.yaml
-sam deploy --stack-name pb-fm-mcp-dev --resolve-s3
+# Development deployment (ALWAYS use deploy script)
+./deploy.sh dev
 
-# Production deployment  
-sam build --template-file template-unified.yaml
-sam deploy --stack-name pb-fm-mcp-v2 --resolve-s3
+# Production deployment (ALWAYS use deploy script)
+./deploy.sh prod
 ```
 
-**Rule**: Always use `template-unified.yaml` for ALL deployments. All other templates have been deleted.
+**Rule**: Always use `./deploy.sh` script for ALL deployments. Never use manual `sam` commands.
+
+## 🚨 CURRENT DEPLOYMENT STATUS (July 29, 2025)
+
+**IMPORTANT: The mcp-ui branch is currently in a PARTIALLY WORKING state after recent deployment.**
+
+### Current Reality Check
+- **✅ Deployment Successful**: CloudFormation deployment completed without errors
+- **✅ Infrastructure Created**: All DynamoDB tables, S3 buckets, and Lambda function deployed  
+- **❌ Function Success Rate**: Only 67% (53/79 functions working)
+- **❌ Failed Functions**: 26 functions failing with various issues
+- **❌ Test Results**: Does NOT meet 100% success criteria required for production
+
+### Recent Investigation Findings  
+- **Template Bug Fixed**: deploy.sh was pointing to non-existent `template-simple.yaml`, now correctly uses `template-unified.yaml`
+- **Previous Claims Invalid**: Commit messages claiming "100% success" were false due to undeployable configurations
+- **Real State Exposed**: Current 67% success rate represents the actual state of the complex functionality in this branch
+
+### Current Dev Environment URLs
+- **Custom Domain MCP**: https://pb-fm-mcp-dev.creativeapptitude.com/mcp (64 functions visible)
+- **API Gateway MCP**: https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp
+- **Documentation**: https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/docs
+
+### Known Issues
+- HTTP 405 "Method Not Allowed" errors on many REST endpoints  
+- MCP timeout issues (504 Gateway Timeout)
+- Missing parameter errors in function calls
+- Data format inconsistencies between MCP and REST protocols
+
+**⚠️ WARNING**: Do NOT tag this deployment state as successful. Fix issues first, then retest and validate before any tagging.
 
 ## 🚨 CRITICAL: Project Location and iCloud Sync Issues (July 2025)
 
