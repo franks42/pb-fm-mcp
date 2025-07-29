@@ -339,6 +339,67 @@ export PYTHONPATH="/var/task/src:$PYTHONPATH"
 
 **This is a fundamental Python best practice. The src directory should be on the Python path, not in the import statements.**
 
+**🚨 CRITICAL: Snake_case Consistency Policy**
+**ALWAYS use snake_case throughout the entire stack for consistency and easier debugging:**
+- ✅ **Function Names**: `fetch_current_hash_statistics` (never `fetchCurrentHashStatistics`)
+- ✅ **MCP Tool Names**: `fetch_account_info` (never `fetch-account-info`)
+- ✅ **REST Paths**: `/api/fetch_account_info` (never `/api/fetch-account-info`)
+- ✅ **Python Variables**: All variables, file names, and identifiers use snake_case
+- ✅ **Auto-Generated Paths**: Decorator generates paths using exact function name (no kebab-case conversion)
+
+**Why Snake_case Matters:**
+- **Easier Debugging**: Function name matches path exactly - no mental translation needed
+- **Python Standards**: Follows PEP 8 naming conventions consistently
+- **No Hidden Errors**: Prevents obscure path-matching failures between MCP and REST
+- **Tool Discovery**: MCP tools work correctly without case conversion confusion
+
+**🚨 CRITICAL: Deployment Script Policy**
+**ALWAYS use the `./deploy.sh` script for deployments. NEVER use direct `sam deploy` commands:**
+- ✅ CORRECT: `./deploy.sh dev --clean --test`
+- ✅ CORRECT: `./deploy.sh prod --clean --test`
+- ❌ WRONG: `sam deploy --stack-name pb-fm-mcp-dev --resolve-s3`
+- ❌ WRONG: Manual deployment commands
+
+**Why Deploy Script is Mandatory:**
+- **Automatic CAPABILITY_IAM**: Script includes required AWS permissions automatically
+- **Smart Version Checking**: Skips deployment if no changes detected
+- **Comprehensive Testing**: Runs function coverage tests automatically
+- **Error Prevention**: Includes all necessary parameters and safety checks
+- **Git Integration**: Automatically tags deployments with commit hashes
+- **Custom Domain Support**: Handles certificate and DNS configuration correctly
+
+**🚨 CRITICAL: Live Data Functions Registry**
+**These functions return live blockchain data that changes every 4-5 seconds with each block:**
+```python
+live_blockchain_functions = {
+    'fetch_current_hash_statistics',
+    'fetch_vesting_total_unvested_amount', 
+    'fetch_current_fm_data',
+    'fetch_market_overview_summary',
+    'create_hash_price_chart',
+    'create_portfolio_health',
+    'fetch_complete_wallet_summary'  # Contains delegation rewards that change with blocks
+}
+```
+**Testing Policy**: These functions are marked as "LIVE DATA OK" when MCP vs REST data differs due to real-time blockchain changes.
+
+**🚨 CRITICAL: Session Setup Functions Registry**
+**These functions require active session/browser setup and cannot be tested in isolation:**
+```python
+session_setup_functions = {
+    'queue_user_message': 'Requires active conversation session',
+    'take_screenshot': 'Requires live browser session',
+    'upload_screenshot': 'Requires active screenshot workflow',
+    'trigger_browser_screenshot': 'Requires live dashboard session',
+    'update_chart_config': 'Requires active dashboard session',
+    'get_dashboard_config': 'Requires live dashboard session',
+    'fetch_session_events': 'Requires active session',
+    'get_browser_connection_order': 'Requires active browser session',
+    'ai_terminal_conversation': 'Requires interactive terminal session'
+}
+```
+**Testing Policy**: These functions are marked as "TOOL AVAILABLE" (MCP) or "ENDPOINT REACHABLE" (REST) when they respond correctly but require live session setup.
+
 **Code Duplication:**
 **NO duplication of code, functions, or type definitions across files. Maintain single source of truth. Import from shared modules instead of copying code.**
 
