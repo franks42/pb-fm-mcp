@@ -14,7 +14,7 @@ from utils import JSONType
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],  # Disabled for production
     description="Debug function to analyze MCP request context for AI instance identification"
 )
 async def analyze_mcp_request_context() -> JSONType:
@@ -73,7 +73,7 @@ async def analyze_mcp_request_context() -> JSONType:
 
 
 @api_function(
-    protocols=["mcp"], 
+    protocols=[],  # Disabled for production
     description="Create a test dashboard with debug information about the requesting AI instance"
 )
 async def create_debug_dashboard(
@@ -138,7 +138,7 @@ async def create_debug_dashboard(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],  # Disabled for production
     description="Test function to examine if there's any session persistence across MCP calls"
 )
 async def test_session_persistence(

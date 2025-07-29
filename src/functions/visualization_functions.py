@@ -81,7 +81,7 @@ def create_demo_wallet_data(wallet_address: str) -> dict:
 
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=[],
     path="/api/create_personalized_dashboard",
     method="POST", 
     tags=["visualization", "dashboard"],
@@ -177,7 +177,7 @@ async def create_personalized_dashboard(
 
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=[],
     path="/api/get_dashboard_info/{dashboard_id}",
     method="GET",
     tags=["visualization", "dashboard"],
@@ -259,7 +259,7 @@ async def get_dashboard_info(
 
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=[],
     path="/api/create_hash_price_chart",
     method="POST",
     tags=["visualization", "charts"],
@@ -385,7 +385,7 @@ async def create_hash_price_chart(
 
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=[],  # Disabled for production
     path="/api/create_portfolio_health",
     method="POST",
     tags=["visualization", "portfolio"],
@@ -820,7 +820,7 @@ def generate_health_recommendations(health_metrics: dict, wallet_data: dict) -> 
 
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=[],  # Disabled for production
     path="/api/take_screenshot",
     method="POST",
     tags=["utility", "debugging"],
@@ -981,7 +981,7 @@ const puppeteer = require('puppeteer');
 
 
 @api_function(
-    protocols=["mcp"],  # MCP only - for Claude to use automatically
+    protocols=[],  # Disabled for production
     description="Claude can automatically take screenshots for debugging without user permission"
 )
 async def claude_take_screenshot(
@@ -1042,7 +1042,7 @@ async def claude_take_screenshot(
 
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=[],  # Disabled for production
     path="/api/upload_screenshot",
     method="POST",
     tags=["utility", "debugging"],
@@ -1186,7 +1186,7 @@ async def upload_screenshot(
 
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=[],  # Disabled for production
     path="/api/trigger_browser_screenshot",
     method="POST",
     tags=["utility", "debugging"],
@@ -1257,7 +1257,7 @@ async def trigger_browser_screenshot(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],  # Disabled for production
     path="/api/download_screenshot/{screenshot_id}",
     method="GET",
     tags=["utility", "debugging"],
@@ -1382,7 +1382,7 @@ async def download_screenshot(
 
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=[],  # Disabled for production
     path="/api/check_screenshot_requests",
     method="POST",
     tags=["utility", "debugging"],

@@ -57,7 +57,7 @@ def get_or_create_session(session_id: str = None) -> MockBrowserSession:
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Navigate browser to specified URL - returns mock response"
 )
 async def browser_navigate(
@@ -81,7 +81,7 @@ async def browser_navigate(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Take screenshot of browser page - returns mock response"
 )
 async def browser_screenshot(
@@ -101,7 +101,7 @@ async def browser_screenshot(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Click element on page - returns mock response"
 )
 async def browser_click(
@@ -120,7 +120,7 @@ async def browser_click(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Type text into input field - returns mock response"
 )
 async def browser_type(
@@ -140,7 +140,7 @@ async def browser_type(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Get text content of element - returns mock response"
 )
 async def browser_get_text(
@@ -158,7 +158,7 @@ async def browser_get_text(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Execute JavaScript code - returns mock response"
 )
 async def browser_execute_javascript(
@@ -175,7 +175,7 @@ async def browser_execute_javascript(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Wait for element to appear - returns mock response"
 )
 async def browser_wait_for_element(
@@ -194,7 +194,7 @@ async def browser_wait_for_element(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Close browser session - returns mock response"
 )
 async def browser_close_session(
@@ -219,7 +219,7 @@ async def browser_close_session(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Get current page information - returns mock response"
 )
 async def browser_get_page_info(

@@ -94,7 +94,7 @@ def update_session_activity(session_id: str, claude_active: bool = None, web_act
         logger.error("Failed to update session activity", session_id=session_id, error=str(e))
 
 @api_function(
-    protocols=["rest"],  # Web interface only - not needed in MCP
+    protocols=[],  # Disabled for production
     path="/api/create_new_session", 
     method="POST",
     tags=["webui", "session"],
@@ -127,7 +127,7 @@ async def create_new_session() -> JSONType:
     }
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=[],
     path="/api/queue_user_message", 
     method="POST",
     tags=["webui", "messaging"],
@@ -214,7 +214,7 @@ async def queue_user_message(message: str, session_id: str = "default") -> JSONT
         return {"success": False, "error": "Failed to queue message"}
 
 @api_function(
-    protocols=["mcp"],  # Claude polling only
+    protocols=[],  # Claude polling only
     path=None,  # MCP-only, no REST endpoint needed
     method="GET",
     tags=["webui", "heartbeat"],
@@ -295,7 +295,7 @@ async def get_pending_messages(session_id: str = "default") -> JSONType:
         }
 
 @api_function(
-    protocols=["mcp"],  # Claude response only
+    protocols=[],  # Claude response only
     path=None,  # MCP-only, no REST endpoint needed
     method="POST",
     tags=["webui", "messaging"],
@@ -386,7 +386,7 @@ async def send_response_to_web(message_id: str, response: str, session_id: str =
         return {"success": False, "error": "Failed to send response"}
 
 @api_function(
-    protocols=["rest"],  # Web interface polling only
+    protocols=[],  # Disabled for production
     path="/api/get_latest_response/{session_id}",
     method="GET",
     tags=["webui", "messaging"],
@@ -461,7 +461,7 @@ async def get_latest_response(session_id: str = "default") -> JSONType:
         }
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=[],
     path="/api/get_conversation_status/{session_id}",
     method="GET",
     tags=["webui", "session"],
@@ -560,7 +560,7 @@ async def get_conversation_status(session_id: str = "default") -> JSONType:
         }
 
 @api_function(
-    protocols=["rest"],  # Admin/cleanup function
+    protocols=[],  # Disabled for production
     path="/api/cleanup_inactive_sessions",
     method="POST", 
     tags=["webui", "admin"],

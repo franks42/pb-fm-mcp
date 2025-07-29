@@ -1,0 +1,69 @@
+Function Name,MCP,REST,Description
+ai_terminal_conversation,YES,,Run a continuous AI terminal conversation loop
+analyze_mcp_request_context,YES,,Analyze the current MCP request context to identify potential unique identifiers for AI assistant instances
+browser_click,YES,,Click element on page - returns mock response
+browser_close_session,YES,,Close browser session - returns mock response  
+browser_execute_javascript,YES,,Execute JavaScript code - returns mock response
+browser_get_page_info,YES,,Get current page information - returns mock response
+browser_get_text,YES,,Get text content of element - returns mock response
+browser_navigate,YES,,Navigate browser to specified URL - returns mock response
+browser_screenshot,YES,,Take screenshot of browser page - returns mock response
+browser_type,YES,,Type text into input field - returns mock response
+browser_wait_for_element,YES,,Wait for element to appear - returns mock response
+check_screenshot_requests,YES,,Check for pending screenshot requests from Claude
+claude_take_screenshot,YES,,Special function for Claude to automatically take screenshots during debugging
+create_debug_dashboard,YES,,Create a test dashboard while attempting to capture any available information about the AI instance
+create_example_dashboard,YES,,One-click creation of a complete example dashboard demonstrating the three-phase declarative loading system
+create_hash_price_chart,YES,,Create simple HASH price vs time chart using existing market data
+create_layout_variant,YES,,Create pre-staged layout variant in S3
+create_personalized_dashboard,YES,,AI creates stable session-based dashboard URLs
+declare_chart_data,YES,,Populate charts with data (Phase 3: Live data)
+declare_dashboard_layout,YES,,Create dashboard layout declaration (Phase 1: HTML/CSS structure)
+declare_plotly_charts,YES,,Configure Plotly charts without data (Phase 2: Empty visualizations)
+download_screenshot,YES,,Download screenshot for Claude to analyze via Read tool
+experiment_gauge_styles,YES,,Claude can try different gauge styles quickly
+fetch_account_info,YES,YES,Fetch comprehensive account information for a wallet address including vesting status account type and assets under management
+fetch_account_is_vesting,YES,YES,Fetch whether a wallet address represents a Figure Markets exchange account that is subject to vesting schedule restrictions
+fetch_available_committed_amount,YES,YES,Fetch the current committed HASH amount to the Figure Markets exchange for the given wallet address
+fetch_complete_wallet_summary,YES,YES,Get comprehensive wallet summary including blockchain account info delegation data vesting info and Figure Markets trading balance
+fetch_current_fm_data,YES,YES,Fetch the current market data from the Figure Markets exchange
+fetch_current_hash_statistics,YES,YES,Fetch the current overall statistics for the Provenance Blockchain's utility token HASH
+fetch_figure_markets_assets_info,YES,YES,Fetch the list of assets like crypto tokens stable coins and funds that are traded on the Figure Markets exchange
+fetch_last_crypto_token_price,YES,YES,For the crypto token_pair fetch the prices for the last number of trades from the Figure Markets exchange
+fetch_market_overview_summary,YES,YES,Get comprehensive market overview including Figure Markets data HASH token statistics trading assets and key token prices
+fetch_session_events,YES,,Fetch events for a session to enable replay
+fetch_total_delegation_data,YES,YES,For a wallet address fetch cumulative delegation HASH amounts for all validators including staked redelegated rewards and unbonding amounts
+fetch_vesting_total_unvested_amount,YES,YES,Fetch the vesting_total_unvested_amount for the given wallet address and date_time
+get_ai_terminal_status,YES,,Get the current status of an AI terminal conversation session
+get_ai_terminal_url,YES,,Get the browser URL for accessing an AI terminal session
+get_browser_connection_order,YES,,Determine browser connection order for input control
+get_conversation_status,YES,,Check conversation status and message counts for a specific session
+get_dashboard_config,YES,YES,Retrieve dashboard configuration for rendering. Used by dashboard JavaScript to poll for updates
+get_dashboard_coordinates,YES,YES,Browser polling endpoint to get current S3 coordinates for a dashboard session
+get_dashboard_info,YES,,AI can retrieve dashboard URL and info for user
+get_pending_messages,YES,,Get unprocessed messages for Claude to handle during heartbeat polling
+get_registry_introspection,YES,YES,Get comprehensive information about all registered functions in the server including protocol support paths and descriptions
+get_registry_summary,YES,YES,Get a quick summary of registered functions counts by protocol support
+get_system_context,YES,YES,REQUIRED READING: Essential system context for the Figure Markets Exchange and the Provenance Blockchain that MUST be read before using any tools
+get_traffic_light_status,YES,,Get status of both traffic light queues for debugging
+mcp_test_server,YES,,Comprehensive MCP server testing function for development and cross-server testing
+mcp_warmup_ping,YES,YES,Ultra-fast ping function designed specifically for Lambda warming and MCP timeout recovery
+optimize_chart_colors,YES,,Claude can experiment with different color schemes
+queue_user_message,YES,,Queue a user message for Claude to process during heartbeat polling
+send_response_to_browser,YES,,Send AI response back to browser for immediate display
+send_response_to_web,YES,,Send Claude's response back to web interface for a specific message
+send_result_to_browser_and_fetch_new_instruction,YES,,Unified conversation function that combines sending results and fetching instructions
+set_dashboard_coordinates,YES,,Set S3 coordinates for dashboard session (AI orchestration)
+start_realtime_conversation,YES,,Initialize a real-time conversation session
+switch_dashboard_layout,YES,,Switch dashboard to pre-staged S3 layout variant
+take_screenshot,YES,,Take a screenshot of a webpage to help debug visualization issues
+test_session_persistence,YES,,Test whether there's any session persistence that could be used to identify the same AI instance across multiple MCP calls
+trigger_browser_screenshot,YES,,Trigger the browser to take a screenshot and upload it to the server
+update_chart_config,YES,,AI can fine-tune chart appearance in real-time by updating DynamoDB config
+upload_screenshot,YES,,Receive browser-captured screenshot and save it for Claude to analyze
+wait_for_user_input,YES,,Traffic light pattern: AI waits for user input from browser
+delegated_redelegation_amount,,YES,Fetch the total amount of redelegated nhash for a wallet address
+delegated_rewards_amount,,YES,Fetch the total amount of rewards nhash for a wallet address
+delegated_staked_amount,,YES,Fetch the total amount of staked nhash for a wallet address
+delegated_unbonding_amount,,YES,Fetch the total amount of unbonding nhash for a wallet address
+wallet_liquid_balance,,YES,Fetch the liquid HASH balance for a wallet address

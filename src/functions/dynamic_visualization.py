@@ -29,7 +29,7 @@ def convert_floats_to_decimal(obj):
 
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=[],  # Disabled for production
     path="/api/update_chart_config",
     method="POST",
     description="Update Plotly chart configuration in real-time without redeployment"
@@ -96,7 +96,7 @@ async def update_chart_config(
 
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=["rest"],  # REST-only for production
     path="/api/get_dashboard_config",
     method="GET",
     description="Get current dashboard Plotly configuration from DynamoDB"
@@ -142,7 +142,7 @@ async def get_dashboard_config(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],  # Disabled for production
     description="AI experiments with chart colors to find optimal visibility"
 )
 async def optimize_chart_colors(
@@ -301,7 +301,7 @@ def get_default_portfolio_health_config() -> dict:
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],  # Disabled for production
     description="Test different gauge configurations to see what looks best"
 )
 async def experiment_gauge_styles(

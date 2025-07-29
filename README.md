@@ -43,7 +43,14 @@ git clone https://github.com/franks42/pb-fm-mcp.git
 
 ## ✅ Production Deployment Status
 
-**DEPLOYED AND FULLY FUNCTIONAL** - Main branch successfully deployed to production AWS Lambda.
+**DEPLOYED AND FULLY FUNCTIONAL** - Main branch successfully deployed to production AWS Lambda with restricted MCP access.
+
+### Production Function Restrictions (July 28, 2025)
+
+**MCP Access:** Only 16 core blockchain/market functions exposed via MCP protocol
+- Development/experimental functions disabled in production
+- Configuration managed via `function_protocols_prod.csv`
+- Validation script: `scripts/validate_production_config.py`
 
 ### Production Deployment Success Summary
 

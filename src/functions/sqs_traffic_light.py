@@ -44,7 +44,7 @@ def ensure_queue_exists(queue_name: str) -> str:
         return response['QueueUrl']
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Wait for user input from browser using SQS traffic light pattern. "
                 "This function blocks until user interacts with the web interface "
                 "or timeout is reached. Perfect for real-time AI-browser communication."
@@ -129,7 +129,7 @@ async def wait_for_user_input(
         }
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Send AI response to browser via SQS queue. "
                 "Browser will receive this immediately through its polling loop. "
                 "Use this to update dashboards, show analysis results, or send any data to the UI."
@@ -194,7 +194,7 @@ async def send_response_to_browser(
         }
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Get the current status of SQS queues for a session. "
                 "Useful for debugging communication issues or checking message counts."
 )
@@ -263,7 +263,7 @@ async def get_traffic_light_status(session_id: str) -> JSONType:
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Unified function for AI Terminal conversation. Sends result to browser, "
                 "then waits for new instruction. Returns instruction for Claude to follow."
 )
@@ -342,7 +342,7 @@ async def send_result_to_browser_and_fetch_new_instruction(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Start a real-time conversation session with a web browser. "
                 "Returns instructions for Claude on how to use the traffic light pattern "
                 "for bidirectional communication."

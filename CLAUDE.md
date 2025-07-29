@@ -2,6 +2,53 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 CRITICAL: Production Function Restrictions (July 28, 2025)
+
+**IMPORTANT: Production deployment now restricts MCP access to only 16 core functions.**
+
+### Production MCP Configuration
+- **MCP Functions**: Only 16 core blockchain/market functions exposed via MCP protocol
+- **Development Functions**: 48+ experimental functions disabled using `protocols=[]` → `protocols=["local"]`
+- **Configuration Files**: `function_protocols_prod.csv` defines production function access
+- **Validation Script**: `scripts/validate_production_config.py` ensures compliance
+
+### Core Production Functions (MCP Enabled)
+```
+1. fetch_account_info           - Blockchain account information
+2. fetch_account_is_vesting     - Vesting account status
+3. fetch_available_committed_amount - Committed HASH amounts
+4. fetch_complete_wallet_summary - Comprehensive wallet data
+5. fetch_current_fm_data        - Figure Markets exchange data
+6. fetch_current_hash_statistics - HASH token statistics
+7. fetch_figure_markets_assets_info - Trading assets information
+8. fetch_last_crypto_token_price - Token price history
+9. fetch_market_overview_summary - Market overview aggregate
+10. fetch_total_delegation_data - Delegation information
+11. fetch_vesting_total_unvested_amount - Vesting calculations
+12. get_registry_introspection  - Function registry details
+13. get_registry_summary        - Registry overview
+14. get_system_context          - System information
+15. mcp_test_server            - MCP testing utility
+16. mcp_warmup_ping            - Lambda warming function
+```
+
+### Disabled Development Functions
+All browser automation, dashboard creation, debugging, and experimental functions are set to `protocols=[]` which the decorator converts to `protocols=["local"]`. These functions:
+- Are NOT exposed via MCP protocol
+- Are NOT visible in MCP tools list
+- Remain in codebase for future development
+- Can be re-enabled by updating protocols in decorator
+
+### Implementation Details
+- **Protocol Enum**: Added `LOCAL = "local"` for registered but not exposed functions
+- **Decorator Logic**: Empty protocols `[]` → `["local"]` to prevent MCP exposure
+- **Registry Filtering**: `get_mcp_functions()` only returns functions with MCP protocol
+
+### Production URLs
+- **MCP Endpoint**: `https://pb-fm-mcp.creativeapptitude.com/mcp` (16 tools only)
+- **REST API**: `https://pb-fm-mcp.creativeapptitude.com/api/*` (22 endpoints)
+- **Documentation**: `https://pb-fm-mcp.creativeapptitude.com/docs`
+
 ## 🚨 CRITICAL: Template Architecture Cleanup (July 28, 2025)
 
 **IMPORTANT: Template consolidation and cleanup completed successfully.**

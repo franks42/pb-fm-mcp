@@ -32,7 +32,7 @@ def get_web_assets_bucket() -> str:
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Create dashboard layout declaration (Phase 1: HTML/CSS structure)"
 )
 async def declare_dashboard_layout(
@@ -87,7 +87,7 @@ async def declare_dashboard_layout(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Configure Plotly charts without data (Phase 2: Empty visualizations)"
 )
 async def declare_plotly_charts(
@@ -149,7 +149,7 @@ async def declare_plotly_charts(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Populate charts with data (Phase 3: Live data)"
 )
 async def declare_chart_data(
@@ -215,7 +215,7 @@ async def declare_chart_data(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Create complete dashboard with example blockchain data (All phases)"
 )
 async def create_example_dashboard(

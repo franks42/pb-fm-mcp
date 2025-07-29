@@ -7,7 +7,7 @@ from registry import api_function
 from utils import JSONType
 
 @api_function(
-    protocols=["rest"],
+    protocols=[],  # Disabled for production
     path="/api/conversation",
     method="GET",
     tags=["webui", "interface"],

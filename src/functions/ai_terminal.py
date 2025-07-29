@@ -15,7 +15,7 @@ from .sqs_traffic_light import wait_for_user_input, send_response_to_browser
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Start an AI terminal conversation loop. Continuously waits for user prompts "
                 "from the web interface and responds as if they were local prompts. "
                 "Perfect for demonstrating real-time AI-browser communication."
@@ -266,7 +266,7 @@ Try asking me anything else!"""
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Get current status of an AI terminal conversation session. "
                 "Shows session metrics, conversation history, and system health."
 )
@@ -313,7 +313,7 @@ async def get_ai_terminal_status(session_id: str) -> JSONType:
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Get the browser URL for an AI terminal session. Returns the web interface URL "
                 "that connects to the specified session ID for real-time conversation."
 )

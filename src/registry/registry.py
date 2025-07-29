@@ -15,6 +15,7 @@ class Protocol(Enum):
     """Supported protocols for function exposure"""
     MCP = "mcp"
     REST = "rest"
+    LOCAL = "local"  # Functions registered but not exposed via any protocol
 
 
 @dataclass

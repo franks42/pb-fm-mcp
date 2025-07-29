@@ -61,7 +61,14 @@ def api_function(
     
     def decorator(func: Callable) -> Callable:
         # Default protocols if not specified
-        func_protocols = protocols or ["mcp", "rest"]
+        # Important: Check explicitly for None to allow empty lists
+        if protocols is None:
+            func_protocols = ["mcp", "rest"]
+        elif protocols == []:
+            # Empty list means local-only (not exposed via any protocol)
+            func_protocols = ["local"]
+        else:
+            func_protocols = protocols
         
         # Determine REST path if not provided
         rest_path = path

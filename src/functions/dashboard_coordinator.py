@@ -31,7 +31,7 @@ def get_dashboards_table():
 
 
 @api_function(
-    protocols=["mcp", "rest"],
+    protocols=["rest"],
     path="/api/dashboard/coordinates/{session_id}",
     method="GET",
     tags=["coordination"],
@@ -100,7 +100,7 @@ async def get_dashboard_coordinates(session_id: str) -> JSONType:
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Set S3 coordinates for dashboard session (AI orchestration)"
 )
 async def set_dashboard_coordinates(
@@ -171,7 +171,7 @@ async def set_dashboard_coordinates(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Switch dashboard to pre-staged S3 layout variant"
 )
 async def switch_dashboard_layout(
@@ -231,7 +231,7 @@ async def switch_dashboard_layout(
 
 
 @api_function(
-    protocols=["mcp"],
+    protocols=[],
     description="Create pre-staged layout variant in S3"
 )
 async def create_layout_variant(

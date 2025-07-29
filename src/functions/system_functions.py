@@ -197,8 +197,8 @@ async def get_registry_summary() -> JSONType:
 
 
 @api_function(
-    protocols=["mcp"],
-    path=None,  # MCP-only, no REST endpoint needed
+    protocols=["mcp", "rest"],  # Core function - kept in production
+    path="/api/warmup_ping",
     method="GET", 
     tags=["system", "warmup"],
     description="Fast ping function for warming Lambda containers and testing MCP connectivity"
