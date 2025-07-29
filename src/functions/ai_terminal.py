@@ -14,7 +14,7 @@ from utils import JSONType
 from .sqs_traffic_light import wait_for_user_input, send_response_to_browser
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -265,7 +265,7 @@ Try asking me anything else!"""
         return responses[iteration % len(responses)]
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -312,7 +312,7 @@ async def get_ai_terminal_status(session_id: str) -> JSONType:
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 

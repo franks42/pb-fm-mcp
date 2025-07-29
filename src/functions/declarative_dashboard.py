@@ -31,7 +31,7 @@ def get_web_assets_bucket() -> str:
     return bucket
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -86,7 +86,7 @@ async def declare_dashboard_layout(
         }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -148,7 +148,7 @@ async def declare_plotly_charts(
         }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -214,7 +214,7 @@ async def declare_chart_data(
         }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 

@@ -121,7 +121,7 @@ async def store_event(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -196,7 +196,7 @@ async def fetch_session_events(
         }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 

@@ -13,7 +13,7 @@ from registry import api_function
 from utils import JSONType
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -72,7 +72,7 @@ async def analyze_mcp_request_context() -> JSONType:
         }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -137,7 +137,7 @@ async def create_debug_dashboard(
         }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 

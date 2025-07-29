@@ -56,7 +56,7 @@ def get_or_create_session(session_id: str = None) -> MockBrowserSession:
     return session
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -80,7 +80,7 @@ async def browser_navigate(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -100,7 +100,7 @@ async def browser_screenshot(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -119,7 +119,7 @@ async def browser_click(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -139,7 +139,7 @@ async def browser_type(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -157,7 +157,7 @@ async def browser_get_text(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -174,7 +174,7 @@ async def browser_execute_javascript(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -193,7 +193,7 @@ async def browser_wait_for_element(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -218,7 +218,7 @@ async def browser_close_session(
         }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 

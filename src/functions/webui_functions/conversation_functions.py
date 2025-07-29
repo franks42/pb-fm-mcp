@@ -126,7 +126,7 @@ async def create_new_session() -> JSONType:
         "status": "ready"
     }
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -213,7 +213,7 @@ async def queue_user_message(message: str, session_id: str = "default") -> JSONT
         logger.error("Failed to queue message", session_id=session_id, error=str(e))
         return {"success": False, "error": "Failed to queue message"}
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -294,7 +294,7 @@ async def get_pending_messages(session_id: str = "default") -> JSONType:
             "status": "error"
         }
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -460,7 +460,7 @@ async def get_latest_response(session_id: str = "default") -> JSONType:
             "status": "error"
         }
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 

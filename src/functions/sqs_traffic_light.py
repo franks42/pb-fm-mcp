@@ -43,7 +43,7 @@ def ensure_queue_exists(queue_name: str) -> str:
         )
         return response['QueueUrl']
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -128,7 +128,7 @@ async def wait_for_user_input(
             "session_id": session_id
         }
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -193,7 +193,7 @@ async def send_response_to_browser(
             "session_id": session_id
         }
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -262,7 +262,7 @@ async def get_traffic_light_status(session_id: str) -> JSONType:
         }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -341,7 +341,7 @@ async def send_result_to_browser_and_fetch_new_instruction(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 

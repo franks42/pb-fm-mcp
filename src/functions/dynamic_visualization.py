@@ -28,7 +28,7 @@ def convert_floats_to_decimal(obj):
         return obj
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -141,7 +141,7 @@ async def get_dashboard_config(
         }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
@@ -300,7 +300,7 @@ def get_default_portfolio_health_config() -> dict:
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(protocols=[])
 
 
 
