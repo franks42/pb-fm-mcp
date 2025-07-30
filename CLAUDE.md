@@ -37,6 +37,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **CLAUDE.MD IS THE SINGLE SOURCE OF TRUTH - Always consult it first.**
 
+## 🚨 CURRENT PROJECT: AI-Driven Webpage MVP (July 30, 2025)
+
+**ACTIVE DEVELOPMENT**: Building MVP for AI-orchestrated webpage system using SQS message bus architecture.
+
+### Current Session Status
+- **Architecture Definition**: In progress in `docs/mvp-ai-driven-webpage.md`
+- **Key Decision**: SQS as generic message bus for async component communication
+- **Core Components Defined**:
+  - AI-Agent (orchestrator using MCP functions)
+  - Browser-JS (webpage renderer with component addressing)
+  - S3-Queue-Handler (bulk data via S3 references only)
+  - WebBrowser-Queue-Handler (browser↔SQS interface)
+
+### Implementation Foundation
+- **Existing Infrastructure**: SQS traffic light pattern working (~475ms AI→browser)
+- **Working Functions**: `wait_for_user_input()`, `send_response_to_browser()` in `src/functions/sqs_traffic_light.py`
+- **Message Format**: JSON with component addressing for routing
+- **Storage Pattern**: Large content in S3, only references via SQS
+
+### Next Session Tasks
+1. **Complete Architecture Definition**: Finish component specification from user
+2. **Define MVP Feature Set**: Specific capabilities and limitations
+3. **Implementation Plan**: Phases and development roadmap
+4. **Begin Development**: Start with enhanced SQS message routing
+
+### Architectural Principles
+- **No Bulk Data in SQS**: Only S3 identifiers/references
+- **Component Addressing**: Each webpage component has unique address for message routing
+- **AI Orchestration**: AI has complete freedom to decide layout, content, visualizations
+- **Low-Latency Polling**: Call webserver → wait → timeout → repeat pattern
+
 ## 🚨 CRITICAL: Native MCP Handler Requirement (July 29, 2025)
 
 **MANDATORY: Ensure that MCP requests are ALWAYS handled natively by the AWS MCP handlers. If not, it may cause connection issues with Claude.ai and possibly other MCP clients.**
