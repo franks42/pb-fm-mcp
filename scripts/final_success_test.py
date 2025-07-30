@@ -46,7 +46,7 @@ async def test_both_domains():
                 
                 test_functions = [
                     ("fetch_current_hash_statistics", "/api/fetch-current-hash-statistics"),
-                    ("fetch_account_info/pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8", "/api/fetch-account-info/pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8"),
+                    ("fetch_account_info/user_provided_wallet_address", "/api/fetch-account-info/user_provided_wallet_address"),
                     ("get_dashboard_config", "/api/get-dashboard-config?dashboard_id=test&version=1")
                 ]
                 

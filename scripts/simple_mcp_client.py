@@ -302,7 +302,10 @@ async def run_predefined_tests(client: SimpleMCPClient):
     print("\n🧪 Running predefined tests...")
     
     # Use a known working wallet for testing
-    test_wallet = "pb1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj"  # Known working wallet
+    test_wallet = os.environ.get('TEST_WALLET_ADDRESS')
+    if not test_wallet:
+        print("ERROR: TEST_WALLET_ADDRESS environment variable required")
+        sys.exit(1)
     
     tests = [
         {

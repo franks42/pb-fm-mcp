@@ -6,13 +6,13 @@ import os
 from registry import api_function
 from utils import JSONType
 
-@api_function(
-    protocols=[],  # Disabled for production
-    path="/api/conversation",
-    method="GET",
-    tags=["webui", "interface"],
-    description="Serve the conversation web interface HTML page"
-)
+@api_function(protocols=["rest"])
+
+
+
+
+
+
 async def serve_conversation_interface():
     """
     Serve the conversation web interface HTML page.

@@ -471,9 +471,14 @@ async def run_predefined_tests(client: MCPTestClient):
     
     # Get test wallet from environment variable or use default
     import os
-    test_wallet = os.environ.get('TEST_WALLET_ADDRESS', "pb1mjtshzl0p9w7xztfawg7z86k7m02d8zznp3t6q7l")
+    test_wallet = os.environ.get('TEST_WALLET_ADDRESS')
     
-    if test_wallet != "pb1mjtshzl0p9w7xztfawg7z86k7m02d8zznp3t6q7l":
+    if not test_wallet:
+        print("ERROR: TEST_WALLET_ADDRESS environment variable not set!")
+        print("Set it before running: export TEST_WALLET_ADDRESS='your_wallet_address'")
+        return 1
+    
+    if test_wallet:
         print(f"✅ Using TEST_WALLET_ADDRESS from environment: {test_wallet}")
     else:
         print(f"⚠️  Using default test wallet (set TEST_WALLET_ADDRESS env var for real testing): {test_wallet}")

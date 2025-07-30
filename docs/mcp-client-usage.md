@@ -146,10 +146,10 @@ mcp> call fetchCurrentFmData {}
 
 ```bash
 # Get account information
-mcp> call fetchAccountInfo {"wallet_address": "pb1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj"}
+mcp> call fetchAccountInfo {"wallet_address": "user_provided_wallet_address"}
 
 # Get delegation data
-mcp> call fetchTotalDelegationData {"wallet_address": "pb1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj"}
+mcp> call fetchTotalDelegationData {"wallet_address": "user_provided_wallet_address"}
 
 # Get crypto token price
 mcp> call fetchLastCryptoTokenPrice {"token_pair": "HASH-USD", "last_number_of_trades": 5}

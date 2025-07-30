@@ -93,13 +93,13 @@ def update_session_activity(session_id: str, claude_active: bool = None, web_act
     except ClientError as e:
         logger.error("Failed to update session activity", session_id=session_id, error=str(e))
 
-@api_function(
-    protocols=[],  # Disabled for production
-    path="/api/create_new_session", 
-    method="POST",
-    tags=["webui", "session"],
-    description="Create new user session with unique UUID for web interface isolation"
-)
+@api_function(protocols=["rest"])
+
+
+
+
+
+
 async def create_new_session() -> JSONType:
     """
     Create new user session with unique UUID for complete user isolation.
@@ -385,13 +385,13 @@ async def send_response_to_web(message_id: str, response: str, session_id: str =
         logger.error("Failed to send response", message_id=message_id, error=str(e))
         return {"success": False, "error": "Failed to send response"}
 
-@api_function(
-    protocols=[],  # Disabled for production
-    path="/api/get_latest_response/{session_id}",
-    method="GET",
-    tags=["webui", "messaging"],
-    description="Web interface polls for latest Claude response in their session"
-)
+@api_function(protocols=["rest"])
+
+
+
+
+
+
 async def get_latest_response(session_id: str = "default") -> JSONType:
     """
     Web interface polls for latest Claude response in their session.
@@ -559,13 +559,13 @@ async def get_conversation_status(session_id: str = "default") -> JSONType:
             "status": "error"
         }
 
-@api_function(
-    protocols=[],  # Disabled for production
-    path="/api/cleanup_inactive_sessions",
-    method="POST", 
-    tags=["webui", "admin"],
-    description="Remove inactive sessions older than specified hours"
-)
+@api_function(protocols=["rest"])
+
+
+
+
+
+
 async def cleanup_inactive_sessions(max_age_hours: int = 24) -> JSONType:
     """
     Remove inactive sessions older than specified hours.

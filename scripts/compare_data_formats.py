@@ -277,7 +277,10 @@ class DataFormatComparator:
         
         # Test a few tools
         test_results = {}
-        test_wallet = "pb1mjtshzl0p9w7xztfawg7z86k7m02d8zznp3t6q7l"  # Safe default
+        test_wallet = os.environ.get('TEST_WALLET_ADDRESS')
+        if not test_wallet:
+            print("ERROR: TEST_WALLET_ADDRESS environment variable required")
+            sys.exit(1)
         
         # Test no-parameter tools
         no_param_tools = [tool for tool in tools if not tool.get('inputSchema')]

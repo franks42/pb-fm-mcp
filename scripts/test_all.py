@@ -63,7 +63,7 @@ class ComprehensiveTestSuite:
     
     def __init__(self):
         self.results: List[TestResult] = []
-        self.test_wallet = os.environ.get('TEST_WALLET_ADDRESS', "pb1mjtshzl0p9w7xztfawg7z86k7m02d8zznp3t6q7l")
+        self.test_wallet = os.environ.get('TEST_WALLET_ADDRESS', "user_provided_wallet_addressl")
         self.sam_process: Optional[subprocess.Popen] = None
         
     def add_result(self, result: TestResult):

@@ -8,7 +8,7 @@ import json
 async def identify_failures():
     mcp_url = "https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp"
     rest_url = "https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1"
-    test_wallet = "pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8"
+    test_wallet = "user_provided_wallet_address"
     
     print("🔍 IDENTIFYING REMAINING FAILURES\n")
     

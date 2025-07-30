@@ -186,7 +186,7 @@ async def quick_demo():
     
     result = await create_example_dashboard(
         session_id=f"quick_demo_{int(time.time())}",
-        wallet_address="pb1yl3rpckr7k428d00fj43lxhgzfpasn9pylxpgm"
+        wallet_address="user_provided_wallet_address"
     )
     
     if result['success']:

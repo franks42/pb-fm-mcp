@@ -78,7 +78,14 @@ class ExhaustiveFunctionTester:
         self.rest_base_url = rest_base_url
         self.test_results: Dict[str, FunctionTestResult] = {}
         self.discovered_tools: List[Dict[str, Any]] = []
-        self.test_wallet = os.environ.get('TEST_WALLET_ADDRESS', "pb1mjtshzl0p9w7xztfawg7z86k7m02d8zznp3t6q7l")
+        # Enforce environment variable usage - no default wallet addresses allowed
+        self.test_wallet = os.environ.get('TEST_WALLET_ADDRESS')
+        if not self.test_wallet:
+            print("\n🚨 ERROR: TEST_WALLET_ADDRESS environment variable not set!")
+            print("Please set it before running tests:")
+            print("  export TEST_WALLET_ADDRESS='your_wallet_address'")
+            print("\nSecurity Policy: Never hardcode wallet addresses in scripts.")
+            sys.exit(1)
         self.function_protocols: Dict[str, List[str]] = {}  # Track which protocols each function supports
         
         # Functions that require special handling or should be skipped in automated testing
