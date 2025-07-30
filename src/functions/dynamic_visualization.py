@@ -28,12 +28,12 @@ def convert_floats_to_decimal(obj):
         return obj
 
 
-@api_function(
-    protocols=[],  # Disabled for production
-    path="/api/update_chart_config",
-    method="POST",
-    description="Update Plotly chart configuration in real-time without redeployment"
-)
+@api_function(protocols=[])
+
+
+
+
+
 async def update_chart_config(
     dashboard_id: str,
     chart_element: str,  # e.g., "gauge", "treemap", "scatter"
@@ -95,12 +95,12 @@ async def update_chart_config(
         }
 
 
-@api_function(
-    protocols=["rest"],  # REST-only for production
-    path="/api/get_dashboard_config",
-    method="GET",
-    description="Get current dashboard Plotly configuration from DynamoDB"
-)
+@api_function(protocols=["rest"])
+
+
+
+
+
 async def get_dashboard_config(
     dashboard_id: str,
     version: Optional[int] = None
@@ -141,10 +141,10 @@ async def get_dashboard_config(
         }
 
 
-@api_function(
-    protocols=[],  # Disabled for production
-    description="AI experiments with chart colors to find optimal visibility"
-)
+@api_function(protocols=[])
+
+
+
 async def optimize_chart_colors(
     dashboard_id: str,
     optimization_goal: str = "readability"
@@ -300,10 +300,10 @@ def get_default_portfolio_health_config() -> dict:
     }
 
 
-@api_function(
-    protocols=[],  # Disabled for production
-    description="Test different gauge configurations to see what looks best"
-)
+@api_function(protocols=[])
+
+
+
 async def experiment_gauge_styles(
     dashboard_id: str,
     style: str = "modern"

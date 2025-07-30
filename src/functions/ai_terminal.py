@@ -14,12 +14,12 @@ from utils import JSONType
 from .sqs_traffic_light import wait_for_user_input, send_response_to_browser
 
 
-@api_function(
-    protocols=[],
-    description="Start an AI terminal conversation loop. Continuously waits for user prompts "
-                "from the web interface and responds as if they were local prompts. "
-                "Perfect for demonstrating real-time AI-browser communication."
-)
+@api_function(protocols=[])
+
+
+
+
+
 async def ai_terminal_conversation(
     session_id: str,
     timeout_seconds: int = 10,
@@ -265,11 +265,11 @@ Try asking me anything else!"""
         return responses[iteration % len(responses)]
 
 
-@api_function(
-    protocols=[],
-    description="Get current status of an AI terminal conversation session. "
-                "Shows session metrics, conversation history, and system health."
-)
+@api_function(protocols=[])
+
+
+
+
 async def get_ai_terminal_status(session_id: str) -> JSONType:
     """
     Get the current status of an AI terminal conversation session.
@@ -277,14 +277,14 @@ async def get_ai_terminal_status(session_id: str) -> JSONType:
     Returns information about the session including conversation metrics,
     system status, and queue health.
     """
-    # Handle test session gracefully
-    if session_id == '__TEST_SESSION__':
-        return {
-            'session_id': session_id,
-            'status': 'disconnected',
-            'test_mode': True,
-            'message': 'Test session - no active AI terminal connection'
-        }
+    # Handle test session gracefully - TEMPORARILY DISABLED FOR CLAUDE.AI TESTING
+    # if session_id == '__TEST_SESSION__':
+    #     return {
+    #         'session_id': session_id,
+    #         'status': 'disconnected',
+    #         'test_mode': True,
+    #         'message': 'Test session - no active AI terminal connection'
+    #     }
     
     from .sqs_traffic_light import get_traffic_light_status
     
@@ -312,11 +312,11 @@ async def get_ai_terminal_status(session_id: str) -> JSONType:
     }
 
 
-@api_function(
-    protocols=[],
-    description="Get the browser URL for an AI terminal session. Returns the web interface URL "
-                "that connects to the specified session ID for real-time conversation."
-)
+@api_function(protocols=[])
+
+
+
+
 async def get_ai_terminal_url(session_id: str) -> JSONType:
     """
     Get the browser URL for accessing an AI terminal session.

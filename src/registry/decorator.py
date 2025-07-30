@@ -73,10 +73,10 @@ def api_function(
         # Determine REST path if not provided
         rest_path = path
         if rest_path is None and ("rest" in func_protocols or Protocol.REST in func_protocols):
-            # Auto-generate REST path from function name
+            # Auto-generate REST path from function name (keep snake_case for consistency)
             func_name = name or func.__name__
-            # Convert snake_case to kebab-case and add leading slash
-            rest_path = "/" + func_name.replace("_", "-")
+            # Keep exact function name for easier debugging - no kebab-case conversion
+            rest_path = "/api/" + func_name
         
         # Register the function in the global registry
         registry = get_registry()

@@ -126,13 +126,13 @@ async def create_new_session() -> JSONType:
         "status": "ready"
     }
 
-@api_function(
-    protocols=[],
-    path="/api/queue_user_message", 
-    method="POST",
-    tags=["webui", "messaging"],
-    description="Queue a user message for Claude to process during heartbeat polling"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def queue_user_message(message: str, session_id: str = "default") -> JSONType:
     """
     Queue a user message for Claude to process during heartbeat polling.
@@ -213,13 +213,13 @@ async def queue_user_message(message: str, session_id: str = "default") -> JSONT
         logger.error("Failed to queue message", session_id=session_id, error=str(e))
         return {"success": False, "error": "Failed to queue message"}
 
-@api_function(
-    protocols=[],  # Claude polling only
-    path=None,  # MCP-only, no REST endpoint needed
-    method="GET",
-    tags=["webui", "heartbeat"],
-    description="Get unprocessed messages for Claude to handle during heartbeat polling"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def get_pending_messages(session_id: str = "default") -> JSONType:
     """
     Get unprocessed messages for Claude to handle during heartbeat polling.
@@ -294,13 +294,13 @@ async def get_pending_messages(session_id: str = "default") -> JSONType:
             "status": "error"
         }
 
-@api_function(
-    protocols=[],  # Claude response only
-    path=None,  # MCP-only, no REST endpoint needed
-    method="POST",
-    tags=["webui", "messaging"],
-    description="Send Claude's response back to web interface for specific message"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def send_response_to_web(message_id: str, response: str, session_id: str = None) -> JSONType:
     """
     Send Claude's response back to web interface for a specific message.
@@ -460,13 +460,13 @@ async def get_latest_response(session_id: str = "default") -> JSONType:
             "status": "error"
         }
 
-@api_function(
-    protocols=[],
-    path="/api/get_conversation_status/{session_id}",
-    method="GET",
-    tags=["webui", "session"],
-    description="Check conversation status and message counts for session"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def get_conversation_status(session_id: str = "default") -> JSONType:
     """
     Check conversation status and message counts for a specific session.

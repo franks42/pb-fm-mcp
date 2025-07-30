@@ -19,13 +19,13 @@ logger = structlog.get_logger()
 
 
 
-@api_function(
-    protocols=["mcp", "rest"],
-    path="/api/fetch_current_hash_statistics",
-    method="GET",
-    tags=["statistics", "blockchain"],
-    description="Fetch current HASH token statistics."
-)
+@api_function(protocols=["mcp", "rest"])
+
+
+
+
+
+
 async def fetch_current_hash_statistics() -> JSONType:
     """
     Fetch the current overall statistics for the Provenance Blockchain's utility token HASH.

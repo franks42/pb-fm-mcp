@@ -21,7 +21,7 @@ declare_chart_data,,,Populate charts with data (Phase 3: Live data)
 declare_dashboard_layout,,,Create dashboard layout declaration (Phase 1: HTML/CSS structure)
 declare_plotly_charts,,,Configure Plotly charts without data (Phase 2: Empty visualizations)
 download_screenshot,,,Download screenshot for Claude to analyze via Read tool
-experiment_gauge_styles,,,Claude can try different gauge styles quickly
+experiment_gauge_styles,,,Claude can experiment with different color schemes
 fetch_account_info,YES,YES,Fetch comprehensive account information for a wallet address including vesting status account type and assets under management
 fetch_account_is_vesting,YES,YES,Fetch whether a wallet address represents a Figure Markets exchange account that is subject to vesting schedule restrictions
 fetch_available_committed_amount,YES,YES,Fetch the current committed HASH amount to the Figure Markets exchange for the given wallet address
@@ -67,3 +67,12 @@ fetch_delegated_rewards_amount,,YES,Fetch the total amount of rewards nhash for 
 fetch_delegated_staked_amount,,YES,Fetch the total amount of staked nhash for a wallet address
 fetch_delegated_unbonding_amount,,YES,Fetch the total amount of unbonding nhash for a wallet address
 fetch_wallet_liquid_balance,,YES,Fetch the liquid HASH balance for a wallet address
+create_new_session,,YES,Create new user session with unique UUID for web interface isolation
+get_latest_response,,YES,Web interface polls for latest Claude response in their session
+cleanup_inactive_sessions,,YES,Remove inactive sessions older than specified hours
+create_portfolio_health,,,AI creates comprehensive portfolio health dashboard with risk analysis
+fetch_current_fm_account_balance_data,,,Fetch the current account balance data from the Figure Markets exchange for the given wallet address portfolio
+fetch_current_fm_account_info,,,Fetch comprehensive account information from Figure Markets exchange for the given wallet address
+serve_conversation_interface,,YES,Serve the conversation web interface HTML page
+get_version_info,,YES,Get deployment version and build information
+get_system_status,YES,YES,Get comprehensive system status and health information

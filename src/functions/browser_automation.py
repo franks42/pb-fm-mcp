@@ -56,10 +56,10 @@ def get_or_create_session(session_id: str = None) -> MockBrowserSession:
     return session
 
 
-@api_function(
-    protocols=[],
-    description="Navigate browser to specified URL - returns mock response"
-)
+@api_function(protocols=[])
+
+
+
 async def browser_navigate(
     url: str,
     session_id: str = None,
@@ -80,10 +80,10 @@ async def browser_navigate(
     }
 
 
-@api_function(
-    protocols=[],
-    description="Take screenshot of browser page - returns mock response"
-)
+@api_function(protocols=[])
+
+
+
 async def browser_screenshot(
     session_id: str = None,
     full_page: bool = True,
@@ -100,10 +100,10 @@ async def browser_screenshot(
     }
 
 
-@api_function(
-    protocols=[],
-    description="Click element on page - returns mock response"
-)
+@api_function(protocols=[])
+
+
+
 async def browser_click(
     selector: str,
     session_id: str = None,
@@ -119,10 +119,10 @@ async def browser_click(
     }
 
 
-@api_function(
-    protocols=[],
-    description="Type text into input field - returns mock response"
-)
+@api_function(protocols=[])
+
+
+
 async def browser_type(
     selector: str,
     text: str,
@@ -139,10 +139,10 @@ async def browser_type(
     }
 
 
-@api_function(
-    protocols=[],
-    description="Get text content of element - returns mock response"
-)
+@api_function(protocols=[])
+
+
+
 async def browser_get_text(
     selector: str,
     session_id: str = None,
@@ -157,10 +157,10 @@ async def browser_get_text(
     }
 
 
-@api_function(
-    protocols=[],
-    description="Execute JavaScript code - returns mock response"
-)
+@api_function(protocols=[])
+
+
+
 async def browser_execute_javascript(
     javascript_code: str,
     session_id: str = None
@@ -174,10 +174,10 @@ async def browser_execute_javascript(
     }
 
 
-@api_function(
-    protocols=[],
-    description="Wait for element to appear - returns mock response"
-)
+@api_function(protocols=[])
+
+
+
 async def browser_wait_for_element(
     selector: str,
     session_id: str = None,
@@ -193,10 +193,10 @@ async def browser_wait_for_element(
     }
 
 
-@api_function(
-    protocols=[],
-    description="Close browser session - returns mock response"
-)
+@api_function(protocols=[])
+
+
+
 async def browser_close_session(
     session_id: str = None
 ) -> JSONType:
@@ -218,10 +218,10 @@ async def browser_close_session(
         }
 
 
-@api_function(
-    protocols=[],
-    description="Get current page information - returns mock response"
-)
+@api_function(protocols=[])
+
+
+
 async def browser_get_page_info(
     session_id: str = None
 ) -> JSONType:

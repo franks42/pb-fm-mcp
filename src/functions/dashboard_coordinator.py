@@ -30,13 +30,13 @@ def get_dashboards_table():
     return dynamodb.Table(table_name)
 
 
-@api_function(
-    protocols=["rest"],
-    path="/api/dashboard/coordinates/{session_id}",
-    method="GET",
-    tags=["coordination"],
-    description="Get S3 coordination info for dashboard session (browser polling endpoint)"
-)
+@api_function(protocols=["rest"])
+
+
+
+
+
+
 async def get_dashboard_coordinates(session_id: str) -> JSONType:
     """
     Browser polling endpoint to get current S3 coordinates for a dashboard session.
@@ -99,10 +99,10 @@ async def get_dashboard_coordinates(session_id: str) -> JSONType:
         }
 
 
-@api_function(
-    protocols=[],
-    description="Set S3 coordinates for dashboard session (AI orchestration)"
-)
+@api_function(protocols=[])
+
+
+
 async def set_dashboard_coordinates(
     session_id: str,
     s3_base_url: str,
@@ -170,10 +170,10 @@ async def set_dashboard_coordinates(
         }
 
 
-@api_function(
-    protocols=[],
-    description="Switch dashboard to pre-staged S3 layout variant"
-)
+@api_function(protocols=[])
+
+
+
 async def switch_dashboard_layout(
     session_id: str,
     layout_variant: str,
@@ -230,10 +230,10 @@ async def switch_dashboard_layout(
         }
 
 
-@api_function(
-    protocols=[],
-    description="Create pre-staged layout variant in S3"
-)
+@api_function(protocols=[])
+
+
+
 async def create_layout_variant(
     variant_name: str,
     layout_html: str,

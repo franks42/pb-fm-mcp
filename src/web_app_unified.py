@@ -289,7 +289,7 @@ class MockLambdaContext:
 
 # Initialize MCP server
 print("🔧 Initializing MCP server...")
-mcp_server = MCPLambdaHandler(name="pb-fm-mcp", version=get_version_string())
+mcp_server = MCPLambdaHandler(name="PB-FM MCP Server", version=get_version_string())
 
 # Create FastAPI app
 # Handle API Gateway stage path for proper documentation URLs
@@ -623,107 +623,12 @@ async def root():
         }
     }
 
-# MCP connection test endpoint for Claude.ai
-@app.get("/mcp")
-async def mcp_connection_test(request: Request):
-    """Handle MCP connection test requests from Claude.ai with SSE negotiation"""
-    headers = dict(request.headers)
-    accept_header = headers.get('accept', '').lower()
-    
-    # Check for SSE request like the old working version
-    if 'text/event-stream' in accept_header:
-        print("❌ Client requesting SSE - returning 405 like working version")
-        # Client wants SSE - we don't support it, return 405 like the old version
-        raise HTTPException(
-            status_code=405, 
-            detail="Method Not Allowed - SSE not supported, use HTTP POST"
-        )
-    
-    return {
-        "name": "PB-FM MCP Server",
-        "version": get_version_string(), 
-        "description": "MCP server for Provenance Blockchain and Figure Markets data",
-        "protocol": "Model Context Protocol",
-        "methods": ["POST"],
-        "message": "Send POST requests with JSON-RPC 2.0 format to interact with MCP tools"
-    }
-
-# MCP endpoint - Use direct AWS MCP Handler like the working version
-@app.post("/mcp")
-async def mcp_endpoint(request: Request):
-    """Handle MCP protocol requests using direct AWS MCP Handler approach."""
-    try:
-        # Get raw request data
-        body_bytes = await request.body()
-        body_str = body_bytes.decode('utf-8') if body_bytes else ''
-        
-        # Create Lambda event format exactly like the working version
-        lambda_event = {
-            "httpMethod": "POST",
-            "path": "/mcp",
-            "headers": dict(request.headers),
-            "body": body_str,
-            "pathParameters": None,
-            "queryStringParameters": None,
-            "requestContext": {
-                "requestId": "container-request-id",
-                "identity": {
-                    "sourceIp": request.client.host if request.client else "unknown"
-                }
-            }
-        }
-        
-        context = MockLambdaContext()
-        
-        # Debug headers like the working version
-        headers = dict(request.headers)
-        accept_header = headers.get('accept', '').lower()
-        print(f"🔍 === MCP REQUEST DEBUG ===")
-        print(f"📍 Accept header: {accept_header}")
-        print(f"📍 All headers: {headers}")
-        
-        # Check if client accepts both application/json and text/event-stream (like working version)
-        if 'application/json' in accept_header and 'text/event-stream' in accept_header:
-            print("✅ Proper MCP client detected - using MCP handler")
-        else:
-            print("⚠️ Non-standard accept header - using MCP handler anyway")
-        
-        # Direct MCP handler call like the working version
-        print(f"🔧 Processing MCP request with direct handler")
-        mcp_response = mcp_server.handle_request(lambda_event, context)
-        
-        # Extract response body and return as JSON
-        if isinstance(mcp_response, dict):
-            if 'body' in mcp_response:
-                # Parse JSON body from Lambda response format
-                response_body = mcp_response['body']
-                if isinstance(response_body, str):
-                    response_data = json.loads(response_body)
-                else:
-                    response_data = response_body
-                
-                # Set response headers if present
-                if 'headers' in mcp_response:
-                    for header_name, header_value in mcp_response['headers'].items():
-                        if header_name.lower() not in ['content-length', 'content-type']:
-                            # Let FastAPI handle content-type and content-length
-                            pass
-                
-                return response_data
-            else:
-                # Direct response
-                return mcp_response
-        else:
-            return {"error": "Invalid MCP response format"}
-            
-    except json.JSONDecodeError as e:
-        print(f"🚨 JSON decode error: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
-    except Exception as e:
-        print(f"🚨 MCP handler error: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"MCP processing error: {str(e)}")
+# REMOVED: FastAPI MCP routes that were intercepting AWS MCP Handler
+# The /mcp route should be handled natively by AWS MCP Handler via Web Adapter
+# FastAPI routes were preventing native MCP protocol handling
+#
+# AWS Lambda Web Adapter will route /mcp requests directly to the MCP handler
+# without going through FastAPI, which is the correct behavior for Claude.ai compatibility
 
 # Register both protocols
 print("🔧 Registering API functions...")

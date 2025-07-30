@@ -196,13 +196,13 @@ async def get_registry_summary() -> JSONType:
         return {"MCP-ERROR": f"Registry summary failed: {e!s}"}
 
 
-@api_function(
-    protocols=["mcp", "rest"],  # Core function - kept in production
-    path="/api/warmup_ping",
-    method="GET", 
-    tags=["system", "warmup"],
-    description="Fast ping function for warming Lambda containers and testing MCP connectivity"
-)
+@api_function(protocols=["mcp", "rest"])
+
+
+
+
+
+
 async def mcp_warmup_ping() -> JSONType:
     """
     Ultra-fast ping function designed specifically for Lambda warming and MCP timeout recovery.

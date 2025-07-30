@@ -31,10 +31,10 @@ def get_web_assets_bucket() -> str:
     return bucket
 
 
-@api_function(
-    protocols=[],
-    description="Create dashboard layout declaration (Phase 1: HTML/CSS structure)"
-)
+@api_function(protocols=[])
+
+
+
 async def declare_dashboard_layout(
     session_id: str,
     layout_html: str,
@@ -86,10 +86,10 @@ async def declare_dashboard_layout(
         }
 
 
-@api_function(
-    protocols=[],
-    description="Configure Plotly charts without data (Phase 2: Empty visualizations)"
-)
+@api_function(protocols=[])
+
+
+
 async def declare_plotly_charts(
     session_id: str,
     charts: List[Dict[str, Any]]
@@ -148,10 +148,10 @@ async def declare_plotly_charts(
         }
 
 
-@api_function(
-    protocols=[],
-    description="Populate charts with data (Phase 3: Live data)"
-)
+@api_function(protocols=[])
+
+
+
 async def declare_chart_data(
     session_id: str,
     datasets: List[Dict[str, Any]]
@@ -214,10 +214,10 @@ async def declare_chart_data(
         }
 
 
-@api_function(
-    protocols=[],
-    description="Create complete dashboard with example blockchain data (All phases)"
-)
+@api_function(protocols=[])
+
+
+
 async def create_example_dashboard(
     session_id: str,
     wallet_address: str = "demo_wallet"

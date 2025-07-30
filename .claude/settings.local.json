@@ -132,7 +132,19 @@
       "Bash(aws lambda list-tags:*)",
       "Bash(TZ=UTC git log --since=\"2025-07-26 05:32:02\" --oneline)",
       "Bash(git restore:*)",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "Bash(TEST_WALLET_ADDRESS=\"pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8\" uv run python scripts/test_function_coverage.py --mcp-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp --rest-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1)",
+      "Bash(PYTHONPATH=/Users/franksiebenlist/Development/pb-fm-mcp/src uv run python scripts/test_function_coverage.py --help)",
+      "Bash(./clean.sh)",
+      "Bash(TEST_WALLET_ADDRESS=\"pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8\" timeout 120 uv run python scripts/test_function_coverage.py --mcp-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1/mcp --rest-url https://7fucgrbd16.execute-api.us-west-1.amazonaws.com/v1)",
+      "Bash(TEST_WALLET_ADDRESS=\"pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8\" uv run python scripts/identify_failures.py)",
+      "Bash(TEST_WALLET_ADDRESS=\"pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8\" uv run python scripts/test_function_coverage.py --mcp-url https://pb-fm-mcp-dev.creativeapptitude.com/mcp --rest-url https://pb-fm-mcp-dev.creativeapptitude.com)",
+      "Bash(TEST_WALLET_ADDRESS=\"pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8\" timeout 60 uv run python scripts/test_function_coverage.py --mcp-url https://pb-fm-mcp-dev.creativeapptitude.com/mcp --rest-url https://pb-fm-mcp-dev.creativeapptitude.com)",
+      "Bash(TEST_WALLET_ADDRESS=\"pb1c9rqwfefggk3s3y79rh8quwvp8rf8ayr7qvmk8\" uv run python scripts/mcp_test_client.py --mcp-url https://pb-fm-mcp-dev.creativeapptitude.com/mcp --test-connection-only)",
+      "Bash(TEST_WALLET_ADDRESS=\"pb1sdxcqjz6exwxps8j00t8mvsf7j6x6x6s5pzrk5\" uv run python scripts/test_function_coverage.py --mcp-url https://pb-fm-mcp-dev.creativeapptitude.com/mcp --rest-url https://pb-fm-mcp-dev.creativeapptitude.com)",
+      "Bash(kill:*)",
+      "Bash(git fetch:*)",
+      "Bash(awk:*)"
     ],
     "deny": []
   }

@@ -38,8 +38,8 @@ get_ai_terminal_status,YES,,Get the current status of an AI terminal conversatio
 get_ai_terminal_url,YES,,Get the browser URL for accessing an AI terminal session
 get_browser_connection_order,YES,,Determine browser connection order for input control
 get_conversation_status,YES,,Check conversation status and message counts for a specific session
-get_dashboard_config,YES,YES,Retrieve dashboard configuration for rendering. Used by dashboard JavaScript to poll for updates
-get_dashboard_coordinates,YES,YES,Browser polling endpoint to get current S3 coordinates for a dashboard session
+get_dashboard_config,,YES,Retrieve dashboard configuration for rendering. Used by dashboard JavaScript to poll for updates
+get_dashboard_coordinates,,YES,Browser polling endpoint to get current S3 coordinates for a dashboard session
 get_dashboard_info,YES,,AI can retrieve dashboard URL and info for user
 get_pending_messages,YES,,Get unprocessed messages for Claude to handle during heartbeat polling
 get_registry_introspection,YES,YES,Get comprehensive information about all registered functions in the server including protocol support paths and descriptions
@@ -62,8 +62,17 @@ trigger_browser_screenshot,YES,,Trigger the browser to take a screenshot and upl
 update_chart_config,YES,,AI can fine-tune chart appearance in real-time by updating DynamoDB config
 upload_screenshot,YES,,Receive browser-captured screenshot and save it for Claude to analyze
 wait_for_user_input,YES,,Traffic light pattern: AI waits for user input from browser
-delegated_redelegation_amount,,YES,Fetch the total amount of redelegated nhash for a wallet address
-delegated_rewards_amount,,YES,Fetch the total amount of rewards nhash for a wallet address
-delegated_staked_amount,,YES,Fetch the total amount of staked nhash for a wallet address
-delegated_unbonding_amount,,YES,Fetch the total amount of unbonding nhash for a wallet address
-wallet_liquid_balance,,YES,Fetch the liquid HASH balance for a wallet address
+fetch_delegated_redelegation_amount,,YES,Fetch the total amount of redelegated nhash for a wallet address
+fetch_delegated_rewards_amount,,YES,Fetch the total amount of rewards nhash for a wallet address
+fetch_delegated_staked_amount,,YES,Fetch the total amount of staked nhash for a wallet address
+fetch_delegated_unbonding_amount,,YES,Fetch the total amount of unbonding nhash for a wallet address
+fetch_wallet_liquid_balance,,YES,Fetch the liquid HASH balance for a wallet address
+create_new_session,,YES,Create new user session with unique UUID for web interface isolation
+get_latest_response,,YES,Web interface polls for latest Claude response in their session
+cleanup_inactive_sessions,,YES,Remove inactive sessions older than specified hours
+create_portfolio_health,YES,YES,AI creates comprehensive portfolio health dashboard with risk analysis
+fetch_current_fm_account_balance_data,YES,YES,Fetch the current account balance data from the Figure Markets exchange for the given wallet address portfolio
+fetch_current_fm_account_info,YES,YES,Fetch comprehensive account information from Figure Markets exchange for the given wallet address
+serve_conversation_interface,,YES,Serve the conversation web interface HTML page
+get_version_info,,YES,Get deployment version and build information
+get_system_status,YES,YES,Get comprehensive system status and health information

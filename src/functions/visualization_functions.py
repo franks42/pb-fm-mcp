@@ -80,13 +80,13 @@ def create_demo_wallet_data(wallet_address: str) -> dict:
     }
 
 
-@api_function(
-    protocols=[],
-    path="/api/create_personalized_dashboard",
-    method="POST", 
-    tags=["visualization", "dashboard"],
-    description="AI creates unique personalized dashboard URL for user"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def create_personalized_dashboard(
     wallet_address: str = None,
     dashboard_name: str = "My Blockchain Dashboard",
@@ -176,13 +176,13 @@ async def create_personalized_dashboard(
         }
 
 
-@api_function(
-    protocols=[],
-    path="/api/get_dashboard_info/{dashboard_id}",
-    method="GET",
-    tags=["visualization", "dashboard"],
-    description="AI retrieves dashboard URL and info for user"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def get_dashboard_info(
     dashboard_id: str = None, 
     ai_session_id: str = None
@@ -258,13 +258,13 @@ async def get_dashboard_info(
         }
 
 
-@api_function(
-    protocols=[],
-    path="/api/create_hash_price_chart",
-    method="POST",
-    tags=["visualization", "charts"],
-    description="Create simple HASH price vs time chart for last 24 hours"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def create_hash_price_chart(
     time_range: str = "24h",
     dashboard_id: str = None
@@ -384,13 +384,13 @@ async def create_hash_price_chart(
         }
 
 
-@api_function(
-    protocols=[],  # Disabled for production
-    path="/api/create_portfolio_health",
-    method="POST",
-    tags=["visualization", "portfolio"],
-    description="AI creates comprehensive portfolio health dashboard with risk analysis"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def create_portfolio_health(
     wallet_address: str,
     dashboard_id: str = None,
@@ -819,13 +819,13 @@ def generate_health_recommendations(health_metrics: dict, wallet_data: dict) -> 
     return recommendations
 
 
-@api_function(
-    protocols=[],  # Disabled for production
-    path="/api/take_screenshot",
-    method="POST",
-    tags=["utility", "debugging"],
-    description="Take screenshot of a webpage for debugging visualization issues"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def take_screenshot(
     url: str,
     width: int = 1920,
@@ -980,10 +980,10 @@ const puppeteer = require('puppeteer');
         }
 
 
-@api_function(
-    protocols=[],  # Disabled for production
-    description="Claude can automatically take screenshots for debugging without user permission"
-)
+@api_function(protocols=[])
+
+
+
 async def claude_take_screenshot(
     url: str,
     context: str = "debugging visualization",
@@ -1041,13 +1041,13 @@ async def claude_take_screenshot(
         }
 
 
-@api_function(
-    protocols=[],  # Disabled for production
-    path="/api/upload_screenshot",
-    method="POST",
-    tags=["utility", "debugging"],
-    description="Upload browser-captured screenshot to server for Claude to analyze"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def upload_screenshot(
     screenshot_base64: str,
     dashboard_id: str = None,
@@ -1185,13 +1185,13 @@ async def upload_screenshot(
         }
 
 
-@api_function(
-    protocols=[],  # Disabled for production
-    path="/api/trigger_browser_screenshot",
-    method="POST",
-    tags=["utility", "debugging"],
-    description="Claude can trigger browser to take screenshot and upload it automatically"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def trigger_browser_screenshot(
     dashboard_id: str,
     context: str = "claude_debug_request",
@@ -1256,13 +1256,13 @@ async def trigger_browser_screenshot(
         }
 
 
-@api_function(
-    protocols=[],  # Disabled for production
-    path="/api/download_screenshot/{screenshot_id}",
-    method="GET",
-    tags=["utility", "debugging"],
-    description="Download screenshot for Claude to analyze"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def download_screenshot(
     screenshot_id: str
 ) -> JSONType:
@@ -1381,13 +1381,13 @@ async def download_screenshot(
         }
 
 
-@api_function(
-    protocols=[],  # Disabled for production
-    path="/api/check_screenshot_requests",
-    method="POST",
-    tags=["utility", "debugging"],
-    description="Check if there are pending screenshot requests for a dashboard (browser polling endpoint)"
-)
+@api_function(protocols=[])
+
+
+
+
+
+
 async def check_screenshot_requests(
     dashboard_id: str
 ) -> JSONType:
