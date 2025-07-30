@@ -21,7 +21,9 @@ NC = '\033[0m'  # No Color
 def find_wallet_addresses(root_dir: Path):
     """Find all potential wallet addresses in the codebase."""
     # Pattern for Provenance wallet addresses
-    wallet_pattern = re.compile(r'pb1[a-z0-9]{38,39}')
+    # Standard format: pb1 + 39 chars = 42 total
+    # Extended format: pb1 + 59 chars = 62 total
+    wallet_pattern = re.compile(r'pb1[a-z0-9]{39}\b|pb1[a-z0-9]{59}\b')
     
     # Directories to skip
     skip_dirs = {'.git', '.aws-sam', '__pycache__', 'node_modules', '.venv', 'venv'}
