@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HASH Price Display - Webpage MVP</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header class="header">
+            <h1>HASH Price Display</h1>
+            <div class="session-info">
+                <div class="session-id">
+                    <span class="label">Session:</span>
+                    <span id="sessionId">Loading...</span>
+                </div>
+                <div class="client-role">
+                    <span class="label">Role:</span>
+                    <span id="clientRole" class="role-badge">Connecting...</span>
+                </div>
+                <div class="connection-status">
+                    <span class="status-indicator" id="connectionStatus"></span>
+                    <span id="connectionText">Connecting...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Price Display -->
+        <main class="price-display">
+            <div class="price-card" id="priceCard">
+                <div class="price-header">
+                    <h2>HASH Token</h2>
+                    <div class="last-updated" id="lastUpdated">
+                        Last updated: <span id="updateTime">Never</span>
+                    </div>
+                </div>
+                
+                <div class="price-content">
+                    <div class="current-price">
+                        <span class="price-label">Current Price</span>
+                        <span class="price-value" id="currentPrice">$0.0000</span>
+                    </div>
+                    
+                    <div class="price-change">
+                        <span class="change-label">24h Change</span>
+                        <span class="change-value" id="priceChange">+0.00%</span>
+                    </div>
+                    
+                    <div class="additional-info" id="additionalInfo" style="display: none;">
+                        <div class="info-row">
+                            <span class="info-label">Market Cap:</span>
+                            <span class="info-value" id="marketCap">N/A</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">24h Volume:</span>
+                            <span class="info-value" id="volume24h">N/A</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="spinner"></div>
+                    <div class="loading-text">Loading price data...</div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Session Controls (Master only) -->
+        <div class="controls" id="masterControls" style="display: none;">
+            <h3>Session Controls</h3>
+            <div class="control-buttons">
+                <button id="refreshPrice" class="btn btn-primary">Refresh Price</button>
+                <button id="toggleFormat" class="btn btn-secondary">Toggle Format</button>
+                <button id="showParticipants" class="btn btn-info">Show Participants</button>
+            </div>
+        </div>
+
+        <!-- Participants Panel -->
+        <div class="participants-panel" id="participantsPanel" style="display: none;">
+            <h3>Session Participants</h3>
+            <div class="participants-list" id="participantsList">
+                <!-- Populated by JavaScript -->
+            </div>
+            <button id="hideParticipants" class="btn btn-secondary">Hide</button>
+        </div>
+
+        <!-- Status Messages -->
+        <div class="messages" id="messages">
+            <!-- Status messages will appear here -->
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="tech-info">
+                <span>Powered by AI-Driven Architecture</span>
+                <span class="separator">•</span>
+                <span>Real-time Multi-browser Sync</span>
+                <span class="separator">•</span>
+                <span>S3 + SQS + DynamoDB</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/session.js"></script>
+    <script>
+        // Initialize the webpage session when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Extract session ID from URL path
+            const pathParts = window.location.pathname.split('/');
+            const sessionId = pathParts[pathParts.indexOf('session') + 1] || null;
+            
+            // Check for role parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const requestedRole = urlParams.get('role') || 'master';
+            
+            if (sessionId) {
+                // Initialize session management
+                const session = new WebpageSession({
+                    sessionId: sessionId,
+                    requestedRole: requestedRole,
+                    onStatusUpdate: updateConnectionStatus,
+                    onPriceUpdate: updatePriceDisplay,
+                    onRoleChange: handleRoleChange,
+                    onParticipantsUpdate: updateParticipantsList,
+                    onError: showErrorMessage
+                });
+                
+                // Start the session
+                session.initialize();
+                
+                // Set up master controls
+                setupMasterControls(session);
+                
+                // Store session globally for debugging
+                window.webpageSession = session;
+            } else {
+                showErrorMessage('No session ID found in URL');
+            }
+        });
+    </script>
+</body>
+</html>

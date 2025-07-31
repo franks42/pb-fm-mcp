@@ -37,6 +37,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **CLAUDE.MD IS THE SINGLE SOURCE OF TRUTH - Always consult it first.**
 
+## 🚨 CRITICAL: Domain Name Spelling
+
+**IMPORTANT: "creativeapptitude.com" is the correct spelling of the base domain name for prod and dev environments.**
+
+This domain name is a clever wordplay combining "creative", "app", and "aptitude" - which confuses many people. Always use this exact spelling:
+- ✅ **Correct**: creativeapptitude.com
+- ❌ **Wrong**: creativeapttitude.com (missing 'i')
+- ❌ **Wrong**: creativeaptitude.com (missing 'app')
+
+**Production Domain**: pb-fm-mcp.creativeapptitude.com  
+**Development Domain**: pb-fm-mcp-dev.creativeapptitude.com
+
 ## 🚨 CURRENT PROJECT: AI-Driven Webpage MVP (July 30, 2025)
 
 **ACTIVE DEVELOPMENT**: Building MVP for AI-orchestrated webpage system using SQS message bus architecture.
@@ -208,6 +220,47 @@ curl -X POST <MCP_URL> -d '{"jsonrpc":"2.0","method":"tools/call",...}'
 - **✅ Batch Operations**: Can perform multiple operations efficiently
 
 ### 🚨 CRITICAL: Code Quality Standards
+
+**🚨 MANDATORY: Code Validation Pipeline After Every Edit**
+**ALWAYS run this complete validation pipeline immediately after creating or editing any Python file:**
+
+```bash
+# ✅ MANDATORY: Complete validation pipeline for every Python file edit
+uv run black src/functions/new_function.py                    # 1. Format code
+uv run flake8 src/functions/new_function.py                   # 2. Check syntax/style  
+uv run python -m py_compile src/functions/new_function.py     # 3. Verify compilation
+
+# ✅ BATCH: Validate multiple files at once
+uv run black src/functions/webpage_*.py && \
+uv run flake8 src/functions/webpage_*.py && \
+find src/functions -name "webpage_*.py" -exec uv run python -m py_compile {} \;
+```
+
+**Why This Pipeline Is Critical:**
+- **✅ Black**: Formats code and prevents basic syntax issues
+- **✅ Flake8**: Catches decorator syntax errors (E304), unused imports, style violations
+- **✅ py_compile**: Ensures valid Python syntax that will import properly
+- **✅ Lambda Success**: Files passing this pipeline work reliably in Lambda environment
+
+**Flake8 specifically catches issues that broke Lambda imports:**
+- **E304**: Blank lines after function decorators (breaks function registration)
+- **F401**: Unused imports that can cause memory issues
+- **E501**: Long lines that indicate complex code needing refactoring
+- **✅ Consistent Style**: Maintains uniform code formatting across the project
+- **✅ AST-Based**: Uses Python's Abstract Syntax Tree for intelligent formatting
+
+**🚨 CRITICAL: MCP Function Requirements**
+**ALL MCP functions MUST have a description parameter. This is mandatory because AI needs to understand when and how to call each tool. For REST endpoints, descriptions help developers understand API usage.**
+
+Example:
+```python
+@api_function(
+    protocols=["mcp"],
+    description="Mandatory description explaining what this function does and when to use it",
+)
+async def my_function():
+    pass
+```
 
 **Import Standards:**
 **NO ugly optional import statements with try/except fallbacks. Use explicit imports only. If a module cannot be imported, it's a bug that needs to be fixed, not worked around.**

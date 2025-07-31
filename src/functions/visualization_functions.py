@@ -80,7 +80,7 @@ def create_demo_wallet_data(wallet_address: str) -> dict:
     }
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp"])
 
 
 
@@ -176,7 +176,7 @@ async def create_personalized_dashboard(
         }
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp"])
 
 
 
@@ -258,7 +258,7 @@ async def get_dashboard_info(
         }
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp"])
 
 
 
@@ -384,7 +384,7 @@ async def create_hash_price_chart(
         }
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp", "rest"])
 
 
 
@@ -819,7 +819,7 @@ def generate_health_recommendations(health_metrics: dict, wallet_data: dict) -> 
     return recommendations
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp"])
 
 
 
@@ -980,7 +980,7 @@ const puppeteer = require('puppeteer');
         }
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp"])
 
 
 
@@ -1041,7 +1041,7 @@ async def claude_take_screenshot(
         }
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp"])
 
 
 
@@ -1185,7 +1185,7 @@ async def upload_screenshot(
         }
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp"])
 
 
 
@@ -1256,7 +1256,7 @@ async def trigger_browser_screenshot(
         }
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp"])
 
 
 
@@ -1381,7 +1381,7 @@ async def download_screenshot(
         }
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp"])
 
 
 

@@ -99,7 +99,7 @@ async def get_dashboard_coordinates(session_id: str) -> JSONType:
         }
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp"])
 
 
 
@@ -170,7 +170,7 @@ async def set_dashboard_coordinates(
         }
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp"])
 
 
 
@@ -230,7 +230,7 @@ async def switch_dashboard_layout(
         }
 
 
-@api_function(protocols=[])
+@api_function(protocols=["mcp"])
 
 
 

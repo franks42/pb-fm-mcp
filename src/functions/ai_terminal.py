@@ -7,6 +7,7 @@ loop that mimics local prompt-response interaction but works through web browser
 
 import time
 import json
+import uuid
 from typing import Dict, Any
 
 from registry import api_function
@@ -14,31 +15,26 @@ from utils import JSONType
 from .sqs_traffic_light import wait_for_user_input, send_response_to_browser
 
 
-@api_function(protocols=[])
-
-
-
-
-
+@api_function(
+    protocols=["mcp"], description="Run a continuous AI terminal conversation loop"
+)
 async def ai_terminal_conversation(
-    session_id: str,
-    timeout_seconds: int = 10,
-    max_iterations: int = 100
+    session_id: str, timeout_seconds: int = 10, max_iterations: int = 100
 ) -> JSONType:
     """
     Run a continuous AI terminal conversation loop.
-    
+
     This function demonstrates the SQS Traffic Light pattern by:
     1. Waiting for user input from web terminal
-    2. Processing prompts as if they were local AI prompts  
+    2. Processing prompts as if they were local AI prompts
     3. Sending responses back to web browser
     4. Looping for continuous conversation
-    
+
     Args:
         session_id: Unique session identifier for user isolation
         timeout_seconds: How long to wait for each user input
         max_iterations: Maximum conversation turns (safety limit)
-        
+
     Returns:
         Summary of conversation session including metrics and final state
     """
@@ -46,7 +42,7 @@ async def ai_terminal_conversation(
     iteration = 0
     total_wait_time = 0
     total_response_time = 0
-    
+
     # Send initial greeting to browser
     await send_response_to_browser(
         session_id=session_id,
@@ -56,26 +52,25 @@ async def ai_terminal_conversation(
             "session_info": {
                 "session_id": session_id,
                 "max_iterations": max_iterations,
-                "timeout_seconds": timeout_seconds
-            }
+                "timeout_seconds": timeout_seconds,
+            },
         },
-        response_type="ai_response"
+        response_type="ai_response",
     )
-    
+
     try:
         while iteration < max_iterations:
             iteration += 1
-            
+
             # Wait for user input
             wait_start = time.time()
             user_input = await wait_for_user_input(
-                session_id=session_id,
-                timeout_seconds=timeout_seconds
+                session_id=session_id, timeout_seconds=timeout_seconds
             )
             wait_end = time.time()
             wait_duration = wait_end - wait_start
             total_wait_time += wait_duration
-            
+
             # Check if we got user input
             if not user_input.get("has_input"):
                 # No input received - send timeout message and continue waiting
@@ -86,43 +81,45 @@ async def ai_terminal_conversation(
                         "type": "timeout_message",
                         "timeout_info": {
                             "waited_seconds": timeout_seconds,
-                            "iteration": iteration
-                        }
+                            "iteration": iteration,
+                        },
                     },
-                    response_type="timeout"
+                    response_type="timeout",
                 )
                 continue
-            
+
             # Extract the user's prompt
             input_data = user_input.get("input_data", {})
             user_prompt = input_data.get("input_value", "")
-            
+
             if not user_prompt.strip():
                 await send_response_to_browser(
                     session_id=session_id,
                     response_data={
                         "response": "I received an empty message. Please type something!",
-                        "type": "error"
+                        "type": "error",
                     },
-                    response_type="error"
+                    response_type="error",
                 )
                 continue
-            
+
             # Log the interaction
-            conversation_log.append({
-                "iteration": iteration,
-                "user_prompt": user_prompt,
-                "timestamp": time.time(),
-                "wait_duration": wait_duration
-            })
-            
+            conversation_log.append(
+                {
+                    "iteration": iteration,
+                    "user_prompt": user_prompt,
+                    "timestamp": time.time(),
+                    "wait_duration": wait_duration,
+                }
+            )
+
             # Process the prompt - this is where we simulate AI response
             response_start = time.time()
             ai_response = await process_ai_prompt(user_prompt, session_id, iteration)
             response_end = time.time()
             response_duration = response_end - response_start
             total_response_time += response_duration
-            
+
             # Send AI response back to browser
             await send_response_to_browser(
                 session_id=session_id,
@@ -133,20 +130,19 @@ async def ai_terminal_conversation(
                         "iteration": iteration,
                         "processing_time": f"{response_duration:.2f}s",
                         "wait_time": f"{wait_duration:.2f}s",
-                        "prompt_length": len(user_prompt)
-                    }
+                        "prompt_length": len(user_prompt),
+                    },
                 },
-                response_type="ai_response"
+                response_type="ai_response",
             )
-            
+
             # Update conversation log with response
-            conversation_log[-1].update({
-                "ai_response": ai_response,
-                "response_duration": response_duration
-            })
-            
+            conversation_log[-1].update(
+                {"ai_response": ai_response, "response_duration": response_duration}
+            )
+
             # Check for exit commands
-            if user_prompt.lower().strip() in ['exit', 'quit', 'bye', 'goodbye']:
+            if user_prompt.lower().strip() in ["exit", "quit", "bye", "goodbye"]:
                 await send_response_to_browser(
                     session_id=session_id,
                     response_data={
@@ -156,13 +152,17 @@ async def ai_terminal_conversation(
                             "total_exchanges": iteration,
                             "total_wait_time": f"{total_wait_time:.2f}s",
                             "total_response_time": f"{total_response_time:.2f}s",
-                            "avg_response_time": f"{total_response_time/iteration:.2f}s" if iteration > 0 else "0s"
-                        }
+                            "avg_response_time": (
+                                f"{total_response_time/iteration:.2f}s"
+                                if iteration > 0
+                                else "0s"
+                            ),
+                        },
                     },
-                    response_type="farewell"
+                    response_type="farewell",
                 )
                 break
-    
+
     except Exception as e:
         # Handle any errors gracefully
         await send_response_to_browser(
@@ -170,40 +170,45 @@ async def ai_terminal_conversation(
             response_data={
                 "response": f"❌ An error occurred in the conversation loop: {str(e)}",
                 "type": "error",
-                "error_details": {
-                    "iteration": iteration,
-                    "error": str(e)
-                }
+                "error_details": {"iteration": iteration, "error": str(e)},
             },
-            response_type="error"
+            response_type="error",
         )
-    
+
     # Return session summary
     return {
         "session_id": session_id,
-        "status": "completed" if iteration < max_iterations else "max_iterations_reached",
+        "status": (
+            "completed" if iteration < max_iterations else "max_iterations_reached"
+        ),
         "total_iterations": iteration,
-        "conversation_exchanges": len([log for log in conversation_log if "ai_response" in log]),
+        "conversation_exchanges": len(
+            [log for log in conversation_log if "ai_response" in log]
+        ),
         "total_wait_time": f"{total_wait_time:.2f}s",
         "total_response_time": f"{total_response_time:.2f}s",
-        "avg_response_time": f"{total_response_time/len(conversation_log):.2f}s" if conversation_log else "0s",
+        "avg_response_time": (
+            f"{total_response_time/len(conversation_log):.2f}s"
+            if conversation_log
+            else "0s"
+        ),
         "session_duration": f"{time.time() - (conversation_log[0]['timestamp'] if conversation_log else time.time()):.2f}s",
-        "conversation_log": conversation_log
+        "conversation_log": conversation_log,
     }
 
 
 async def process_ai_prompt(prompt: str, session_id: str, iteration: int) -> str:
     """
     Process a user prompt and generate an AI response.
-    
+
     This simulates what would happen if the user typed the prompt directly
     to a local AI assistant. In a real implementation, this would call
     the actual AI model/service.
     """
     prompt_lower = prompt.lower().strip()
-    
+
     # Handle special commands
-    if prompt_lower in ['help', '?']:
+    if prompt_lower in ["help", "?"]:
         return """🤖 AI Terminal Help:
         
 Available commands:
@@ -214,8 +219,8 @@ Available commands:
 • 'exit', 'quit', 'bye' - End the conversation
 
 This terminal demonstrates real-time communication between your browser and AI using SQS queues. Each message travels through the traffic light system in ~500ms!"""
-    
-    elif prompt_lower == 'status':
+
+    elif prompt_lower == "status":
         return f"""📊 Session Status:
         
 • Session ID: {session_id}
@@ -225,17 +230,17 @@ This terminal demonstrates real-time communication between your browser and AI u
 • Connection: Active ✅
 
 The AI is running in a continuous loop, waiting for your messages and responding in real-time through AWS SQS queues."""
-    
-    elif prompt_lower == 'time':
+
+    elif prompt_lower == "time":
         return f"🕐 Current time: {time.strftime('%Y-%m-%d %H:%M:%S %Z')}"
-    
-    elif 'hello' in prompt_lower or 'hi' in prompt_lower:
+
+    elif "hello" in prompt_lower or "hi" in prompt_lower:
         return f"👋 Hello! Great to meet you in this AI terminal. I'm running in iteration #{iteration} of our conversation loop. What's on your mind?"
-    
-    elif 'how are you' in prompt_lower:
+
+    elif "how are you" in prompt_lower:
         return "I'm doing well! I'm running smoothly in this SQS traffic light system. Each message we exchange goes through AWS queues and comes back in about half a second. Pretty neat, right? How are you doing?"
-    
-    elif 'test' in prompt_lower:
+
+    elif "test" in prompt_lower:
         return f"""🧪 Test Response #{iteration}:
         
 ✅ SQS Traffic Light System: Working
@@ -247,33 +252,32 @@ Your test message was: "{prompt}"
 Processed at: {time.strftime('%H:%M:%S')}
 
 Try asking me anything else!"""
-    
+
     elif len(prompt) > 200:
-        return f"📝 I received a long message ({len(prompt)} characters)! Here's what I understand:\n\nYou said: \"{prompt[:100]}...\"\n\nI can handle messages of any length through the SQS system. What would you like to discuss about your message?"
-    
+        return f'📝 I received a long message ({len(prompt)} characters)! Here\'s what I understand:\n\nYou said: "{prompt[:100]}..."\n\nI can handle messages of any length through the SQS system. What would you like to discuss about your message?'
+
     else:
         # Generic conversational response
         responses = [
-            f"Interesting! You mentioned: \"{prompt}\". That's iteration #{iteration} of our conversation. What else would you like to explore?",
-            f"Thanks for sharing that! I processed your message \"{prompt}\" in real-time through the SQS traffic light system. Tell me more!",
+            f'Interesting! You mentioned: "{prompt}". That\'s iteration #{iteration} of our conversation. What else would you like to explore?',
+            f'Thanks for sharing that! I processed your message "{prompt}" in real-time through the SQS traffic light system. Tell me more!',
             f"I hear you saying: \"{prompt}\". This is working great - we're having a real conversation through queues! What's next?",
-            f"Got it! Your message \"{prompt}\" came through perfectly in iteration #{iteration}. The traffic light pattern is working beautifully!",
-            f"That's fascinating! You wrote: \"{prompt}\". I love how smoothly this real-time communication is working. What else is on your mind?"
+            f'Got it! Your message "{prompt}" came through perfectly in iteration #{iteration}. The traffic light pattern is working beautifully!',
+            f'That\'s fascinating! You wrote: "{prompt}". I love how smoothly this real-time communication is working. What else is on your mind?',
         ]
-        
+
         # Choose response based on iteration for variety
         return responses[iteration % len(responses)]
 
 
-@api_function(protocols=[])
-
-
-
-
+@api_function(
+    protocols=["mcp"],
+    description="Get current status of an AI terminal conversation session",
+)
 async def get_ai_terminal_status(session_id: str) -> JSONType:
     """
     Get the current status of an AI terminal conversation session.
-    
+
     Returns information about the session including conversation metrics,
     system status, and queue health.
     """
@@ -285,12 +289,12 @@ async def get_ai_terminal_status(session_id: str) -> JSONType:
     #         'test_mode': True,
     #         'message': 'Test session - no active AI terminal connection'
     #     }
-    
+
     from .sqs_traffic_light import get_traffic_light_status
-    
+
     # Get queue status
     queue_status = await get_traffic_light_status(session_id)
-    
+
     return {
         "session_id": session_id,
         "timestamp": time.time(),
@@ -300,34 +304,33 @@ async def get_ai_terminal_status(session_id: str) -> JSONType:
         "instructions": {
             "start_conversation": f"Call ai_terminal_conversation('{session_id}') to begin",
             "web_interface": "Open /ai-terminal in your browser",
-            "session_management": "Each session is isolated by session_id"
+            "session_management": "Each session is isolated by session_id",
         },
         "performance_info": {
             "typical_latency": "450-650ms end-to-end",
             "queue_persistence": "Messages survive Lambda cold starts",
-            "scalability": "Supports unlimited concurrent sessions"
+            "scalability": "Supports unlimited concurrent sessions",
         },
         "browser_url": f"https://pb-fm-mcp-dev.creativeapptitude.com/ai-terminal?session={session_id}",
-        "production_url": f"https://pb-fm-mcp.creativeapptitude.com/ai-terminal?session={session_id}"
+        "production_url": f"https://pb-fm-mcp.creativeapptitude.com/ai-terminal?session={session_id}",
     }
 
 
-@api_function(protocols=[])
-
-
-
-
+@api_function(
+    protocols=["mcp"],
+    description="Get browser URL for accessing an AI terminal session",
+)
 async def get_ai_terminal_url(session_id: str) -> JSONType:
     """
     Get the browser URL for accessing an AI terminal session.
-    
+
     This function returns the web interface URLs (dev and production) that allow
     users to connect to a specific AI terminal session for real-time conversation
     through the browser.
-    
+
     Args:
         session_id: The session ID to generate URLs for
-        
+
     Returns:
         URLs for accessing the AI terminal web interface with the specified session
     """
@@ -339,7 +342,52 @@ async def get_ai_terminal_url(session_id: str) -> JSONType:
             "Open either URL in your browser to access the AI terminal",
             "The session ID in the URL connects you to this specific conversation",
             "You can bookmark the URL to return to the same session later",
-            "Multiple browser tabs with the same URL will share the same conversation"
+            "Multiple browser tabs with the same URL will share the same conversation",
         ],
-        "usage_example": f"Visit: https://pb-fm-mcp-dev.creativeapptitude.com/ai-terminal?session={session_id}"
+        "usage_example": f"Visit: https://pb-fm-mcp-dev.creativeapptitude.com/ai-terminal?session={session_id}",
+    }
+
+
+@api_function(
+    protocols=["mcp"],
+    description="Create a new unique AI terminal session and return browser URL",
+)
+async def create_ai_terminal_session() -> JSONType:
+    """
+    Create a new unique AI terminal session and return browser URL.
+
+    This function generates a globally unique session ID and returns the browser URLs
+    that users can open to start a real-time conversation with the AI. This prevents
+    session ID conflicts when multiple users try to use the same session name.
+
+    Returns:
+        Session information including unique session ID and browser URLs for dev/prod
+    """
+    # Generate cryptographically secure unique session ID
+    session_id = f"ai-{uuid.uuid4().hex[:12]}"  # e.g., "ai-a1b2c3d4e5f6"
+
+    return {
+        "session_id": session_id,
+        "session_created_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+        "dev_url": f"https://pb-fm-mcp-dev.creativeapptitude.com/ai-terminal?session={session_id}",
+        "production_url": f"https://pb-fm-mcp.creativeapptitude.com/ai-terminal?session={session_id}",
+        "instructions": [
+            "🎯 Open the URL below in your browser to start chatting with AI",
+            "💡 This session ID is unique - no conflicts with other users",
+            "🔖 Bookmark the URL to return to this conversation later",
+            "👥 Share the URL with others to join the same conversation",
+            "⚡ Real-time bidirectional communication via SQS queues",
+        ],
+        "next_steps": [
+            f"1. Open: {f'https://pb-fm-mcp-dev.creativeapptitude.com/ai-terminal?session={session_id}'}",
+            f"2. Call: ai_terminal_conversation('{session_id}') to start the AI conversation loop",
+            "3. Type messages in the browser to chat with the AI in real-time",
+        ],
+        "technical_info": {
+            "session_type": "ai_terminal",
+            "communication_method": "SQS traffic light pattern",
+            "typical_latency": "450-650ms end-to-end",
+            "supports_multiple_browsers": True,
+            "session_persistence": "Until explicitly ended or timeout",
+        },
     }

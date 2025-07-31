@@ -82,9 +82,30 @@ try:
 except Exception as e:
     print(f"❌ Failed to import ai_terminal: {e}")
 
+# TEMPORARILY COMMENTED OUT FOR DEBUGGING - webpage imports
+# try:
+#     from . import webpage_session_management
+# except Exception as e:
+#     print(f"❌ Failed to import webpage_session_management: {e}")
+
+# try:
+#     from . import webpage_s3_helpers
+# except Exception as e:
+#     print(f"❌ Failed to import webpage_s3_helpers: {e}")
+
+# try:
+#     from . import webpage_queue_management
+# except Exception as e:
+#     print(f"❌ Failed to import webpage_queue_management: {e}")
+
+# try:
+#     from . import webpage_orchestration
+# except Exception as e:
+#     print(f"❌ Failed to import webpage_orchestration: {e}")
+
 __all__ = [
     "stats_functions",
-    "delegation_functions", 
+    "delegation_functions",
     "blockchain_functions",
     "figure_markets_functions",
     "aggregate_functions",
@@ -94,8 +115,14 @@ __all__ = [
     "browser_automation",
     "dynamic_visualization",
     "debug_functions",
-    "declarative_dashboard",
+    # TEMPORARILY COMMENTED OUT - SUSPECTED FAILING MODULES
+    # "declarative_dashboard",
     "dashboard_coordinator",
     "sqs_traffic_light",
     "ai_terminal",
+    # TEMPORARILY COMMENTED OUT FOR DEBUGGING
+    # "webpage_session_management",
+    # "webpage_s3_helpers", 
+    # "webpage_queue_management",
+    # "webpage_orchestration",
 ]

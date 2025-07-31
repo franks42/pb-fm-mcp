@@ -57,6 +57,12 @@ set_dashboard_coordinates,,,Set S3 coordinates for dashboard session (AI orchest
 start_realtime_conversation,,,Initialize a real-time conversation session
 switch_dashboard_layout,,,Switch dashboard to pre-staged S3 layout variant
 take_screenshot,,,Take a screenshot of a webpage to help debug visualization issues
+webpage_create_new_session,YES,YES,Create a new webpage session and return all necessary connection details
+webpage_create_session,YES,YES,Create a new webpage session with initial configuration
+webpage_get_session_status,YES,YES,Get comprehensive status information for a webpage session
+webpage_send_to_all_browsers,YES,YES,Send a message to all browsers in a session using fan-out pattern
+webpage_store_content,YES,YES,Store content in S3 and return reference for SQS messaging
+webpage_update_hash_price_display,YES,YES,Fetch current HASH price and update all browsers in the session
 test_session_persistence,,,Test whether there's any session persistence that could be used to identify the same AI instance across multiple MCP calls
 trigger_browser_screenshot,,,Trigger the browser to take a screenshot and upload it to the server
 update_chart_config,,,AI can fine-tune chart appearance in real-time by updating DynamoDB config

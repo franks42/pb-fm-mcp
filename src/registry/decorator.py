@@ -13,8 +13,8 @@ from .registry import get_registry, Protocol
 
 
 def api_function(
-    protocols: Union[List[str], List[Protocol]] = None,
-    description: Optional[str] = None,
+    protocols: Union[List[str], List[Protocol]],
+    description: str,  # MANDATORY: Description required for all functions
     path: Optional[str] = None,
     method: str = "GET",
     tags: Optional[List[str]] = None,
@@ -28,7 +28,7 @@ def api_function(
     
     Args:
         protocols: List of protocols to expose this function on. Defaults to ["mcp", "rest"]
-        description: Custom description (overrides docstring)
+        description: MANDATORY description for AI and human users to understand function purpose
         path: REST API path pattern (e.g., "/accounts/{address}/info")
         method: HTTP method for REST endpoint (GET, POST, etc.)
         tags: Tags for grouping functions in documentation

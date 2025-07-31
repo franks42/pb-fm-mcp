@@ -19,6 +19,7 @@ dev = [
     "ruff",
     "boto3",
     "aws-cdk-lib",
+    "mypy>=1.17.0",
 ]
 
 [tool.ruff]

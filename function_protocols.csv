@@ -76,3 +76,9 @@ fetch_current_fm_account_info,YES,YES,Fetch comprehensive account information fr
 serve_conversation_interface,,YES,Serve the conversation web interface HTML page
 get_version_info,,YES,Get deployment version and build information
 get_system_status,YES,YES,Get comprehensive system status and health information
+webpage_create_new_session,YES,YES,Create a new webpage session and return all necessary connection details
+webpage_create_session,YES,YES,Create a new webpage session with initial configuration
+webpage_get_session_status,YES,YES,Get comprehensive status information for a webpage session
+webpage_send_to_all_browsers,YES,YES,Send a message to all browsers in a session using fan-out pattern
+webpage_store_content,YES,YES,Store content in S3 and return reference for SQS messaging
+webpage_update_hash_price_display,YES,YES,Fetch current HASH price and update all browsers in the session
