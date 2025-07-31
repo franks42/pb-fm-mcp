@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Terminal Test - MVP</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0e1a;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        h1 {
+            background: linear-gradient(135deg, #4fc3f7, #9c27b0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+        }
+        .test-info {
+            background: #1a1f2e;
+            border: 1px solid #2a3142;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: left;
+        }
+        .success {
+            color: #4caf50;
+            font-weight: bold;
+        }
+        .test-item {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #0a0e1a;
+            border-radius: 8px;
+        }
+        button {
+            background: linear-gradient(135deg, #4fc3f7, #9c27b0);
+            border: none;
+            border-radius: 8px;
+            padding: 1rem 2rem;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 1rem;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 195, 247, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚦 AI Terminal Test</h1>
+        
+        <div class="test-info">
+            <h2>📋 MVP Architecture Test</h2>
+            <div class="test-item">
+                <strong>✅ S3 Storage:</strong> This file is served from S3 bucket
+            </div>
+            <div class="test-item">
+                <strong>✅ CloudFront CDN:</strong> Content delivered via CloudFront distribution
+            </div>
+            <div class="test-item">
+                <strong>✅ S3 Proxy:</strong> Accessed through Lambda S3 proxy endpoint
+            </div>
+            <div class="test-item">
+                <strong>✅ Session ID:</strong> <span id="sessionId">test-session-20250730-200832</span>
+            </div>
+        </div>
+
+        <div class="test-info">
+            <h2>🔬 Test Results</h2>
+            <div class="test-item">
+                <strong>File Load:</strong> <span class="success">SUCCESS</span> - This HTML file loaded successfully
+            </div>
+            <div class="test-item">
+                <strong>CSS Styling:</strong> <span class="success">SUCCESS</span> - Styles are applied correctly
+            </div>
+            <div class="test-item">
+                <strong>JavaScript:</strong> <span id="jsTest">TESTING...</span>
+            </div>
+            <div class="test-item">
+                <strong>API Connectivity:</strong> <span id="apiTest">TESTING...</span>
+            </div>
+        </div>
+
+        <button onclick="testAITerminal()">🚀 Launch AI Terminal</button>
+        <button onclick="testAPIConnection()">🔗 Test API Connection</button>
+    </div>
+
+    <script>
+        // Test JavaScript execution
+        document.getElementById('jsTest').innerHTML = '<span class="success">SUCCESS</span> - JavaScript is working';
+        
+        // Test API connection
+        async function testAPIConnection() {
+            const apiTest = document.getElementById('apiTest');
+            apiTest.textContent = 'TESTING...';
+            
+            try {
+                // Determine API base URL
+                let apiBase;
+                if (window.location.origin.includes('localhost')) {
+                    apiBase = 'http://localhost:8000/v1';
+                } else if (window.location.origin.includes('execute-api.us-west-1.amazonaws.com')) {
+                    apiBase = window.location.origin + '/v1';
+                } else {
+                    apiBase = 'https://pb-fm-mcp-dev.creativeapptitude.com';
+                }
+                
+                const response = await fetch(`${apiBase}/health`);
+                if (response.ok) {
+                    const data = await response.json();
+                    apiTest.innerHTML = '<span class="success">SUCCESS</span> - API is reachable';
+                } else {
+                    apiTest.innerHTML = `❌ FAILED - HTTP ${response.status}`;
+                }
+            } catch (error) {
+                apiTest.innerHTML = `❌ FAILED - ${error.message}`;
+            }
+        }
+        
+        function testAITerminal() {
+            // Open AI terminal with current session
+            const sessionId = document.getElementById('sessionId').textContent;
+            const terminalUrl = `${window.location.origin}/s3/sessions/${sessionId}/ai-terminal.html?session=${sessionId}`;
+            window.open(terminalUrl, '_blank');
+        }
+        
+        // Auto-test API connection on load
+        setTimeout(testAPIConnection, 1000);
+    </script>
+</body>
+</html>
