@@ -174,7 +174,16 @@
       "Bash(else)",
       "Bash(fi)",
       "Bash(done)",
-      "Bash(aws s3 cp:*)"
+      "Bash(aws s3 cp:*)",
+      "Bash(PYTHONPATH=/Users/franksiebenlist/Development/pb-fm-mcp/src uv run python -c \"import functions; print(''✅ All function modules imported successfully'')\")",
+      "Bash(PYTHONPATH=/Users/franksiebenlist/Development/pb-fm-mcp/src uv run python -c \"\nimport functions\nprint(''''Functions imported - checking which had errors...'''')\n\")",
+      "Bash(PYTHONPATH=/Users/franksiebenlist/Development/pb-fm-mcp/src uv run python -c \"\nimport functions\nprint(''''Functions imported - checking which had errors...'''')\n\")",
+      "Bash(PYTHONPATH=/Users/franksiebenlist/Development/pb-fm-mcp/src uv run python -c \"\nimport functions\nprint(''✅ All function modules imported successfully - no missing descriptions!'')\n\")",
+      "Bash(TEST_WALLET_ADDRESS=pb1mjtshzl0p9w7xztfawg7z86k7m02d8zznp3t6q7l uv run python scripts/test_function_coverage.py --mcp-url \"https://pb-fm-mcp-dev.creativeapptitude.com/mcp\" --rest-url \"https://pb-fm-mcp-dev.creativeapptitude.com\" --validate-only)",
+      "Bash(TEST_WALLET_ADDRESS=pb1mjtshzl0p9w7xztfawg7z86k7m02d8zznp3t6q7l uv run python scripts/test_function_coverage.py --mcp-url \"https://pb-fm-mcp-dev.creativeapptitude.com/mcp\" --rest-url \"https://pb-fm-mcp-dev.creativeapptitude.com\" --env dev)",
+      "Bash(PYTHONPATH=/Users/franksiebenlist/Development/pb-fm-mcp/src uv run python -c \"\nimport functions\nprint(''''Import test complete'''')\n\")",
+      "WebFetch(domain:pb-fm-mcp-dev.creativeapptitude.com)",
+      "Bash(./deploy.sh:*)"
     ],
     "deny": []
   }

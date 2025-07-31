@@ -427,6 +427,71 @@ get_deployment_outputs() {
     fi
 }
 
+# Pre-deployment function architecture validation
+validate_function_architecture() {
+    print_header "Function Architecture Validation"
+    
+    print_status "Validating function registration architecture..."
+    
+    # Run our comprehensive validation script
+    if ! uv run python scripts/validate_function_architecture.py; then
+        print_error "💥 FUNCTION ARCHITECTURE VALIDATION FAILED"
+        print_error "Critical issues found in function registration system!"
+        print_error ""
+        print_error "Issues may include:"
+        print_error "  - Functions with @api_function decorators not imported in __init__.py"
+        print_error "  - Functions missing from CSV configuration files"
+        print_error "  - CSV entries with no matching source functions"
+        print_error "  - Invalid decorator syntax"
+        print_error "  - Duplicate function names"
+        print_error ""
+        print_error "Review the validation output above and fix all issues before deployment."
+        print_error ""
+        print_error "DEPLOYMENT ABORTED - Fix architectural issues first!"
+        exit 1
+    fi
+    
+    print_success "Function architecture validation passed - ready for deployment"
+}
+
+# Validate CSV function expectations
+validate_csv_expectations() {
+    local env=$1
+    local api_url=$2
+    
+    print_header "Validating CSV Function Expectations"
+    
+    # Get MCP and REST URLs
+    local mcp_url="${api_url}mcp"
+    local rest_url="${api_url%/}"
+    
+    print_status "Running CSV validation against deployed functions..."
+    
+    # Run CSV validation using our test script (which now has validation built-in)
+    if ! timeout 60 uv run python scripts/test_function_coverage.py \
+        --mcp-url "$mcp_url" \
+        --rest-url "$rest_url" \
+        --validate-only 2>/dev/null; then
+        
+        print_error "💥 CSV VALIDATION FAILED"
+        print_error "Deployed function counts do not match CSV expectations!"
+        print_error "This indicates missing function registrations or import issues."
+        print_error ""
+        print_error "Common causes:"
+        print_error "  - Functions commented out in src/functions/__init__.py"
+        print_error "  - Import errors preventing function registration"
+        print_error "  - CSV configuration mismatch"
+        print_error ""
+        print_error "Run the test script manually to see detailed validation results:"
+        print_error "  uv run python scripts/test_function_coverage.py --mcp-url $mcp_url --rest-url $rest_url"
+        print_error ""
+        print_error "DEPLOYMENT ABORTED - Fix function registration issues first!"
+        exit 1
+    fi
+    
+    print_success "CSV validation passed - function counts match expectations"
+}
+
 # Test deployment
 test_deployment() {
     local env=$1
@@ -443,6 +508,13 @@ test_deployment() {
     # Get API URLs from stack outputs
     local api_url=$(aws cloudformation describe-stacks --stack-name "$stack_name" --region "$DEPLOYMENT_REGION" --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' --output text)
     local custom_url=$(aws cloudformation describe-stacks --stack-name "$stack_name" --region "$DEPLOYMENT_REGION" --query 'Stacks[0].Outputs[?OutputKey==`CustomDomainUrl`].OutputValue' --output text 2>/dev/null || echo "")
+    
+    # CRITICAL: Validate CSV expectations first - fail fast if function counts don't match
+    local test_url="${api_url}"
+    if [[ -n "$custom_url" && "$custom_url" != "None" ]]; then
+        test_url="${custom_url}"
+    fi
+    validate_csv_expectations "$env" "$test_url"
     
     # Test MCP endpoints using proper MCP test client
     local test_url="${api_url}mcp"
@@ -638,6 +710,9 @@ main() {
     
     # Check dependencies
     check_dependencies
+    
+    # Pre-deployment function architecture validation
+    validate_function_architecture
     
     # Certificate and domain setup
     local cert_arn=""

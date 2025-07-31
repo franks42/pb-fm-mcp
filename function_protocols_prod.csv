@@ -82,3 +82,8 @@ fetch_current_fm_account_info,,,Fetch comprehensive account information from Fig
 serve_conversation_interface,,YES,Serve the conversation web interface HTML page
 get_version_info,,YES,Get deployment version and build information
 get_system_status,YES,YES,Get comprehensive system status and health information
+create_ai_terminal_session,,,Create a new unique AI terminal session and return browser URL
+test_function_broken,,,Test function with broken decorator format
+test_function_clean,,,Test function clean version
+test_function_correct,,,Test function with correct decorator format
+test_function_with_params,,,Test function with parameters

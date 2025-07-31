@@ -9,7 +9,7 @@ import json
 import time
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 import boto3
 from botocore.exceptions import ClientError
 
@@ -35,7 +35,10 @@ def _generate_client_id() -> str:
     return f"browser-{uuid.uuid4().hex[:8]}"
 
 
-@api_function(protocols=["mcp", "rest"])
+@api_function(
+    protocols=["mcp", "rest"],
+    description="Create new webpage session with initial configuration and DynamoDB storage",
+)
 def webpage_create_session(session_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Create a new webpage session with initial configuration.
@@ -51,7 +54,10 @@ def webpage_create_session(session_id: Optional[str] = None) -> Dict[str, Any]:
         try:
             response = dynamodb.get_item(
                 TableName=TABLE_NAME,
-                Key={"PK": {"S": f"SESSION#{session_id}"}, "SK": {"S": "METADATA"}},
+                Key={
+                    "PK": {"S": f"SESSION#{session_id}"},
+                    "SK": {"S": "METADATA"},
+                },
             )
             if "Item" in response:
                 return {
@@ -89,10 +95,16 @@ def webpage_create_session(session_id: Optional[str] = None) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        return {"success": False, "error": f"Failed to create session: {str(e)}"}
+        return {
+            "success": False,
+            "error": f"Failed to create session: {str(e)}",
+        }
 
 
-@api_function(protocols=["mcp", "rest"])
+@api_function(
+    protocols=["mcp", "rest"],
+    description="Get comprehensive status information for webpage session including participant list",
+)
 def webpage_get_session_status(session_id: str) -> Dict[str, Any]:
     """
     Get comprehensive status information for a webpage session.
@@ -103,10 +115,16 @@ def webpage_get_session_status(session_id: str) -> Dict[str, Any]:
         # Get session metadata
         response = dynamodb.get_item(
             TableName=TABLE_NAME,
-            Key={"PK": {"S": f"SESSION#{session_id}"}, "SK": {"S": "METADATA"}},
+            Key={
+                "PK": {"S": f"SESSION#{session_id}"},
+                "SK": {"S": "METADATA"},
+            },
         )
         if "Item" not in response:
-            return {"success": False, "error": f"Session {session_id} not found"}
+            return {
+                "success": False,
+                "error": f"Session {session_id} not found",
+            }
 
         session_data = response["Item"]
 
@@ -148,4 +166,7 @@ def webpage_get_session_status(session_id: str) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        return {"success": False, "error": f"Failed to get session status: {str(e)}"}
+        return {
+            "success": False,
+            "error": f"Failed to get session status: {str(e)}",
+        }

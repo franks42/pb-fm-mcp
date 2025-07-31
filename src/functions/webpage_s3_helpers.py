@@ -8,7 +8,7 @@ All large content is stored in S3, only references are passed via SQS.
 import json
 import hashlib
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, Optional, Any, Union
 import boto3
 from botocore.exceptions import ClientError
 
@@ -29,9 +29,7 @@ def _generate_content_key(
     """Generate S3 key for content storage"""
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     if content_hash:
-        return (
-            f"sessions/{session_id}/{content_type}/{timestamp}-{content_hash[:8]}.json"
-        )
+        return f"sessions/{session_id}/{content_type}/{timestamp}-{content_hash[:8]}.json"
     else:
         return f"sessions/{session_id}/{content_type}/{timestamp}.json"
 
@@ -100,7 +98,9 @@ def webpage_store_content(
         )
 
         # Generate public URL for browser access
-        public_url = f"https://{BUCKET_NAME}.s3.us-west-1.amazonaws.com/{s3_key}"
+        public_url = (
+            f"https://{BUCKET_NAME}.s3.us-west-1.amazonaws.com/{s3_key}"
+        )
 
         return {
             "success": True,
@@ -117,4 +117,7 @@ def webpage_store_content(
         }
 
     except ClientError as e:
-        return {"success": False, "error": f"Failed to store content in S3: {str(e)}"}
+        return {
+            "success": False,
+            "error": f"Failed to store content in S3: {str(e)}",
+        }

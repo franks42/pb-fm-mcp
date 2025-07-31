@@ -14,6 +14,7 @@ This is the definitive test for validating the entire pb-fm-mcp server.
 
 import asyncio
 import argparse
+import csv
 import json
 import os
 import sys
@@ -25,6 +26,104 @@ from urllib.parse import urljoin
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+
+def parse_csv_expectations(environment: str = "dev") -> Tuple[int, int]:
+    """
+    Parse CSV configuration to get expected function counts.
+    
+    Args:
+        environment: "dev" or "prod" to determine which CSV file to use
+        
+    Returns:
+        Tuple of (expected_mcp_count, expected_rest_count)
+    """
+    # Determine CSV file path
+    if environment == "prod":
+        csv_file = "function_protocols_prod.csv"
+    else:
+        csv_file = "function_protocols.csv"
+    
+    project_root = Path(__file__).parent.parent
+    csv_path = project_root / csv_file
+    
+    if not csv_path.exists():
+        print(f"❌ CSV file not found: {csv_path}")
+        return 0, 0
+    
+    mcp_count = 0
+    rest_count = 0
+    
+    try:
+        with open(csv_path, 'r', newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                func_name = row.get('Function Name', '').strip()
+                if not func_name:
+                    continue
+                    
+                mcp_enabled = row.get('MCP', '').strip().upper() == 'YES'
+                rest_enabled = row.get('REST', '').strip().upper() == 'YES'
+                
+                if mcp_enabled:
+                    mcp_count += 1
+                if rest_enabled:
+                    rest_count += 1
+        
+        print(f"📊 CSV Expectations ({environment}):")
+        print(f"   Expected MCP functions: {mcp_count}")
+        print(f"   Expected REST functions: {rest_count}")
+        
+        return mcp_count, rest_count
+        
+    except Exception as e:
+        print(f"❌ Error parsing CSV file: {e}")
+        return 0, 0
+
+
+def validate_deployment_counts(expected_mcp: int, expected_rest: int, 
+                             actual_mcp: int, actual_rest: int) -> bool:
+    """
+    Validate that deployed function counts match CSV expectations.
+    
+    Returns:
+        True if counts match, False if validation fails
+    """
+    print(f"\n🔍 DEPLOYMENT VALIDATION")
+    print(f"=" * 50)
+    
+    validation_passed = True
+    
+    # Check MCP function count
+    if actual_mcp != expected_mcp:
+        missing_mcp = expected_mcp - actual_mcp
+        print(f"❌ MCP VALIDATION FAILED:")
+        print(f"   Expected: {expected_mcp} MCP functions")
+        print(f"   Actual:   {actual_mcp} MCP functions")
+        print(f"   Missing:  {missing_mcp} MCP functions")
+        validation_passed = False
+    else:
+        print(f"✅ MCP functions: {actual_mcp}/{expected_mcp} (100%)")
+    
+    # Check REST function count
+    if actual_rest != expected_rest:
+        missing_rest = expected_rest - actual_rest
+        print(f"❌ REST VALIDATION FAILED:")
+        print(f"   Expected: {expected_rest} REST functions")
+        print(f"   Actual:   {actual_rest} REST functions")
+        print(f"   Missing:  {missing_rest} REST functions")
+        validation_passed = False
+    else:
+        print(f"✅ REST functions: {actual_rest}/{expected_rest} (100%)")
+    
+    if not validation_passed:
+        print(f"\n🚨 CRITICAL: Deployment validation failed!")
+        print(f"   This indicates missing function imports or CSV sync issues.")
+        print(f"   Check src/functions/__init__.py for commented out imports.")
+        return False
+    
+    print(f"\n✅ DEPLOYMENT VALIDATION PASSED")
+    return True
 
 
 class FunctionTestResult:
@@ -1139,6 +1238,14 @@ async def main():
     parser.add_argument(
         "--wallet", help="Test wallet address (overrides TEST_WALLET_ADDRESS env var)"
     )
+    parser.add_argument(
+        "--env", choices=["dev", "prod"], default="dev", 
+        help="Environment to validate against (dev or prod CSV config)"
+    )
+    parser.add_argument(
+        "--validate-only", action="store_true",
+        help="Only validate function counts against CSV expectations, then exit"
+    )
 
     args = parser.parse_args()
 
@@ -1146,6 +1253,55 @@ async def main():
         os.environ["TEST_WALLET_ADDRESS"] = args.wallet
 
     tester = ExhaustiveFunctionTester(args.mcp_url, args.rest_url)
+
+    # If validate-only mode, just do CSV validation and exit
+    if args.validate_only:
+        print("🔍 CSV VALIDATION MODE")
+        print("=" * 60)
+        
+        # Get expected counts from CSV
+        try:
+            expected_mcp, expected_rest = parse_csv_expectations(args.env)
+            print(f"📋 Expected from {args.env} CSV: {expected_mcp} MCP, {expected_rest} REST")
+        except Exception as e:
+            print(f"❌ Failed to parse CSV expectations: {e}")
+            sys.exit(1)
+        
+        # Get actual counts from deployment
+        try:
+            # Do minimal discovery for validation
+            mcp_ok = await tester.discover_mcp_tools()
+            rest_ok = await tester.discover_rest_endpoints()
+            
+            if not mcp_ok and not rest_ok:
+                print("❌ Both MCP and REST discovery failed!")
+                sys.exit(1)
+            
+            # Fetch protocol information to count REST functions accurately
+            await tester.fetch_function_protocols()
+            
+            actual_mcp = len(tester.discovered_tools) if tester.discovered_tools else 0
+            
+            # Count REST functions from function protocols
+            actual_rest = 0
+            for func_name, protocols in tester.function_protocols.items():
+                if 'rest' in protocols:
+                    actual_rest += 1
+            
+            print(f"🚀 Deployed functions: {actual_mcp} MCP, {actual_rest} REST")
+        except Exception as e:
+            print(f"❌ Failed to get deployed function counts: {e}")
+            sys.exit(1)
+        
+        # Validate counts match
+        validation_passed = validate_deployment_counts(expected_mcp, expected_rest, actual_mcp, actual_rest)
+        
+        if validation_passed:
+            print("✅ CSV VALIDATION PASSED - Function counts match expectations")
+            sys.exit(0)
+        else:
+            print("❌ CSV VALIDATION FAILED - Function counts do not match expectations")
+            sys.exit(1)
 
     # Discovery phase
     print("🔍 DISCOVERY PHASE")
@@ -1164,6 +1320,26 @@ async def main():
 
     # Fetch protocol information to know which functions support REST
     await tester.fetch_function_protocols()
+
+    # CSV Validation Phase - FAIL FAST if function counts don't match expectations
+    print()
+    expected_mcp, expected_rest = parse_csv_expectations(args.env)
+    actual_mcp = len(tester.discovered_tools) if tester.discovered_tools else 0
+    
+    # Count REST functions from function protocols (already fetched)
+    actual_rest = 0
+    for func_name, protocols in tester.function_protocols.items():
+        if 'rest' in protocols:
+            actual_rest += 1
+    
+    # Validate deployment counts match CSV expectations
+    validation_passed = validate_deployment_counts(expected_mcp, expected_rest, actual_mcp, actual_rest)
+    
+    if not validation_passed:
+        print(f"\n💥 ABORTING: CSV validation failed - deployed function counts don't match expectations!")
+        print(f"   This indicates missing function imports or deployment issues.")
+        print(f"   Fix the missing functions before proceeding with testing.")
+        sys.exit(1)
 
     # Testing phase
     start_time = time.time()

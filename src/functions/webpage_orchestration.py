@@ -7,7 +7,7 @@ These are the main functions the AI will call to manage webpage sessions and con
 
 import json
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 from registry import api_function
 
 # Import all required functions at top level
@@ -17,7 +17,10 @@ from .webpage_queue_management import webpage_send_to_all_browsers
 from .webpage_session_management import webpage_create_session
 
 
-@api_function(protocols=["mcp", "rest"])
+@api_function(
+    protocols=["mcp", "rest"],
+    description="Fetch current HASH price, store in S3, and update all browsers via SQS fan-out - main MVP function",
+)
 async def webpage_update_hash_price_display(
     session_id: str, display_format: str = "compact"
 ) -> Dict[str, Any]:
@@ -119,7 +122,10 @@ async def webpage_update_hash_price_display(
             "action": "update",
             "s3_reference": s3_reference,
             "display_format": display_format,
-            "price_summary": {"price": current_price, "change_24h": price_change_24h},
+            "price_summary": {
+                "price": current_price,
+                "change_24h": price_change_24h,
+            },
         }
 
         # 4. Fan-out to all browsers in session
@@ -155,8 +161,13 @@ async def webpage_update_hash_price_display(
         }
 
 
-@api_function(protocols=["mcp", "rest"])
-def webpage_create_new_session(session_id: Optional[str] = None) -> Dict[str, Any]:
+@api_function(
+    protocols=["mcp", "rest"],
+    description="Create new webpage session and return all necessary connection details for browsers",
+)
+def webpage_create_new_session(
+    session_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Create a new webpage session and return all necessary connection details.
 
@@ -195,4 +206,7 @@ def webpage_create_new_session(session_id: Optional[str] = None) -> Dict[str, An
         }
 
     except Exception as e:
-        return {"success": False, "error": f"Failed to create new session: {str(e)}"}
+        return {
+            "success": False,
+            "error": f"Failed to create new session: {str(e)}",
+        }

@@ -59,7 +59,10 @@ def get_or_create_session(session_id: str = None) -> MockBrowserSession:
     return session
 
 
-@api_function(protocols=["mcp"])
+@api_function(
+    protocols=["mcp"],
+    description="Navigate browser to URL - returns mock response as browser automation unavailable in Lambda",
+)
 async def browser_navigate(
     url: str,
     session_id: str = None,
@@ -80,7 +83,10 @@ async def browser_navigate(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(
+    protocols=["mcp"],
+    description="Take browser screenshot - returns mock response as browser automation unavailable in Lambda",
+)
 async def browser_screenshot(
     session_id: str = None,
     full_page: bool = True,
@@ -97,7 +103,10 @@ async def browser_screenshot(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(
+    protocols=["mcp"],
+    description="Click browser element by selector - returns mock response as automation unavailable in Lambda",
+)
 async def browser_click(
     selector: str, session_id: str = None, wait_timeout: int = 10, force: bool = False
 ) -> JSONType:
@@ -110,7 +119,10 @@ async def browser_click(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(
+    protocols=["mcp"],
+    description="Type text into browser element - returns mock response as automation unavailable in Lambda",
+)
 async def browser_type(
     selector: str,
     text: str,
@@ -127,7 +139,10 @@ async def browser_type(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(
+    protocols=["mcp"],
+    description="Get text from browser element - returns mock response as automation unavailable in Lambda",
+)
 async def browser_get_text(
     selector: str, session_id: str = None, wait_timeout: int = 10
 ) -> JSONType:
@@ -140,7 +155,10 @@ async def browser_get_text(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(
+    protocols=["mcp"],
+    description="Execute JavaScript in browser - returns mock response as automation unavailable in Lambda",
+)
 async def browser_execute_javascript(
     javascript_code: str, session_id: str = None
 ) -> JSONType:
@@ -153,7 +171,10 @@ async def browser_execute_javascript(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(
+    protocols=["mcp"],
+    description="Wait for browser element to appear - returns mock response as automation unavailable in Lambda",
+)
 async def browser_wait_for_element(
     selector: str,
     session_id: str = None,
@@ -169,7 +190,10 @@ async def browser_wait_for_element(
     }
 
 
-@api_function(protocols=["mcp"])
+@api_function(
+    protocols=["mcp"],
+    description="Close mock browser session and clean up session data",
+)
 async def browser_close_session(session_id: str = None) -> JSONType:
     """Close session - returns mock response."""
     if session_id and session_id in _browser_sessions:
@@ -189,7 +213,10 @@ async def browser_close_session(session_id: str = None) -> JSONType:
         }
 
 
-@api_function(protocols=["mcp"])
+@api_function(
+    protocols=["mcp"],
+    description="Get current page information from mock browser session",
+)
 async def browser_get_page_info(session_id: str = None) -> JSONType:
     """Get page info - returns mock response."""
     if session_id and session_id in _browser_sessions:

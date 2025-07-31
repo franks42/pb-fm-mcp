@@ -219,6 +219,119 @@ curl -X POST <MCP_URL> -d '{"jsonrpc":"2.0","method":"tools/call",...}'
 - **✅ Better Error Handling**: Proper MCP session management and error reporting
 - **✅ Batch Operations**: Can perform multiple operations efficiently
 
+### 🚨 CRITICAL: Function Architecture and Registration System
+
+**MANDATORY: Understanding @api_function, __init__.py, and CSV Configuration**
+
+**The function registration system has THREE interconnected components that MUST be synchronized:**
+
+#### **1. @api_function Decorators (Code Definition)**
+Every function that should be available via MCP or REST MUST have an `@api_function` decorator:
+
+```python
+@api_function(
+    protocols=["mcp", "rest"],  # Which protocols to expose via
+    description="MANDATORY description for AI/API understanding",
+    # Optional: path, method, tags for REST customization
+)
+async def my_function(param: str) -> dict:
+    return {"result": param}
+```
+
+**Critical Rules:**
+- **✅ Description is MANDATORY** - AI needs this to understand when/how to call functions
+- **✅ protocols=[]** means function is registered but disabled (better than commenting decorators)
+- **❌ Never comment out decorators** - use CSV control instead
+
+#### **2. src/functions/__init__.py (Import Registration)**
+ALL modules containing `@api_function` decorators MUST be imported in `__init__.py`:
+
+```python
+# ✅ CORRECT: Direct module imports
+try:
+    from . import stats_functions
+    from . import blockchain_functions
+except Exception as e:
+    print(f"❌ Failed to import: {e}")
+
+# ✅ CORRECT: Subdirectory module imports  
+try:
+    from .webui_functions import conversation_functions
+    from .webui_functions import interface_functions
+except Exception as e:
+    print(f"❌ Failed to import webui_functions: {e}")
+```
+
+**Why This Matters:**
+- **Import triggers decorator execution** → Functions register in global registry
+- **No import = No registration** → Function exists but is unreachable via MCP/REST
+- **Silent failure** → No error, function just doesn't work
+
+#### **3. CSV Configuration Files (Protocol Control)**
+CSV files control which registered functions are exposed via which protocols:
+
+**`function_protocols.csv` (Development):**
+```csv
+Function Name,MCP,REST,Description
+my_function,YES,YES,Description here
+disabled_function,,,Function disabled but available in registry
+mcp_only_function,YES,,Only available via MCP protocol
+```
+
+**`function_protocols_prod.csv` (Production):**
+- Same format but typically fewer functions enabled
+- Production safety: sensitive functions disabled
+
+**CSV Rules:**
+- **Every @api_function MUST have CSV entry** 
+- **Empty MCP/REST = disabled but registered**
+- **CSV is single source of truth for protocol exposure**
+
+#### **4. Automated Validation (Deployment Safety)**
+The deploy script now includes comprehensive validation that checks:
+
+```bash
+./deploy.sh dev --clean --test
+├─ Function Architecture Validation:
+│  ├─ @api_function decorators → __init__.py imports ✓
+│  ├─ @api_function decorators → CSV entries ✓  
+│  ├─ CSV entries → source functions ✓
+│  ├─ __init__.py imports → file existence ✓
+│  ├─ Decorator syntax validation ✓
+│  └─ Duplicate function names ✓
+├─ AWS Deployment
+└─ Function count validation
+```
+
+**Validation Script Available:**
+```bash
+# Run standalone validation anytime
+uv run python scripts/validate_function_architecture.py
+```
+
+#### **5. Architecture Principles**
+- **✅ Functions define capability** (via @api_function decorators)
+- **✅ CSV controls availability** (which protocols expose them)
+- **✅ No commented decorators** (use protocols=[] instead)
+- **✅ Single source of truth** - CSV files manage protocol exposure
+- **✅ Fail fast** - validation catches issues before deployment
+
+#### **6. Common Pitfalls and Solutions**
+**Problem: Function exists but not available via MCP/REST**
+- **Check:** Is module imported in `__init__.py`?
+- **Check:** Does function have `@api_function` decorator?
+- **Check:** Is function listed in CSV with appropriate protocols?
+
+**Problem: "Function count mismatch" during deployment**
+- **Run:** `uv run python scripts/validate_function_architecture.py`
+- **Fix:** Add missing imports or CSV entries as recommended
+
+**Problem: Function works locally but not in deployed Lambda**
+- **Cause:** Module not imported in `__init__.py` → decorator never executes
+- **Fix:** Add import to trigger registration
+
+This architecture prevents the "obscure bugs" where functions exist in code but are unreachable in production.
+
 ### 🚨 CRITICAL: Code Quality Standards
 
 **🚨 MANDATORY: Code Validation Pipeline After Every Edit**

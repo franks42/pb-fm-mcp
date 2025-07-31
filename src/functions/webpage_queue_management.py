@@ -6,9 +6,8 @@ Implements the fan-out pattern for multi-browser synchronization.
 """
 
 import json
-import time
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 import boto3
 from botocore.exceptions import ClientError
 
@@ -25,9 +24,14 @@ MAX_MESSAGES = 10
 POLL_TIMEOUT = 20  # seconds
 
 
-@api_function(protocols=["mcp", "rest"])
+@api_function(
+    protocols=["mcp", "rest"],
+    description="Send message to all browsers in session using fan-out pattern with optional exclusions",
+)
 def webpage_send_to_all_browsers(
-    session_id: str, message: Dict[str, Any], exclude_client: Optional[str] = None
+    session_id: str,
+    message: Dict[str, Any],
+    exclude_client: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Send a message to all browsers in a session using fan-out pattern.
@@ -104,4 +108,7 @@ def webpage_send_to_all_browsers(
         }
 
     except Exception as e:
-        return {"success": False, "error": f"Failed to send to all browsers: {str(e)}"}
+        return {
+            "success": False,
+            "error": f"Failed to send to all browsers: {str(e)}",
+        }

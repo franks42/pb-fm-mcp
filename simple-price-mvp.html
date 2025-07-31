@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HASH Price Display - Simple MVP</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0e1a;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            background: linear-gradient(135deg, #4fc3f7, #9c27b0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+        }
+        .price-display {
+            background: #1a1f2e;
+            border: 1px solid #2a3142;
+            border-radius: 12px;
+            padding: 3rem;
+            margin: 2rem 0;
+        }
+        .price-value {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #4caf50;
+            margin: 1rem 0;
+        }
+        .price-change {
+            font-size: 1.5rem;
+            margin: 1rem 0;
+        }
+        .positive { color: #4caf50; }
+        .negative { color: #f44336; }
+        .last-updated {
+            font-size: 0.9rem;
+            color: #a0a0a0;
+            margin-top: 2rem;
+        }
+        .status {
+            background: #2a3142;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 HASH Price Display</h1>
+        
+        <div class="price-display">
+            <div class="price-value loading" id="priceValue">$0.0000</div>
+            <div class="price-change" id="priceChange">Loading...</div>
+            <div class="last-updated" id="lastUpdated">Last updated: Never</div>
+        </div>
+
+        <div class="status" id="status">
+            🔄 Connecting to AI-controlled price feed...
+        </div>
+    </div>
+
+    <script>
+        class SimplePriceMVP {
+            constructor() {
+                this.sessionId = 'simple-price-mvp';
+                this.apiBase = 'https://pb-fm-mcp-dev.creativeapptitude.com';
+                this.s3Base = 'https://pb-fm-mcp-dev.creativeapptitude.com/s3';
+                this.updateInterval = null;
+                this.initialize();
+            }
+            
+            async initialize() {
+                this.updateStatus('🔄 Initializing price display...');
+                await this.loadPriceData();
+                this.startPolling();
+            }
+            
+            async loadPriceData() {
+                try {
+                    // Try to load price data from S3 (AI-controlled)
+                    const s3PriceUrl = `${this.s3Base}/sessions/${this.sessionId}/price-data.json`;
+                    
+                    const response = await fetch(s3PriceUrl);
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.displayPriceData(data);
+                        this.updateStatus('✅ Connected to AI price feed');
+                    } else {
+                        // Fallback: Get live price from API
+                        await this.loadLivePrice();
+                    }
+                } catch (error) {
+                    console.error('Failed to load price data:', error);
+                    await this.loadLivePrice();
+                }
+            }
+            
+            async loadLivePrice() {
+                try {
+                    this.updateStatus('📡 Fetching live HASH price...');
+                    const response = await fetch(`${this.apiBase}/api/fetch_current_hash_statistics`);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        
+                        // Extract price info
+                        const priceData = {
+                            price: data.hash_token_data?.current_price || '$0.0000',
+                            change: data.hash_token_data?.price_change_24h || '0.00%',
+                            timestamp: new Date().toISOString(),
+                            source: 'Live API'
+                        };
+                        
+                        this.displayPriceData(priceData);
+                        this.updateStatus('✅ Live price loaded (AI can override via S3)');
+                    } else {
+                        this.updateStatus('❌ Failed to load price data');
+                    }
+                } catch (error) {
+                    this.updateStatus('❌ Connection error');
+                    console.error('API error:', error);
+                }
+            }
+            
+            displayPriceData(data) {
+                const priceEl = document.getElementById('priceValue');
+                const changeEl = document.getElementById('priceChange');
+                const updatedEl = document.getElementById('lastUpdated');
+                
+                // Update price
+                priceEl.textContent = data.price || '$0.0000';
+                priceEl.classList.remove('loading');
+                
+                // Update change
+                const change = data.change || '0.00%';
+                changeEl.textContent = `24h Change: ${change}`;
+                changeEl.className = 'price-change ' + (change.startsWith('+') ? 'positive' : 'negative');
+                
+                // Update timestamp
+                const time = data.timestamp ? new Date(data.timestamp).toLocaleString() : 'Unknown';
+                updatedEl.textContent = `Last updated: ${time} (${data.source || 'Unknown source'})`;
+            }
+            
+            startPolling() {
+                // Poll every 5 seconds for AI updates
+                this.updateInterval = setInterval(() => {
+                    this.loadPriceData();
+                }, 5000);
+            }
+            
+            updateStatus(message) {
+                document.getElementById('status').textContent = message;
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            new SimplePriceMVP();
+        });
+    </script>
+</body>
+</html>

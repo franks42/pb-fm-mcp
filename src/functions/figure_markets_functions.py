@@ -95,13 +95,14 @@ async def fetch_last_crypto_token_price(
 
 
 # NOTE: This API endpoint is not publicly accessible - Figure Markets account APIs are private
-# @api_function(
-#     protocols=["mcp", "rest"], 
-#     path="/api/fm_account_balance/{wallet_address}",
-#     method="GET",
-#     tags=["account", "balance", "markets"],
-#     description="Fetch Figure Markets account balance data"
-# )
+# Disabled via CSV configuration - protocols set to [] 
+@api_function(
+    protocols=[], 
+    path="/api/fm_account_balance/{wallet_address}",
+    method="GET",
+    tags=["account", "balance", "markets"],
+    description="Fetch Figure Markets account balance data"
+)
 async def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONType:
     """
     Fetch the current account balance data from the Figure Markets exchange 
@@ -134,13 +135,14 @@ async def fetch_current_fm_account_balance_data(wallet_address: str) -> JSONType
 
 
 # NOTE: This API endpoint is not publicly accessible - Figure Markets account APIs are private
-# @api_function(
-#     protocols=["mcp", "rest"],
-#     path="/api/fm_account_info/{wallet_address}",
-#     method="GET", 
-#     tags=["account", "info", "markets"],
-#     description="Fetch Figure Markets account information"
-# )
+# Disabled via CSV configuration - protocols set to []
+@api_function(
+    protocols=[],
+    path="/api/fm_account_info/{wallet_address}",
+    method="GET", 
+    tags=["account", "info", "markets"],
+    description="Fetch Figure Markets account information"
+)
 async def fetch_current_fm_account_info(wallet_address: str) -> JSONType:
     """
     Fetch comprehensive account information from Figure Markets exchange

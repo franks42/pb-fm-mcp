@@ -38,7 +38,8 @@ except Exception as e:
     print(f"❌ Failed to import system_functions: {e}")
 
 try:
-    from . import webui_functions
+    from .webui_functions import conversation_functions
+    from .webui_functions import interface_functions
 except Exception as e:
     print(f"❌ Failed to import webui_functions: {e}")
 
@@ -82,26 +83,45 @@ try:
 except Exception as e:
     print(f"❌ Failed to import ai_terminal: {e}")
 
-# TEMPORARILY COMMENTED OUT FOR DEBUGGING - webpage imports
-# try:
-#     from . import webpage_session_management
-# except Exception as e:
-#     print(f"❌ Failed to import webpage_session_management: {e}")
+try:
+    from . import event_store
+except Exception as e:
+    print(f"❌ Failed to import event_store: {e}")
 
-# try:
-#     from . import webpage_s3_helpers
-# except Exception as e:
-#     print(f"❌ Failed to import webpage_s3_helpers: {e}")
+try:
+    from . import test_broken_decorator
+except Exception as e:
+    print(f"❌ Failed to import test_broken_decorator: {e}")
 
-# try:
-#     from . import webpage_queue_management
-# except Exception as e:
-#     print(f"❌ Failed to import webpage_queue_management: {e}")
+try:
+    from . import test_decorator
+except Exception as e:
+    print(f"❌ Failed to import test_decorator: {e}")
 
-# try:
-#     from . import webpage_orchestration
-# except Exception as e:
-#     print(f"❌ Failed to import webpage_orchestration: {e}")
+try:
+    from . import version_functions
+except Exception as e:
+    print(f"❌ Failed to import version_functions: {e}")
+
+try:
+    from . import webpage_session_management
+except Exception as e:
+    print(f"❌ Failed to import webpage_session_management: {e}")
+
+try:
+    from . import webpage_s3_helpers
+except Exception as e:
+    print(f"❌ Failed to import webpage_s3_helpers: {e}")
+
+try:
+    from . import webpage_queue_management
+except Exception as e:
+    print(f"❌ Failed to import webpage_queue_management: {e}")
+
+try:
+    from . import webpage_orchestration
+except Exception as e:
+    print(f"❌ Failed to import webpage_orchestration: {e}")
 
 __all__ = [
     "stats_functions",
@@ -115,14 +135,12 @@ __all__ = [
     "browser_automation",
     "dynamic_visualization",
     "debug_functions",
-    # TEMPORARILY COMMENTED OUT - SUSPECTED FAILING MODULES
-    # "declarative_dashboard",
+    "declarative_dashboard",
     "dashboard_coordinator",
     "sqs_traffic_light",
     "ai_terminal",
-    # TEMPORARILY COMMENTED OUT FOR DEBUGGING
-    # "webpage_session_management",
-    # "webpage_s3_helpers", 
-    # "webpage_queue_management",
-    # "webpage_orchestration",
+    "webpage_session_management",
+    "webpage_s3_helpers", 
+    "webpage_queue_management",
+    "webpage_orchestration",
 ]

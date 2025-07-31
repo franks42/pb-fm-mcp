@@ -71,8 +71,8 @@ create_new_session,,YES,Create new user session with unique UUID for web interfa
 get_latest_response,,YES,Web interface polls for latest Claude response in their session
 cleanup_inactive_sessions,,YES,Remove inactive sessions older than specified hours
 create_portfolio_health,YES,YES,AI creates comprehensive portfolio health dashboard with risk analysis
-fetch_current_fm_account_balance_data,YES,YES,Fetch the current account balance data from the Figure Markets exchange for the given wallet address portfolio
-fetch_current_fm_account_info,YES,YES,Fetch comprehensive account information from Figure Markets exchange for the given wallet address
+fetch_current_fm_account_balance_data,,,Fetch the current account balance data from the Figure Markets exchange for the given wallet address portfolio
+fetch_current_fm_account_info,,,Fetch comprehensive account information from Figure Markets exchange for the given wallet address
 serve_conversation_interface,,YES,Serve the conversation web interface HTML page
 get_version_info,,YES,Get deployment version and build information
 get_system_status,YES,YES,Get comprehensive system status and health information
@@ -82,3 +82,8 @@ webpage_get_session_status,YES,YES,Get comprehensive status information for a we
 webpage_send_to_all_browsers,YES,YES,Send a message to all browsers in a session using fan-out pattern
 webpage_store_content,YES,YES,Store content in S3 and return reference for SQS messaging
 webpage_update_hash_price_display,YES,YES,Fetch current HASH price and update all browsers in the session
+create_ai_terminal_session,YES,,Create a new unique AI terminal session and return browser URL
+test_function_broken,YES,YES,Test function with broken decorator format
+test_function_clean,YES,YES,Test function clean version
+test_function_correct,YES,YES,Test function with correct decorator format
+test_function_with_params,YES,YES,Test function with parameters
